@@ -55,6 +55,25 @@ class StreamActivity : AppCompatActivity()
 
 	private val uiVisibilityHandler = Handler(Looper.getMainLooper())
 
+	// In Arabic: subtitle reading + translation while the stream runs
+	private var captionEngine: com.inarabic.caption.CaptionEngine? = null
+
+	private fun startCaptions()
+	{
+		if(captionEngine != null) return
+		captionEngine = com.inarabic.caption.CaptionEngine(binding.surfaceView, com.inarabic.InArabicPrefs(this)) { text ->
+			binding.iaCaption.text = text ?: ""
+			binding.iaCaption.visibility = if(text.isNullOrEmpty()) View.GONE else View.VISIBLE
+		}.also { it.start() }
+	}
+
+	private fun stopCaptions()
+	{
+		captionEngine?.stop()
+		captionEngine = null
+		binding.iaCaption.visibility = View.GONE
+	}
+
 	override fun onCreate(savedInstanceState: Bundle?)
 	{
 		super.onCreate(savedInstanceState)
@@ -168,6 +187,7 @@ class StreamActivity : AppCompatActivity()
 
 	override fun onDestroy()
 	{
+		stopCaptions()
 		super.onDestroy()
 		controlsJob?.cancel()
 	}
@@ -233,6 +253,7 @@ class StreamActivity : AppCompatActivity()
 	private fun stateChanged(state: StreamState)
 	{
 		binding.progressBar.visibility = if(state == StreamStateConnecting) View.VISIBLE else View.GONE
+		if(state == StreamStateConnected) startCaptions() else if(state is StreamStateQuit) stopCaptions()
 
 		when(state)
 		{

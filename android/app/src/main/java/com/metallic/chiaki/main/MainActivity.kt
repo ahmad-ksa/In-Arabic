@@ -147,6 +147,12 @@ class MainActivity : AppCompatActivity()
 			true
 		}
 
+		R.id.action_inarabic ->
+		{
+			startActivity(Intent(this, com.inarabic.InArabicSettingsActivity::class.java))
+			true
+		}
+
 		R.id.action_settings ->
 		{
 			Intent(this, SettingsActivity::class.java).also {

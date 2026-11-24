@@ -33,6 +33,10 @@ class RegistActivity: AppCompatActivity(), RevealActivity
 	private lateinit var viewModel: RegistViewModel
 	private lateinit var binding: ActivityRegistBinding
 
+	private val psnLogin = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { r ->
+		r.data?.getStringExtra(com.inarabic.psn.PsnLoginActivity.EXTRA_ACCOUNT_ID)?.let { binding.psnIdEditText.setText(it) }
+	}
+
 	override val revealWindow: Window get() = window
 	override val revealIntent: Intent get() = intent
 	override val revealRootLayout: View get() = binding.rootLayout
@@ -50,6 +54,13 @@ class RegistActivity: AppCompatActivity(), RevealActivity
 		binding.broadcastCheckBox.isChecked = intent.getBooleanExtra(EXTRA_BROADCAST, true)
 
 		binding.registButton.setOnClickListener { doRegist() }
+
+		// In Arabic: get the PSN account ID by signing in, instead of copying it from a website
+		binding.psnAccountIdHelpURLTextView.text = "👉 اضغط هنا وسجّل الدخول بحساب PlayStation ليُكتب رقم الحساب تلقائيًا"
+		binding.psnAccountIdHelpURLTextView.autoLinkMask = 0
+		binding.psnAccountIdHelpURLTextView.setOnClickListener {
+			psnLogin.launch(Intent(this, com.inarabic.psn.PsnLoginActivity::class.java))
+		}
 
 		binding.ps4VersionRadioGroup.check(when(viewModel.ps4Version.value ?: RegistViewModel.ConsoleVersion.PS5) {
 			RegistViewModel.ConsoleVersion.PS5 -> R.id.ps5RadioButton

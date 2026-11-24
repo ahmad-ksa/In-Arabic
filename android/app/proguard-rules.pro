@@ -89,3 +89,7 @@
     <init>(...);
     <fields>;
 }
+
+# In Arabic
+-dontwarn org.slf4j.**
+-keep class org.java_websocket.** { *; }

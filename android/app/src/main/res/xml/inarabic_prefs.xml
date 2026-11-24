@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+    <PreferenceCategory app:title="الترجمة">
+        <SwitchPreference app:key="ia_enabled" app:defaultValue="true"
+            app:title="ترجمة الترجمات الإنجليزية" app:summary="تعمل أثناء اللعب من الجوال" />
+        <Preference app:key="ia_download_model" app:title="تنزيل نموذج الترجمة المجاني"
+            app:summary="مرة واحدة (حوالي 30 ميغا) — بعدها تعمل الترجمة الفورية بدون إنترنت" />
+        <SwitchPreference app:key="ia_ai_enabled" app:defaultValue="false"
+            app:title="ترجمة أدق بالذكاء الاصطناعي"
+            app:summary="تظهر الترجمة المجانية فورًا ثم تُستبدل بترجمة الذكاء الاصطناعي" />
+        <EditTextPreference app:key="ia_ai_key" app:title="مفتاح API" app:dependency="ia_ai_enabled" />
+        <EditTextPreference app:key="ia_ai_base" app:title="عنوان الخدمة" app:dependency="ia_ai_enabled"
+            app:defaultValue="https://api.openai.com/v1" app:useSimpleSummaryProvider="true" />
+        <EditTextPreference app:key="ia_ai_model" app:title="النموذج" app:dependency="ia_ai_enabled"
+            app:defaultValue="gpt-4o-mini" app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+    <PreferenceCategory app:title="قراءة الترجمة من الشاشة">
+        <SeekBarPreference app:key="ia_area_top" app:title="بداية منطقة الترجمة (من أعلى الصورة %)"
+            app:defaultValue="62" android:max="95" app:min="0" app:showSeekBarValue="true"
+            xmlns:android="http://schemas.android.com/apk/res/android" />
+        <SeekBarPreference app:key="ia_area_bottom" app:title="نهاية منطقة الترجمة (%)"
+            app:defaultValue="97" android:max="100" app:min="10" app:showSeekBarValue="true"
+            xmlns:android="http://schemas.android.com/apk/res/android" />
+        <SeekBarPreference app:key="ia_read_every" app:title="سرعة القراءة (ملّي ثانية بين كل قراءة)"
+            app:defaultValue="300" android:max="1000" app:min="150" app:showSeekBarValue="true"
+            xmlns:android="http://schemas.android.com/apk/res/android" />
+        <SwitchPreference app:key="ia_show_on_phone" app:defaultValue="true"
+            app:title="اعرض الترجمة على الجوال أيضًا" />
+    </PreferenceCategory>
+    <PreferenceCategory app:title="الشاشة">
+        <Preference app:key="ia_address" app:title="عنوان الجوال لتطبيق الشاشة" />
+        <SeekBarPreference app:key="ia_text_scale" app:title="حجم الخط (%)"
+            app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true"
+            xmlns:android="http://schemas.android.com/apk/res/android" />
+        <SwitchPreference app:key="ia_cover" app:defaultValue="true"
+            app:title="غطِّ الترجمة الإنجليزية الأصلية" />
+        <SeekBarPreference app:key="ia_box_opacity" app:title="عتامة خلفية الترجمة (%)"
+            app:defaultValue="85" android:max="100" app:min="0" app:showSeekBarValue="true"
+            xmlns:android="http://schemas.android.com/apk/res/android" />
+    </PreferenceCategory>
+</PreferenceScreen>
