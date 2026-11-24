@@ -65,6 +65,18 @@ class StreamActivity : AppCompatActivity()
 			binding.iaCaption.text = text ?: ""
 			binding.iaCaption.visibility = if(text.isNullOrEmpty()) View.GONE else View.VISIBLE
 		}.also { it.start() }
+		// tap the Arabic line on the phone to correct it: remembered, and replaced on the TV at once
+		binding.iaCaption.setOnClickListener {
+			val cur = captionEngine?.current ?: return@setOnClickListener
+			val edit = EditText(this).apply { setText(cur.arabic); setSelection(text.length) }
+			MaterialAlertDialogBuilder(this)
+				.setTitle("تصحيح الترجمة")
+				.setMessage(cur.english)
+				.setView(edit)
+				.setPositiveButton("احفظ") { _, _ -> edit.text.toString().trim().takeIf { it.isNotEmpty() }?.let { captionEngine?.correct(it) } }
+				.setNegativeButton("إلغاء", null)
+				.show()
+		}
 	}
 
 	private fun stopCaptions()

@@ -93,3 +93,4 @@
 # In Arabic
 -dontwarn org.slf4j.**
 -keep class org.java_websocket.** { *; }
+-keep class ai.onnxruntime.** { *; }

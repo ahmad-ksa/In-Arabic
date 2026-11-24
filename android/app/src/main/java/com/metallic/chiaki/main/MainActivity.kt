@@ -36,6 +36,7 @@ class MainActivity : AppCompatActivity()
 	override fun onCreate(savedInstanceState: Bundle?)
 	{
 		super.onCreate(savedInstanceState)
+		com.inarabic.link.LinkServer.start(this) // TVs can connect as soon as the app is open
 		binding = ActivityMainBinding.inflate(layoutInflater)
 		setContentView(binding.root)
 

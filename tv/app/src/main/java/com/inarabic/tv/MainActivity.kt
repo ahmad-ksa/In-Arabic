@@ -58,8 +58,15 @@ class MainActivity : Activity()
 			setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); inputType = InputType.TYPE_CLASS_PHONE; gravity = Gravity.CENTER
 		}
 		col.addView(addr)
-		col.addView(button("احفظ العنوان") {
+		col.addView(label("رمز الاقتران (يظهر في إعدادات الترجمة بالجوال):", 18f, 0.75f))
+		val code = EditText(this).apply {
+			setText(Prefs.pairCode(this@MainActivity)); hint = "4 أرقام"; textSize = 24f
+			setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); inputType = InputType.TYPE_CLASS_NUMBER; gravity = Gravity.CENTER
+		}
+		col.addView(code)
+		col.addView(button("احفظ") {
 			Prefs.setPhoneAddress(this, addr.text.toString())
+			Prefs.setPairCode(this, code.text.toString())
 			if(OverlayService.running) { stopService(Intent(this, OverlayService::class.java)); startOverlay() }
 		})
 		setContentView(ScrollView(this).apply { addView(col) })

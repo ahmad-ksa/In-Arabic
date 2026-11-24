@@ -1,0 +1,100 @@
+// SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
+// Remembers every translated line on the phone (a small text file), so a line seen before is shown at once
+// and never costs an AI call again. Your own corrections win over the AI, the AI wins over the free model.
+
+package com.inarabic.memory
+
+import android.content.Context
+import com.inarabic.caption.SubtitleTracker
+import java.io.File
+
+object TranslationMemory
+{
+	enum class Source(val rank: Int) { QUICK(1), AI(2), USER(3) }
+	data class Entry(val english: String, val arabic: String, val source: Source)
+
+	private val map = HashMap<String, Entry>()
+	private var file: File? = null
+
+	@Synchronized fun load(context: Context)
+	{
+		if(file != null) return
+		val f = File(context.filesDir, "translation-memory.tsv")
+		file = f
+		if(!f.exists()) return
+		f.forEachLine { line ->
+			val p = line.split('\t')
+			if(p.size >= 3)
+			{
+				val src = runCatching { Source.valueOf(p[0]) }.getOrNull() ?: return@forEachLine
+				val e = Entry(unescape(p[1]), unescape(p[2]), src)
+				val k = SubtitleTracker.key(e.english)
+				val old = map[k]
+				if(old == null || old.source.rank <= src.rank) map[k] = e
+			}
+		}
+	}
+
+	@Synchronized fun get(english: String): Entry? = map[SubtitleTracker.key(english)]
+
+	/** Stores a translation unless a better one (higher source) is already known. */
+	@Synchronized fun put(english: String, arabic: String, source: Source)
+	{
+		val k = SubtitleTracker.key(english)
+		if(k.isEmpty() || arabic.isBlank()) return
+		val old = map[k]
+		if(old != null && (old.source.rank > source.rank || old.arabic == arabic && old.source == source)) return
+		map[k] = Entry(english, arabic, source)
+		try { file?.appendText("${source.name}\t${escape(english)}\t${escape(arabic)}\n") } catch(e: Exception) { }
+	}
+
+	@Synchronized fun size() = map.size
+	@Synchronized fun count(source: Source) = map.values.count { it.source == source }
+
+	@Synchronized fun clear()
+	{
+		map.clear()
+		try { file?.delete() } catch(e: Exception) { }
+	}
+
+	private fun escape(s: String) = s.replace("\\", "\\\\").replace("\t", "\\t").replace("\n", "\\n")
+	private fun unescape(s: String) = buildString {
+		var i = 0
+		while(i < s.length)
+		{
+			val c = s[i]
+			if(c == '\\' && i + 1 < s.length)
+			{
+				when(s[i + 1]) { 't' -> append('\t'); 'n' -> append('\n'); else -> append(s[i + 1]) }
+				i += 2
+			}
+			else { append(c); i++ }
+		}
+	}
+}
+
+/** Every line of a play session, for the story summary. One file per session, the last 20 kept. */
+object SessionLog
+{
+	private var file: File? = null
+
+	@Synchronized fun begin(context: Context)
+	{
+		val dir = File(context.filesDir, "sessions").apply { mkdirs() }
+		dir.listFiles()?.sortedBy { it.name }?.dropLast(19)?.forEach { it.delete() }
+		file = File(dir, "${System.currentTimeMillis()}.tsv")
+	}
+
+	@Synchronized fun add(english: String, arabic: String)
+	{
+		try { file?.appendText("${System.currentTimeMillis()}\t${english.replace('\t', ' ')}\t${arabic.replace('\t', ' ').replace('\n', ' ')}\n") } catch(e: Exception) { }
+	}
+
+	/** Lines of the latest session that has any (English, Arabic). */
+	fun lastSession(context: Context): List<Pair<String, String>>
+	{
+		val dir = File(context.filesDir, "sessions")
+		val f = dir.listFiles()?.filter { it.length() > 0 }?.maxByOrNull { it.name } ?: return emptyList()
+		return f.readLines().mapNotNull { l -> l.split('\t').takeIf { it.size >= 3 }?.let { it[1] to it[2] } }
+	}
+}

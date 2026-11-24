@@ -37,6 +37,7 @@ class OverlayService : Service()
 	private var link: Link? = null
 	private val main = Handler(Looper.getMainLooper())
 	private val hide = Runnable { view?.text = null }
+	private val hidePanel = Runnable { view?.panelText = null }
 
 	override fun onBind(intent: Intent?): IBinder? = null
 
@@ -95,11 +96,28 @@ class OverlayService : Service()
 				main.removeCallbacks(hide); main.postDelayed(hide, 15000)
 			}
 			"clear" -> { main.removeCallbacks(hide); v.text = null }
+			"box2" ->
+			{
+				val b = o.optJSONArray("box")
+				v.box2 = if(b != null && b.length() == 4) FloatArray(4) { b.optDouble(it).toFloat() } else null
+				v.box2Text = o.optString("ar")
+			}
+			"box2clear" -> v.box2Text = null
+			"panel" ->
+			{
+				v.panelTitle = o.optString("title")
+				v.panelText = o.optString("text")
+				main.removeCallbacks(hidePanel); main.postDelayed(hidePanel, o.optLong("ttl", 30000))
+			}
 			"style" ->
 			{
 				v.scale = o.optDouble("scale", 1.0).toFloat()
 				v.cover = o.optBoolean("cover", true)
 				v.opacity = o.optDouble("opacity", 0.85).toFloat()
+				v.color = try { android.graphics.Color.parseColor(o.optString("color", "#FFFFFF")) } catch(e: Exception) { android.graphics.Color.WHITE }
+				v.position = o.optString("pos", "auto")
+				v.bold = o.optBoolean("bold", true)
+				v.styleChanged()
 			}
 		}
 	}

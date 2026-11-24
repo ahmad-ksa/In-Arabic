@@ -58,7 +58,7 @@ class Link(private val context: Context, private val onMessage: (JSONObject) -> 
 		val h = host ?: return
 		if(!running) return
 		onStatus("جارٍ الاتصال بالجوال $h…")
-		val req = Request.Builder().url("ws://$h:$PORT/").build()
+		val req = Request.Builder().url("ws://$h:$PORT/?code=" + Prefs.pairCode(context)).build()
 		ws = http.newWebSocket(req, object : WebSocketListener() {
 			override fun onOpen(webSocket: WebSocket, response: Response)
 			{
@@ -73,7 +73,11 @@ class Link(private val context: Context, private val onMessage: (JSONObject) -> 
 			}
 
 			override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) { retry("تعذّر الاتصال: ${t.message ?: ""}") }
-			override fun onClosed(webSocket: WebSocket, code: Int, reason: String) { retry("انقطع الاتصال") }
+			override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { webSocket.close(code, null) }
+			override fun onClosed(webSocket: WebSocket, code: Int, reason: String)
+			{
+				retry(if(code == 4001) "رمز الاقتران غير صحيح — اكتبه كما في إعدادات الترجمة بالجوال" else "انقطع الاتصال")
+			}
 		})
 	}
 
@@ -141,4 +145,6 @@ object Prefs
 	private fun p(c: Context) = c.getSharedPreferences("inarabic", Context.MODE_PRIVATE)
 	fun phoneAddress(c: Context) = p(c).getString("phone", "") ?: ""
 	fun setPhoneAddress(c: Context, v: String) = p(c).edit().putString("phone", v.trim()).apply()
+	fun pairCode(c: Context) = p(c).getString("code", "") ?: ""
+	fun setPairCode(c: Context, v: String) = p(c).edit().putString("code", v.trim()).apply()
 }

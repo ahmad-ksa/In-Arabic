@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="ia_color_names">
+        <item>أبيض</item><item>أصفر</item><item>سماوي</item><item>أخضر فاتح</item>
+    </string-array>
+    <string-array name="ia_color_values" translatable="false">
+        <item>#FFFFFF</item><item>#FFE066</item><item>#7FE3F0</item><item>#B6F2A2</item>
+    </string-array>
+    <string-array name="ia_pos_names">
+        <item>فوق الترجمة الإنجليزية</item><item>أسفل الشاشة</item><item>أعلى الشاشة</item>
+    </string-array>
+    <string-array name="ia_pos_values" translatable="false">
+        <item>auto</item><item>bottom</item><item>top</item>
+    </string-array>
+</resources>

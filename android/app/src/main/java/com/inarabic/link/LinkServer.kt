@@ -3,10 +3,15 @@
 // connect to. It is announced on the network (mDNS/NSD) so the Android TV app finds it by itself; the LG app
 // is given the phone's address once.
 //
+// A TV connects to ws://PHONE:8765/?code=1234 (the 4-digit pairing code shown in the phone's settings);
+// a wrong code is closed with 4001.
+//
 // Messages (JSON, phone -> TV):
 //   {"t":"sub","id":7,"ar":"…","en":"…","final":false,"box":[x,y,w,h]}   box: original subtitle, 0..1 of the picture
 //   {"t":"clear"}
-//   {"t":"style","scale":1.0,"cover":true,"opacity":0.85}
+//   {"t":"box2","ar":"…","box":[x,y,w,h]} / {"t":"box2clear"}           side texts (objectives, messages)
+//   {"t":"panel","title":"…","text":"…","ttl":30000}                     e.g. the story summary
+//   {"t":"style","scale":1.0,"cover":true,"opacity":0.85,"color":"#FFFFFF","pos":"auto|bottom|top","bold":true}
 // TV -> phone: {"t":"hello","kind":"androidtv|lg","name":"…"}
 
 package com.inarabic.link
@@ -35,6 +40,8 @@ object LinkServer
 	private var nsdListener: NsdManager.RegistrationListener? = null
 
 	@Volatile private var lastSub: String? = null
+	@Volatile private var lastBox2: String? = null
+	@Volatile var pairCode: String = 
 	@Volatile private var lastStyle: String? = null
 
 	/** connected screens, for the status line in the app */
@@ -43,6 +50,9 @@ object LinkServer
 
 	@Synchronized fun start(context: Context)
 	{
+		val prefs = com.inarabic.InArabicPrefs(context)
+		pairCode = prefs.pairCode
+		if(lastStyle == null) sendStyle(prefs)
 		if(server != null) return
 		val s = Server()
 		s.isReuseAddr = true
@@ -95,9 +105,29 @@ object LinkServer
 		broadcast("{\"t\":\"clear\"}")
 	}
 
-	fun sendStyle(scale: Float, cover: Boolean, opacity: Float)
+	fun sendBox2(arabic: String, box: FloatArray)
 	{
-		val msg = JSONObject().put("t", "style").put("scale", scale.toDouble()).put("cover", cover).put("opacity", opacity.toDouble()).toString()
+		val msg = JSONObject().put("t", "box2").put("ar", arabic)
+			.put("box", org.json.JSONArray().put(box[0].toDouble()).put(box[1].toDouble()).put(box[2].toDouble()).put(box[3].toDouble())).toString()
+		lastBox2 = msg
+		broadcast(msg)
+	}
+
+	fun sendBox2Clear()
+	{
+		lastBox2 = null
+		broadcast("{\"t\":\"box2clear\"}")
+	}
+
+	fun sendPanel(title: String, text: String, ttlMs: Long = 30000)
+	{
+		broadcast(JSONObject().put("t", "panel").put("title", title).put("text", text).put("ttl", ttlMs).toString())
+	}
+
+	fun sendStyle(p: com.inarabic.InArabicPrefs)
+	{
+		val msg = JSONObject().put("t", "style").put("scale", p.textScale.toDouble()).put("cover", p.coverOriginal)
+			.put("opacity", p.boxOpacity.toDouble()).put("color", p.textColor).put("pos", p.position).put("bold", p.bold).toString()
 		lastStyle = msg
 		broadcast(msg)
 	}
@@ -124,10 +154,17 @@ object LinkServer
 	{
 		override fun onOpen(conn: WebSocket, handshake: ClientHandshake)
 		{
+			val code = android.net.Uri.parse("http://x" + (handshake.resourceDescriptor ?: "/")).getQueryParameter("code")
+			if(code != pairCode)
+			{
+				conn.close(4001, "wrong pairing code")
+				return
+			}
 			synchronized(screens) { screens[conn] = conn.remoteSocketAddress?.address?.hostAddress ?: "?" }
 			onScreensChanged?.invoke()
 			lastStyle?.let { conn.send(it) }
 			lastSub?.let { conn.send(it) }
+			lastBox2?.let { conn.send(it) }
 		}
 
 		override fun onClose(conn: WebSocket, code: Int, reason: String?, remote: Boolean)

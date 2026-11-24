@@ -80,6 +80,11 @@ class Translator(private val prefs: InArabicPrefs)
 		return ar
 	}
 
+	/** One question to the AI model (used for the story summary too). */
+	suspend fun ask(system: String, user: String, timeoutMs: Long = 30000): String? =
+		if(prefs.aiKey.isBlank()) null
+		else withTimeoutOrNull(timeoutMs) { withContext(Dispatchers.IO) { chat(system, user, (timeoutMs - 1000).toInt()) } }
+
 	private fun askAi(english: String): String?
 	{
 		val context = synchronized(history) { history.toList() }
@@ -95,6 +100,11 @@ class Translator(private val prefs: InArabicPrefs)
 			}
 			append("السطر المطلوب:\n").append(english)
 		}
+		return chat(system, user, 8000)
+	}
+
+	private fun chat(system: String, user: String, readTimeoutMs: Int): String?
+	{
 		val body = JSONObject()
 			.put("model", prefs.aiModel)
 			.put("temperature", 0.2)
@@ -106,7 +116,7 @@ class Translator(private val prefs: InArabicPrefs)
 			val con = URL(prefs.aiBaseUrl + "/chat/completions").openConnection() as HttpURLConnection
 			con.requestMethod = "POST"
 			con.connectTimeout = 5000
-			con.readTimeout = 8000
+			con.readTimeout = readTimeoutMs
 			con.doOutput = true
 			con.setRequestProperty("Content-Type", "application/json")
 			con.setRequestProperty("Authorization", "Bearer " + prefs.aiKey)

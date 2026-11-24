@@ -5,6 +5,7 @@ package com.inarabic
 
 import android.content.Context
 import androidx.preference.PreferenceManager
+import kotlin.random.Random
 
 class InArabicPrefs(context: Context)
 {
@@ -20,8 +21,16 @@ class InArabicPrefs(context: Context)
 	/** How often the picture is read, in milliseconds. */
 	val readEveryMs get() = p.getInt("ia_read_every", 300).toLong().coerceIn(150, 2000)
 
+	/** Second reader (PaddleOCR) for lines the first one is unsure about. */
+	val secondReader get() = p.getBoolean("ia_paddle", true)
+
 	/** Show the Arabic line on the phone too (over the stream). */
 	val showOnPhone get() = p.getBoolean("ia_show_on_phone", true)
+
+	/** Second box: side texts such as objectives or messages, in its own area of the picture (percent). */
+	val box2Enabled get() = p.getBoolean("ia_box2", false)
+	val box2 get() = floatArrayOf(p.getInt("ia_box2_x", 2) / 100f, p.getInt("ia_box2_y", 3) / 100f,
+		p.getInt("ia_box2_w", 40) / 100f, p.getInt("ia_box2_h", 22) / 100f)
 
 	/** Second, better translation by an AI model (OpenAI-compatible API). */
 	val aiEnabled get() = p.getBoolean("ia_ai_enabled", false) && aiKey.isNotBlank()
@@ -33,4 +42,18 @@ class InArabicPrefs(context: Context)
 	val textScale get() = p.getInt("ia_text_scale", 100) / 100f
 	val coverOriginal get() = p.getBoolean("ia_cover", true)
 	val boxOpacity get() = p.getInt("ia_box_opacity", 85) / 100f
+	val textColor get() = p.getString("ia_color", "#FFFFFF") ?: "#FFFFFF"
+	/** auto = over the English line, bottom / top = fixed */
+	val position get() = p.getString("ia_position", "auto") ?: "auto"
+	val bold get() = p.getBoolean("ia_bold", true)
+
+	/** 4-digit code the TV apps must give to receive subtitles (made once). */
+	val pairCode: String get()
+	{
+		val c = p.getString("ia_pair_code", null)
+		if(c != null && c.length == 4) return c
+		val n = String.format("%04d", Random.nextInt(10000))
+		p.edit().putString("ia_pair_code", n).apply()
+		return n
+	}
 }

@@ -11,6 +11,12 @@
   #game { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: contain; background: #000; }
   #cap { position: absolute; display: none; text-align: center; direction: rtl; font-weight: 700;
     line-height: 1.25; padding: 10px 26px; border-radius: 12px; text-shadow: 0 2px 4px #000; box-sizing: border-box; }
+  #box2 { position: absolute; display: none; direction: rtl; text-align: right; font-weight: 700; line-height: 1.3;
+    padding: 10px 16px; border-radius: 10px; box-sizing: border-box; text-shadow: 0 2px 4px #000; }
+  #panel { position: absolute; left: 345px; top: 130px; width: 1230px; max-height: 820px; overflow: hidden; display: none;
+    background: rgba(10,25,41,.93); border-radius: 22px; padding: 44px 60px; box-sizing: border-box; direction: rtl; }
+  #panel h2 { margin: 0 0 24px; font-size: 46px; text-align: center; }
+  #panel div { font-size: 34px; line-height: 1.55; white-space: pre-wrap; }
   #status { position: absolute; top: 24px; left: 24px; font-size: 22px; padding: 8px 16px; border-radius: 10px;
     background: rgba(0,0,0,.6); transition: opacity .6s; }
   #setup { position: absolute; inset: 0; background: rgba(10,25,41,.96); display: none; padding: 80px 160px; box-sizing: border-box; }
@@ -27,12 +33,15 @@
 <body>
 <video id="game" autoplay></video>
 <div id="cap"></div>
+<div id="box2"></div>
+<div id="panel"><h2 id="panel-t"></h2><div id="panel-b"></div></div>
 <div id="status"></div>
 
 <div id="setup">
   <h1>بالعربي — ترجمة الألعاب</h1>
   <p>اكتب عنوان الجوال كما يظهر في تطبيق الجوال (إعدادات الترجمة ← عنوان الجوال)، واختر مدخل البلايستيشن.</p>
   <div class="row"><span>عنوان الجوال:</span><div class="field" id="f-ip" data-k="ip"></div></div>
+  <div class="row"><span>رمز الاقتران:</span><div class="field" id="f-code" data-k="code"></div></div>
   <div class="row"><span>مدخل البلايستيشن:</span><div class="btn" id="f-hdmi" data-k="hdmi"></div></div>
   <div class="row"><div class="btn" id="f-test" data-k="test">اعرض سطرًا تجريبيًا</div><div class="btn" id="f-go" data-k="go">ابدأ ▶</div></div>
   <p class="hint">الأسهم للتنقل • الأرقام لكتابة العنوان • زر ⏪ أو الأحمر لمسح رقم • النقطة: زر ⏩ أو الأخضر • OK للاختيار<br>
@@ -48,8 +57,8 @@
     get: function (k, d) { try { var v = localStorage.getItem('ia.' + k); return v == null ? d : v; } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem('ia.' + k, v); } catch (e) {} }
   };
-  var cfg = { ip: store.get('ip', ''), hdmi: +store.get('hdmi', '1') };
-  var style = { scale: 1, cover: true, opacity: 0.85 };
+  var cfg = { ip: store.get('ip', ''), code: store.get('code', ''), hdmi: +store.get('hdmi', '1') };
+  var style = { scale: 1, cover: true, opacity: 0.85, color: '#FFFFFF', pos: 'auto', bold: true };
 
   // ---------- the HDMI input inside the app (webOS external input source)
   function showGame() {
@@ -59,7 +68,7 @@
     s.setAttribute('type', 'service/webos-external');
     s.setAttribute('src', 'ext://hdmi:' + cfg.hdmi);
     v.appendChild(s);
-    try { v.load(); v.play(); } catch (e) {}
+    try { v.load(); var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {}
   }
 
   // ---------- caption
@@ -69,7 +78,11 @@
     clearTimeout(hideTimer);
     if (!text) { c.style.display = 'none'; return; }
     var W = 1920, H = 1080, area;
-    if (box && style.cover) {
+    if (style.pos === 'top') {
+      area = { x: W * 0.1, y: H * 0.05, w: W * 0.8, h: H * 0.12, top: true };
+    } else if (style.pos === 'bottom') {
+      area = { x: W * 0.1, y: H * 0.79, w: W * 0.8, h: H * 0.12 };
+    } else if (box && style.cover) {
       area = { x: box[0] * W - 28, y: box[1] * H - 12, w: box[2] * W + 56, h: box[3] * H + 24 };
     } else {
       area = { x: W * 0.1, y: H * 0.79, w: W * 0.8, h: H * 0.12 };
@@ -78,6 +91,8 @@
     if (area.w < minW) { var cx = Math.min(Math.max(area.x + area.w / 2, minW / 2), W - minW / 2); area.x = cx - minW / 2; area.w = minW; }
     c.style.fontSize = Math.round(H * 0.042 * style.scale) + 'px';
     c.style.background = 'rgba(0,0,0,' + style.opacity + ')';
+    c.style.color = style.color;
+    c.style.fontWeight = style.bold ? '700' : '400';
     c.style.left = area.x + 'px';
     c.style.width = area.w + 'px';
     c.style.minHeight = area.h + 'px';
@@ -85,8 +100,26 @@
     c.style.display = 'block';
     // keep the bottom edge where the English line was; grow upward if the Arabic needs more lines
     var bottom = area.y + area.h;
-    c.style.top = Math.max(0, bottom - c.offsetHeight) + 'px';
+    c.style.top = (area.top ? area.y : Math.max(0, bottom - c.offsetHeight)) + 'px';
     hideTimer = setTimeout(function () { c.style.display = 'none'; }, 15000);
+  }
+
+  function box2(text, box) {
+    var b = $('box2');
+    if (!text || !box) { b.style.display = 'none'; return; }
+    b.style.left = box[0] * 1920 + 'px'; b.style.top = box[1] * 1080 + 'px';
+    b.style.width = box[2] * 1920 + 'px'; b.style.minHeight = box[3] * 1080 + 'px';
+    b.style.fontSize = Math.round(1080 * 0.028 * style.scale) + 'px';
+    b.style.background = 'rgba(0,0,0,' + style.opacity + ')';
+    b.style.color = style.color;
+    b.textContent = text; b.style.display = 'block';
+  }
+  var panelTimer = 0;
+  function panel(title, text, ttl) {
+    $('panel-t').textContent = title || ''; $('panel-b').textContent = text || '';
+    $('panel').style.display = 'block';
+    clearTimeout(panelTimer);
+    panelTimer = setTimeout(function () { $('panel').style.display = 'none'; }, ttl || 30000);
   }
 
   // ---------- link to the phone
@@ -102,7 +135,7 @@
     if (ws) { try { ws.onclose = null; ws.close(); } catch (e) {} ws = null; }
     if (!cfg.ip) { status('اضغط OK واكتب عنوان الجوال', true); return; }
     status('جارٍ الاتصال بالجوال ' + cfg.ip + '…', true);
-    try { ws = new WebSocket('ws://' + cfg.ip + ':' + PORT + '/'); } catch (e) { return later(); }
+    try { ws = new WebSocket('ws://' + cfg.ip + ':' + PORT + '/?code=' + encodeURIComponent(cfg.code)); } catch (e) { return later(); }
     ws.onopen = function () {
       ws.send(JSON.stringify({ t: 'hello', kind: 'lg', name: 'LG TV' }));
       status('متصل بالجوال ✓');
@@ -111,32 +144,44 @@
       var o; try { o = JSON.parse(e.data); } catch (x) { return; }
       if (o.t === 'sub') caption(o.ar, o.box);
       else if (o.t === 'clear') caption(null);
-      else if (o.t === 'style') { style.scale = +o.scale || 1; style.cover = o.cover !== false; style.opacity = o.opacity == null ? 0.85 : +o.opacity; }
+      else if (o.t === 'box2') box2(o.ar, o.box);
+      else if (o.t === 'box2clear') box2(null);
+      else if (o.t === 'panel') panel(o.title, o.text, o.ttl);
+      else if (o.t === 'style') {
+        style.scale = +o.scale || 1; style.cover = o.cover !== false; style.opacity = o.opacity == null ? 0.85 : +o.opacity;
+        style.color = o.color || '#FFFFFF'; style.pos = o.pos || 'auto'; style.bold = o.bold !== false;
+      }
     };
-    ws.onclose = function () { ws = null; status('انقطع الاتصال بالجوال — إعادة المحاولة…', true); later(); };
+    ws.onclose = function (e) {
+      ws = null;
+      if (e && e.code === 4001) { status('رمز الاقتران غير صحيح — اضغط OK واكتبه كما في إعدادات الترجمة بالجوال', true); return; }
+      status('انقطع الاتصال بالجوال — إعادة المحاولة…', true); later();
+    };
     ws.onerror = function () {};
   }
   function later() { clearTimeout(retry); retry = setTimeout(connect, 3000); }
 
   // ---------- setup screen (remote control only)
-  var items = ['f-ip', 'f-hdmi', 'f-test', 'f-go'], at = 0, open = false;
+  var items = ['f-ip', 'f-code', 'f-hdmi', 'f-test', 'f-go'], at = 0, open = false;
   function draw() {
     $('f-ip').textContent = cfg.ip || '— — —';
+    $('f-code').textContent = cfg.code || '— — — —';
     $('f-hdmi').textContent = 'HDMI ' + cfg.hdmi;
     items.forEach(function (id, i) { $(id).classList.toggle('focus', i === at); });
   }
   function openSetup(on) { open = on; $('setup').style.display = on ? 'block' : 'none'; draw(); }
-  function save() { store.set('ip', cfg.ip); store.set('hdmi', String(cfg.hdmi)); }
+  function save() { store.set('ip', cfg.ip); store.set('code', cfg.code); store.set('hdmi', String(cfg.hdmi)); }
 
   document.addEventListener('keydown', function (e) {
     var k = e.keyCode;
     if (!open) {
-      if (k === 13) { openSetup(true); e.preventDefault(); }
+      if (k === 13) { if ($('panel').style.display === 'block') { $('panel').style.display = 'none'; } else openSetup(true); e.preventDefault(); }
       return; // back etc.: the system handles it
     }
     var id = items[at];
     if (k === 461 || k === 8 || k === 27) { // back: close setup
       if (id === 'f-ip' && k === 8) { cfg.ip = cfg.ip.slice(0, -1); draw(); e.preventDefault(); return; }
+      if (id === 'f-code' && k === 8) { cfg.code = cfg.code.slice(0, -1); draw(); e.preventDefault(); return; }
       openSetup(false); e.preventDefault(); return;
     }
     if (k === 38) { at = (at + items.length - 1) % items.length; }
@@ -145,6 +190,8 @@
     else if (id === 'f-ip' && (k >= 96 && k <= 105)) { cfg.ip += String(k - 96); }
     else if (id === 'f-ip' && (k === 412 || k === 403)) { cfg.ip = cfg.ip.slice(0, -1); }          // rewind / red: delete
     else if (id === 'f-ip' && (k === 417 || k === 404 || k === 190 || k === 110)) { cfg.ip += '.'; } // fast-forward / green / '.'
+    else if (id === 'f-code' && ((k >= 48 && k <= 57) || (k >= 96 && k <= 105))) { if (cfg.code.length < 4) cfg.code += String(k >= 96 ? k - 96 : k - 48); }
+    else if (id === 'f-code' && (k === 412 || k === 403)) { cfg.code = cfg.code.slice(0, -1); }
     else if (id === 'f-hdmi' && (k === 13 || k === 37 || k === 39)) { cfg.hdmi = cfg.hdmi % 4 + 1; save(); showGame(); }
     else if (id === 'f-test' && k === 13) { openSetup(false); caption('هذا سطر تجريبي للترجمة العربية فوق اللعبة', [0.25, 0.84, 0.5, 0.06]); }
     else if (id === 'f-go' && k === 13) { save(); openSetup(false); connect(); }
