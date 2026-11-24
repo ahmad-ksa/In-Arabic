@@ -1,0 +1,45 @@
+name: build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  phone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python packages for the protobuf generator
+        run: pip install protobuf grpcio-tools
+      - name: NDK + CMake
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.2.13676358" "cmake;3.22.1" > /dev/null
+      - name: Signing
+        run: |
+          cat > android/local.properties <<PROPS
+          sdk.dir=$ANDROID_HOME
+          chiakiKeystore=../inarabic.jks
+          chiakiKeystorePW=inarabic123
+          chiakiKeyAlias=inarabic
+          chiakiKeyPW=inarabic123
+          PROPS
+      - name: Build phone APK
+        working-directory: android
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: ./gradlew --no-daemon assembleRelease
+      - run: cp android/app/build/outputs/apk/release/*.apk InArabic-phone.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phone
+          path: InArabic-phone.apk
