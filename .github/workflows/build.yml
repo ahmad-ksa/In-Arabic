@@ -77,7 +77,8 @@ jobs:
       - name: Package LG IPK
         run: |
           sed -i "s/\"version\": \"0.1.0\"/\"version\": \"0.1.${{ github.run_number }}\"/" lg/appinfo.json
-          npx --yes @webos-tools/cli@3.2.1 ares-package -n lg -o .
+          npm install -g @webos-tools/cli@3.2.1 > /dev/null
+          ares-package -n lg -o .
           mv com.inarabic.lg_*.ipk InArabic-lg.ipk
       - uses: actions/upload-artifact@v4
         with:
