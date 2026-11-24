@@ -54,14 +54,15 @@ class SubtitleTracker(
 		emptyReads = 0
 		val prev = pending
 		pending = text
-		// wait until two consecutive reads agree (the subtitle is stable and OCR is consistent)
-		if(prev == null || similarity(prev, text) < agreeSimilarity)
+		// wait until two consecutive reads agree (the subtitle is stable and OCR is consistent); a line that is
+		// still typing in does not agree with its next, longer read, so it waits until the text stops growing
+		if(prev == null || similarity(prev, text, prefixBonus = false) < agreeSimilarity)
 			return null
 		val last = committed
 		if(last != null && similarity(last, text) >= sameLineSimilarity)
 		{
-			// same subtitle: only report when it got longer (typing in) or clearly different wording
-			if(text.length > last.length + 2 || (text != last && text.length >= last.length && similarity(last, text) < 0.97))
+			// same subtitle: only report when it got longer (typing in), not for OCR noise in the same line
+			if(SubtitleTracker.key(text).length > SubtitleTracker.key(last).length + 2)
 			{
 				committed = text
 				return TrackerEvent.Update(text, read.box)
@@ -89,14 +90,14 @@ class SubtitleTracker(
 		fun key(s: String): String = buildString { for(c in s.lowercase()) if(c.isLetterOrDigit()) append(c) }
 
 		/** 0..1 similarity of two lines, ignoring case, spaces and punctuation (Levenshtein ratio). */
-		fun similarity(a: String, b: String): Double
+		fun similarity(a: String, b: String, prefixBonus: Boolean = true): Double
 		{
 			val x = key(a)
 			val y = key(b)
 			if(x.isEmpty() && y.isEmpty()) return 1.0
 			if(x.isEmpty() || y.isEmpty()) return 0.0
 			// one is a prefix of the other (text typing in): very similar
-			if(x.startsWith(y) || y.startsWith(x))
+			if(prefixBonus && (x.startsWith(y) || y.startsWith(x)))
 				return 0.9 + 0.1 * min(x.length, y.length) / max(x.length, y.length)
 			val d = levenshtein(x, y)
 			return 1.0 - d.toDouble() / max(x.length, y.length)
