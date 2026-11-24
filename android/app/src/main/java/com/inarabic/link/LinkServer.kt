@@ -41,7 +41,7 @@ object LinkServer
 
 	@Volatile private var lastSub: String? = null
 	@Volatile private var lastBox2: String? = null
-	@Volatile var pairCode: String = 
+	@Volatile var pairCode: String = ""
 	@Volatile private var lastStyle: String? = null
 
 	/** connected screens, for the status line in the app */
