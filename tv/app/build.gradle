@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.inarabic.tv'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.inarabic.tv'
+        minSdk 24
+        targetSdk 34
+        versionCode((System.getenv('VERSION_CODE') ?: '1') as int)
+        versionName '0.1.' + (System.getenv('VERSION_CODE') ?: '0')
+    }
+    signingConfigs {
+        release {
+            storeFile file('../../android/inarabic.jks')
+            storePassword 'inarabic123'
+            keyAlias 'inarabic'
+            keyPassword 'inarabic123'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions { jvmTarget = '17' }
+}
+
+dependencies {
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
+}

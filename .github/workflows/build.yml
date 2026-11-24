@@ -45,3 +45,58 @@ jobs:
         with:
           name: phone
           path: InArabic-phone.apk
+
+  tv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Build Android TV APK
+        working-directory: tv
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          ./gradlew --no-daemon assembleRelease
+      - run: cp tv/app/build/outputs/apk/release/*.apk InArabic-androidtv.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tv
+          path: InArabic-androidtv.apk
+
+  lg:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Package LG IPK
+        run: |
+          sed -i "s/\"version\": \"0.1.0\"/\"version\": \"0.1.${{ github.run_number }}\"/" lg/appinfo.json
+          npx --yes @webos-tools/cli@3.2.1 ares-package -n lg -o .
+          mv com.inarabic.lg_*.ipk InArabic-lg.ipk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lg
+          path: InArabic-lg.ipk
+
+  release:
+    needs: [phone, tv, lg]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Publish "latest" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete latest --cleanup-tag -y || true
+          gh release create latest InArabic-phone.apk InArabic-androidtv.apk InArabic-lg.ipk \
+            --title "بالعربي — آخر إصدار (0.1.${{ github.run_number }})" \
+            --notes "InArabic-phone.apk للجوال • InArabic-androidtv.apk لشاشة أندرويد • InArabic-lg.ipk لشاشة LG"
