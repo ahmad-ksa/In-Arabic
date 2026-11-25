@@ -7,6 +7,9 @@ import android.content.Context
 import androidx.preference.PreferenceManager
 import kotlin.random.Random
 
+/** What the PS5 reported as running when the stream was started. */
+object GameContext { @Volatile var running: String? = null }
+
 class InArabicPrefs(context: Context)
 {
 	private val p = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
@@ -46,6 +49,9 @@ class InArabicPrefs(context: Context)
 	/** auto = over the English line, bottom / top = fixed */
 	val position get() = p.getString("ia_position", "auto") ?: "auto"
 	val bold get() = p.getBoolean("ia_bold", true)
+
+	/** The game being played (filled from the PS5 when it says, or typed): helps the AI keep names right. */
+	val gameName: String get() = GameContext.running?.takeIf { it.isNotBlank() } ?: (p.getString("ia_game", "")?.trim() ?: "")
 
 	/** 4-digit code the TV apps must give to receive subtitles (made once). */
 	val pairCode: String get()

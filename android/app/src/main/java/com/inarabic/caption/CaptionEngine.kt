@@ -52,6 +52,7 @@ class CaptionEngine(
 	@Volatile private var currentId = -1
 	private var loop: Job? = null
 	private var lastBox2Read = 0L
+	@Volatile private var lastLineAt = 0L
 
 	fun start()
 	{
@@ -61,6 +62,18 @@ class CaptionEngine(
 		LinkServer.start(context)
 		scope.launch { translator.prepare() }
 		if(prefs.secondReader) scope.launch { paddle = PaddleReader.open(context) }
+		// review: while nobody is talking, the AI corrects lines the free model translated (memory gets better)
+		scope.launch {
+			while(isActive)
+			{
+				delay(20000)
+				if(!prefs.aiEnabled || System.currentTimeMillis() - lastLineAt < 8000) continue
+				val todo = TranslationMemory.unreviewed(15)
+				if(todo.isEmpty()) continue
+				for((en, ar) in translator.review(todo.map { it.english to it.arabic }))
+					TranslationMemory.put(en, ar, TranslationMemory.Source.AI)
+			}
+		}
 		loop = scope.launch {
 			while(isActive)
 			{
@@ -137,6 +150,7 @@ class CaptionEngine(
 	private fun translate(id: Int, english: String, box: FloatArray?)
 	{
 		currentId = id
+		lastLineAt = System.currentTimeMillis()
 		scope.launch {
 			val known = TranslationMemory.get(english)
 			val wantAi = prefs.aiEnabled

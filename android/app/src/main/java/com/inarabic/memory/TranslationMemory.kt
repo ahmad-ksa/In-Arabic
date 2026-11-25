@@ -13,7 +13,7 @@ object TranslationMemory
 	enum class Source(val rank: Int) { QUICK(1), AI(2), USER(3) }
 	data class Entry(val english: String, val arabic: String, val source: Source)
 
-	private val map = HashMap<String, Entry>()
+	private val map = LinkedHashMap<String, Entry>()
 	private var file: File? = null
 
 	@Synchronized fun load(context: Context)
@@ -47,6 +47,10 @@ object TranslationMemory
 		map[k] = Entry(english, arabic, source)
 		try { file?.appendText("${source.name}\t${escape(english)}\t${escape(arabic)}\n") } catch(e: Exception) { }
 	}
+
+	/** Lines only the free model has translated, newest first: the ones the AI review improves. */
+	@Synchronized fun unreviewed(limit: Int): List<Entry> =
+		map.values.filter { it.source == Source.QUICK }.takeLast(limit).reversed()
 
 	@Synchronized fun size() = map.size
 	@Synchronized fun count(source: Source) = map.values.count { it.source == source }

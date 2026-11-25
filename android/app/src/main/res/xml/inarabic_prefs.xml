@@ -33,7 +33,11 @@
             app:defaultValue="https://api.openai.com/v1" app:useSimpleSummaryProvider="true" />
         <EditTextPreference app:key="ia_ai_model" app:title="النموذج" app:dependency="ia_ai_enabled"
             app:defaultValue="gpt-4o-mini" app:useSimpleSummaryProvider="true" />
+        <EditTextPreference app:key="ia_game" app:title="اسم اللعبة (اختياري)"
+            app:summary="يُعرف تلقائيًا إذا كانت اللعبة شغالة قبل الاتصال؛ يساعد الذكاء الاصطناعي في الأسماء" />
         <Preference app:key="ia_memory" app:title="ذاكرة الترجمة" />
+        <Preference app:key="ia_review" app:title="راجع الترجمات الآن"
+            app:summary="الذكاء الاصطناعي يصحّح كل الأسطر المحفوظة من الترجمة المجانية (يحدث تلقائيًا أيضًا وقت الهدوء)" />
         <Preference app:key="ia_summary" app:title="ملخص قصة آخر جلسة"
             app:summary="يلخّص ما حدث ويذكّرك أين توقفت (أدق مع مفتاح الذكاء الاصطناعي)" />
     </PreferenceCategory>

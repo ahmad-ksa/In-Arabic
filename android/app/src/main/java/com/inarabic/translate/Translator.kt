@@ -80,6 +80,33 @@ class Translator(private val prefs: InArabicPrefs)
 		return ar
 	}
 
+	/**
+	 * Review: the AI re-translates lines that only the free model has done, several at once (cheaper), fixing
+	 * reading mistakes and keeping names consistent. Returns English -> better Arabic.
+	 */
+	suspend fun review(lines: List<Pair<String, String>>): Map<String, String>
+	{
+		if(!prefs.aiEnabled || lines.isEmpty()) return emptyMap()
+		val system = "أنت مراجع ترجمات ألعاب فيديو. ستصلك أسطر إنجليزية مرقمة مع ترجمة آلية أولية. صحّح أخطاء القراءة الواضحة " +
+			"في الإنجليزي، ثم أعد ترجمة كل سطر إلى عربية فصحى سهلة وطبيعية بأسلوب ترجمات الألعاب، مع توحيد أسماء الشخصيات والأماكن. " +
+			"أعد JSON فقط بالشكل {\"1\":\"الترجمة\",\"2\":\"…\"} بلا أي نص آخر."
+		val user = buildString {
+			if(prefs.gameName.isNotBlank()) append("اللعبة: ").append(prefs.gameName).append("\n\n")
+			lines.forEachIndexed { i, (en, ar) -> append(i + 1).append(") ").append(en).append("\n   الأولية: ").append(ar).append('\n') }
+		}
+		val raw = ask(system, user, 40000) ?: return emptyMap()
+		return try
+		{
+			val json = JSONObject(raw.substring(raw.indexOf('{'), raw.lastIndexOf('}') + 1))
+			buildMap {
+				lines.forEachIndexed { i, (en, _) ->
+					json.optString((i + 1).toString()).trim().takeIf { it.isNotEmpty() }?.let { put(en, it) }
+				}
+			}
+		}
+		catch(e: Exception) { Log.w(TAG, "review parse", e); emptyMap() }
+	}
+
 	/** One question to the AI model (used for the story summary too). */
 	suspend fun ask(system: String, user: String, timeoutMs: Long = 30000): String? =
 		if(prefs.aiKey.isBlank()) null
@@ -92,6 +119,7 @@ class Translator(private val prefs: InArabicPrefs)
 			"وطبيعية يفهمها اللاعب، قصيرة بقدر الأصل تقريبًا. أبقِ أسماء الشخصيات والأماكن كما تُنطق بالعربية، " +
 			"وصحّح أخطاء القراءة الواضحة في النص الإنجليزي. أعد الترجمة العربية فقط بلا أي شرح أو علامات تنصيص."
 		val user = buildString {
+			if(prefs.gameName.isNotBlank()) append("اللعبة: ").append(prefs.gameName).append("\n\n")
 			if(context.isNotEmpty())
 			{
 				append("السياق (أسطر سابقة):\n")

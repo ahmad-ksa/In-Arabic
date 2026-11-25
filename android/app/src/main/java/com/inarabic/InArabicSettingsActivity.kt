@@ -74,6 +74,7 @@ class InArabicSettingsActivity : AppCompatActivity()
 				true
 			}
 			findPreference<Preference>("ia_summary")?.setOnPreferenceClickListener { summary(prefs); true }
+			findPreference<Preference>("ia_review")?.setOnPreferenceClickListener { reviewAll(prefs); true }
 			findPreference<Preference>("ia_memory")?.apply {
 				summary = memoryText()
 				setOnPreferenceClickListener {
@@ -107,6 +108,37 @@ class InArabicSettingsActivity : AppCompatActivity()
 		override fun onSharedPreferenceChanged(sp: SharedPreferences?, key: String?)
 		{
 			if(key in styleKeys) LinkServer.sendStyle(InArabicPrefs(requireContext()))
+		}
+
+		/** Corrects every line only the free model has translated, in batches, now. */
+		private fun reviewAll(prefs: InArabicPrefs)
+		{
+			val ctx = requireContext()
+			if(!prefs.aiEnabled) { Toast.makeText(ctx, "فعّل الترجمة بالذكاء الاصطناعي وضع المفتاح أولًا", Toast.LENGTH_LONG).show(); return }
+			val total = TranslationMemory.count(TranslationMemory.Source.QUICK)
+			if(total == 0) { Toast.makeText(ctx, "كل الترجمات المحفوظة مراجعة ✓", Toast.LENGTH_LONG).show(); return }
+			val wait = AlertDialog.Builder(ctx).setMessage("جارٍ مراجعة $total سطر…").setCancelable(false).show()
+			lifecycleScope.launch {
+				var done = 0
+				val t = Translator(prefs)
+				withContext(Dispatchers.Default) {
+					// bounded: a line the AI skips is not asked again and again
+					repeat(total / 20 + 2)
+					{
+						val todo = TranslationMemory.unreviewed(20)
+						if(todo.isEmpty()) return@withContext
+						val fixed = t.review(todo.map { it.english to it.arabic })
+						if(fixed.isEmpty()) return@withContext
+						for((en, ar) in fixed) TranslationMemory.put(en, ar, TranslationMemory.Source.AI)
+						done += fixed.size
+						withContext(Dispatchers.Main) { wait.setMessage("جارٍ مراجعة الترجمات… $done من $total") }
+					}
+				}
+				t.close()
+				wait.dismiss()
+				findPreference<Preference>("ia_memory")?.summary = memoryText()
+				Toast.makeText(ctx, "روجع $done سطر ✓", Toast.LENGTH_LONG).show()
+			}
 		}
 
 		private fun memoryText() =
