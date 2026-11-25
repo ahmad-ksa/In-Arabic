@@ -61,6 +61,7 @@ class CaptionEngine(
 		TranslationMemory.load(context)
 		SessionLog.begin(context)
 		LinkServer.start(context)
+		LinkServer.sendStyle(prefs)
 		scope.launch { translator.prepare() }
 		if(prefs.secondReader) scope.launch { paddle = PaddleReader.open(context) }
 		// review: while nobody is talking, the AI corrects lines the free model translated (memory gets better)
@@ -117,12 +118,12 @@ class CaptionEngine(
 			// the subtitle
 			val top = (frame.height * prefs.areaTop).toInt().coerceIn(0, frame.height - 8)
 			val bottom = (frame.height * prefs.areaBottom).toInt().coerceIn(top + 8, frame.height)
-			val side = ArrayList<OcrRead>(1)
+			val side = ArrayList<OcrRead>()
 			val read = readArea(frame, Rect(0, top, frame.width, bottom), 0.018f, if(prefs.centerOnly) side else null)
-			when(val ev = sideTracker.feed(side.firstOrNull() ?: OcrRead("")))
+			val items = side.mapNotNull { r -> SideText.clean(r.text)?.let { it to r.box!! } }
+			when(sideTracker.feed(OcrRead(items.joinToString(" | ") { it.first.text })))
 			{
-				is TrackerEvent.NewLine -> translateSide(ev.text, ev.box)
-				is TrackerEvent.Update -> translateSide(ev.text, ev.box)
+				is TrackerEvent.NewLine, is TrackerEvent.Update -> translateSide(items)
 				TrackerEvent.Clear -> LinkServer.sendSideClear()
 				null -> {}
 			}
@@ -205,14 +206,16 @@ class CaptionEngine(
 		}
 	}
 
-	private fun translateSide(english: String, box: FloatArray?)
+	private fun translateSide(items: List<Pair<SideText, FloatArray>>)
 	{
-		box ?: return
+		if(items.isEmpty()) return
 		scope.launch {
-			val known = TranslationMemory.get(english)
-			val ar = known?.arabic ?: translator.quick(english) ?: return@launch
-			if(known == null) TranslationMemory.put(english, ar, TranslationMemory.Source.QUICK)
-			LinkServer.sendSide(ar, box)
+			val out = items.mapNotNull { (st, box) ->
+				val known = TranslationMemory.get(st.text)
+				val ar = known?.arabic ?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) } ?: return@mapNotNull null
+				(if(st.button != null) "$ar  ${st.button}" else ar) to box
+			}
+			if(out.isNotEmpty()) LinkServer.sendSide(out)
 		}
 	}
 
@@ -239,7 +242,7 @@ class CaptionEngine(
 	/**
 	 * OCR of one area of the picture; lines joined top to bottom; box is in 0..1 of the whole picture.
 	 * With [sideOut]: only lines centred on the picture are the subtitle; the others (a mission title or a button
-	 * prompt in a corner) are put in [sideOut] as one read, so they neither mix into the subtitle nor move it.
+	 * prompt in a corner) are put in [sideOut], one read per line, so they neither mix into the subtitle nor move it.
 	 */
 	private suspend fun readArea(frame: Bitmap, area: Rect, minLineH: Float, sideOut: MutableList<OcrRead>? = null): OcrRead
 	{
@@ -263,15 +266,8 @@ class CaptionEngine(
 			val lines = if(sideOut == null) all else all.filter(::centred)
 			if(sideOut != null)
 			{
-				// one side item: the biggest off-centre line and the lines stacked with it
-				val off = all.filterNot(::centred)
-				val main = off.maxByOrNull { it.boundingBox?.height() ?: 0 }
-				if(main != null)
-				{
-					val mb = main.boundingBox!!
-					val group = off.filter { val b = it.boundingBox ?: return@filter false; b.right > mb.left && b.left < mb.right }
-					sideOut.add(join(crop, group, area, frame))
-				}
+				// every off-centre line on its own (button prompts are stacked lines that must not be glued)
+				for(l in all.filterNot(::centred)) if(l.boundingBox != null) sideOut.add(join(crop, listOf(l), area, frame))
 			}
 			if(lines.isEmpty()) return OcrRead("")
 			return join(crop, lines, area, frame)

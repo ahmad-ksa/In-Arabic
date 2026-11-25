@@ -123,11 +123,13 @@ object LinkServer
 		broadcast("{\"t\":\"box2clear\"}")
 	}
 
-	/** text off to the side of the subtitle area (mission titles, prompts): drawn where it is in the picture */
-	fun sendSide(arabic: String, box: FloatArray)
+	/** texts off to the side of the subtitle (mission titles, button prompts): each drawn over its English one */
+	fun sendSide(items: List<Pair<String, FloatArray>>)
 	{
-		val msg = JSONObject().put("t", "side").put("ar", arabic)
-			.put("box", org.json.JSONArray().put(box[0].toDouble()).put(box[1].toDouble()).put(box[2].toDouble()).put(box[3].toDouble())).toString()
+		val arr = org.json.JSONArray()
+		for((ar, box) in items)
+			arr.put(JSONObject().put("ar", ar).put("box", org.json.JSONArray().put(box[0].toDouble()).put(box[1].toDouble()).put(box[2].toDouble()).put(box[3].toDouble())))
+		val msg = JSONObject().put("t", "side").put("items", arr).toString()
 		lastSide = msg
 		broadcast(msg)
 	}
@@ -151,8 +153,12 @@ object LinkServer
 		broadcast(msg)
 	}
 
+	/** the phone's own caption view gets every message too */
+	@Volatile var local: ((String) -> Unit)? = null
+
 	private fun broadcast(msg: String)
 	{
+		local?.invoke(msg)
 		try { server?.broadcast(msg) } catch(e: Exception) { Log.w(TAG, "broadcast", e) }
 	}
 

@@ -18,6 +18,11 @@
             android:id="@+id/surfaceView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>
+        <!-- In Arabic: the translation drawn exactly over the English text, same as on the TV -->
+        <com.inarabic.caption.CaptionView
+            android:id="@+id/iaOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
     </com.metallic.chiaki.stream.AspectRatioFrameLayout>
 
 
@@ -119,23 +124,21 @@
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- tap to correct the current line (shown only while a line is on screen) -->
     <TextView
         android:id="@+id/iaCaption"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="28dp"
-        android:layout_marginStart="24dp"
-        android:layout_marginEnd="24dp"
-        android:background="#D9000000"
-        android:paddingStart="14dp"
-        android:paddingEnd="14dp"
-        android:paddingTop="6dp"
-        android:paddingBottom="6dp"
-        android:gravity="center"
-        android:textDirection="rtl"
-        android:textColor="#FFFFFF"
-        android:textSize="20sp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="44dp"
+        android:background="#99000000"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
+        android:text="✎ تصحيح"
+        android:textColor="#CCFFFFFF"
+        android:textSize="12sp"
         android:clickable="true"
         android:focusable="false"
         android:visibility="gone"/>

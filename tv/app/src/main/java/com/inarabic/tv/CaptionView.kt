@@ -28,10 +28,10 @@ class CaptionView(context: Context) : View(context)
 		set(v) { field = v; invalidate() }
 	var box2: FloatArray? = null
 		set(v) { field = v; invalidate() }
-	/** text found off to the side (mission title, prompt): drawn over it, where it is */
-	var sideText: String? = null
+	/** texts found off to the side (mission title, button prompts): each drawn over its English one */
+	class Side(val text: String, val box: FloatArray)
+	var sides: List<Side> = emptyList()
 		set(v) { field = v; invalidate() }
-	var side: FloatArray? = null
 	var panelTitle: String? = null
 	var panelText: String? = null
 		set(v) { field = v; invalidate() }
@@ -47,7 +47,7 @@ class CaptionView(context: Context) : View(context)
 	private val timers = android.os.Handler(android.os.Looper.getMainLooper())
 	private val hide = Runnable { text = null }
 	private val hidePanel = Runnable { panelText = null }
-	private val hideSide = Runnable { sideText = null }
+	private val hideSide = Runnable { sides = emptyList() }
 
 	/** A message from the phone (see the phone's LinkServer for the format). */
 	fun handle(o: org.json.JSONObject)
@@ -67,10 +67,15 @@ class CaptionView(context: Context) : View(context)
 			"box2clear" -> box2Text = null
 			"side" ->
 			{
-				side = box(o); sideText = o.optString("ar")
+				val items = o.optJSONArray("items")
+				sides = if(items == null) emptyList() else (0 until items.length()).mapNotNull { i ->
+					val it = items.optJSONObject(i) ?: return@mapNotNull null
+					val b = box(it) ?: return@mapNotNull null
+					it.optString("ar").takeIf { a -> a.isNotBlank() }?.let { a -> Side(a, b) }
+				}
 				timers.removeCallbacks(hideSide); timers.postDelayed(hideSide, 15000)
 			}
-			"sideclear" -> { timers.removeCallbacks(hideSide); sideText = null }
+			"sideclear" -> { timers.removeCallbacks(hideSide); sides = emptyList() }
 			"panel" ->
 			{
 				panelTitle = o.optString("title")
@@ -127,26 +132,25 @@ class CaptionView(context: Context) : View(context)
 			canvas.save(); canvas.translate(area.left + w * 0.008f, area.top + h * 0.01f); l.draw(canvas); canvas.restore()
 		}
 
-		// side text: over the English one, at least 16 % wide, kept on screen
-		val st = sideText
-		val sb = side
-		if(!st.isNullOrBlank() && sb != null)
+		// side texts: each exactly over its English text (a bit wider if the Arabic needs it), kept on screen
+		for(sd in sides)
 		{
-			textPaint.textSize = max(h * 0.026f * scale, sb[3] * h * 0.75f).coerceAtMost(h * 0.045f * scale)
-			val area = RectF(sb[0] * w - w * 0.01f, sb[1] * h - h * 0.008f, (sb[0] + sb[2]) * w + w * 0.01f, (sb[1] + sb[3]) * h + h * 0.008f)
-			val minW = w * 0.16f
-			if(area.width() < minW)
+			val sb = sd.box
+			textPaint.textSize = (sb[3] * h * 0.8f).coerceIn(h * 0.02f, h * 0.045f) * scale
+			val area = RectF(sb[0] * w - w * 0.004f, sb[1] * h - h * 0.004f, (sb[0] + sb[2]) * w + w * 0.004f, (sb[1] + sb[3]) * h + h * 0.004f)
+			val tw = textPaint.measureText(sd.text) + w * 0.012f
+			if(area.width() < tw)
 			{
-				val cx = area.centerX().coerceIn(minW / 2, w - minW / 2)
-				area.left = cx - minW / 2; area.right = cx + minW / 2
+				// grow toward the middle of the screen: right-side prompts grow left, left-side ones grow right
+				if(area.centerX() > w / 2) area.left = max(0f, area.right - tw) else area.right = min(w, area.left + tw)
 			}
-			val inner = (area.width() - w * 0.012f).toInt().coerceAtLeast(50)
-			val l = layout(st, inner)
-			val need = l.height + h * 0.016f
+			val inner = (area.width() - w * 0.008f).toInt().coerceAtLeast(30)
+			val l = layout(sd.text, inner)
+			val need = l.height + h * 0.008f
 			if(area.height() < need) { val cy = area.centerY(); area.top = cy - need / 2; area.bottom = cy + need / 2 }
 			if(area.bottom > h) area.offset(0f, h - area.bottom)
 			if(area.top < 0) area.offset(0f, -area.top)
-			canvas.drawRoundRect(area, h * 0.008f, h * 0.008f, boxPaint)
+			canvas.drawRoundRect(area, h * 0.006f, h * 0.006f, boxPaint)
 			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); l.draw(canvas); canvas.restore()
 		}
 
@@ -163,8 +167,8 @@ class CaptionView(context: Context) : View(context)
 					RectF(b[0] * w - w * 0.015f, b[1] * h - h * 0.012f, (b[0] + b[2]) * w + w * 0.015f, (b[1] + b[3]) * h + h * 0.012f)
 				else -> RectF(w * 0.1f, h * 0.78f, w * 0.9f, h * 0.92f)
 			}
-			// the Arabic line may need more room than the English one: widen to at least 60 % of the screen
-			val minW = w * 0.6f
+			// the Arabic line may need more room than the English one: widen only as much as it needs (max 80 %)
+			val minW = min(w * 0.8f, textPaint.measureText(t) + w * 0.03f)
 			if(area.width() < minW)
 			{
 				val cx = area.centerX().coerceIn(minW / 2, w - minW / 2)

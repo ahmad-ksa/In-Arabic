@@ -61,8 +61,14 @@ class StreamActivity : AppCompatActivity()
 	private fun startCaptions()
 	{
 		if(captionEngine != null) return
-		captionEngine = com.inarabic.caption.CaptionEngine(binding.surfaceView, com.inarabic.InArabicPrefs(this)) { text ->
-			binding.iaCaption.text = text ?: ""
+		val iaPrefs = com.inarabic.InArabicPrefs(this)
+		val overlay = binding.iaOverlay
+		overlay.visibility = if(iaPrefs.showOnPhone) View.VISIBLE else View.GONE
+		// the phone draws what the TVs draw: every message the TVs get goes to its own caption view too
+		com.inarabic.link.LinkServer.local = { msg ->
+			overlay.post { try { overlay.handle(org.json.JSONObject(msg)) } catch(e: Exception) { } }
+		}
+		captionEngine = com.inarabic.caption.CaptionEngine(binding.surfaceView, iaPrefs) { text ->
 			binding.iaCaption.visibility = if(text.isNullOrEmpty()) View.GONE else View.VISIBLE
 		}.also { it.start() }
 		// tap the Arabic line on the phone to correct it: remembered, and replaced on the TV at once
@@ -83,6 +89,7 @@ class StreamActivity : AppCompatActivity()
 	{
 		captionEngine?.stop()
 		captionEngine = null
+		com.inarabic.link.LinkServer.local = null
 		binding.iaCaption.visibility = View.GONE
 	}
 
