@@ -4,6 +4,11 @@ adb install -r InArabic-phone.apk
 adb shell am start -W -n com.inarabic.phone/com.metallic.chiaki.main.MainActivity
 sleep 10
 adb shell dumpsys activity activities | grep -m3 -i 'mResumedActivity\|topResumed'
+# first start opens the step-by-step setup
+python3 ci/ui.py shot shots/phone-0-setup.png
+python3 ci/ui.py tap "التالي"; sleep 1
+python3 ci/ui.py shot shots/phone-0b-setup.png
+adb shell input keyevent KEYCODE_BACK; sleep 2
 python3 ci/ui.py shot shots/phone-1-main.png
 python3 ci/ui.py tap "More options" || python3 ci/ui.py tap "خيارات"
 python3 ci/ui.py shot shots/phone-2-menu.png
