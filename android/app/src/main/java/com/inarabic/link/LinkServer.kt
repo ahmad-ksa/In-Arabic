@@ -141,6 +141,13 @@ object LinkServer
 		broadcast("{\"t\":\"sideclear\"}")
 	}
 
+	/** sends what is on screen again (the TVs hide a line they have not heard about for a while) */
+	fun refresh()
+	{
+		lastSub?.let { broadcast(it) }
+		lastSide?.let { broadcast(it) }
+	}
+
 	/** a short notice shown on the TVs (top of the screen) */
 	fun sendNotice(text: String) = broadcast(JSONObject().put("t", "notice").put("text", text).toString())
 

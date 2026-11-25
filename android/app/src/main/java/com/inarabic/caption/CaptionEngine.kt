@@ -74,7 +74,10 @@ class CaptionEngine(
 	private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 	private val translator = Translator(prefs)
 	private var paddle: PaddleReader? = null
-	private val subTracker = SubtitleTracker()
+	// a subtitle stays until it is really gone (several empty reads), not at the first missed read
+	private val subTracker = SubtitleTracker(emptyReadsToClear = 5)
+	private val sticky = LinkedHashMap<String, Pair<Triple<SideText, FloatArray, List<Colored>>, Long>>()
+	private var refreshedAt = 0L
 	private val box2Tracker = SubtitleTracker(emptyReadsToClear = 2)
 	private val sideTracker = SubtitleTracker(emptyReadsToClear = 2)
 	private var nextId = 0
@@ -267,7 +270,7 @@ class CaptionEngine(
 			if(busy != systemUi)
 			{
 				systemUi = busy
-				if(busy) { subTracker.reset(); sideTracker.reset(); currentId = -1; current = null; LinkServer.sendClear(); LinkServer.sendSideClear(); post(null) }
+				if(busy) { sticky.clear(); subTracker.reset(); sideTracker.reset(); currentId = -1; current = null; LinkServer.sendClear(); LinkServer.sendSideClear(); post(null) }
 				mainHandler.post { onSystemUi?.invoke(busy) }
 			}
 			if(busy) return
@@ -282,8 +285,15 @@ class CaptionEngine(
 				return ix > 0 && iy > 0 && ix * iy > 0.3f * b[2] * b[3]
 			}
 			val seen = HashSet<String>()
-			val items = side.filter { r -> r.box != null && !onSubtitle(r.box) && seen.add(SubtitleTracker.key(r.text)) }
-				.mapNotNull { r -> SideText.clean(r.text)?.let { Triple(it, r.box!!, r.colored) } }
+			val now = System.currentTimeMillis()
+			for(r in side.filter { r -> r.box != null && !onSubtitle(r.box) && seen.add(SubtitleTracker.key(r.text)) })
+			{
+				val st = SideText.clean(r.text) ?: continue
+				sticky[SubtitleTracker.key(st.text)] = Triple(st, r.box!!, r.colored) to now
+			}
+			// a text missed by one or two reads stays on screen; it goes only when it has really left
+			sticky.entries.removeAll { now - it.value.second > 1800 }
+			val items = sticky.values.map { it.first }.sortedWith(compareBy({ it.second[1] }, { it.second[0] }))
 			when(sideTracker.feed(OcrRead(items.joinToString(" | ") { it.first.text })))
 			{
 				is TrackerEvent.NewLine, is TrackerEvent.Update -> translateSide(items)
@@ -291,6 +301,8 @@ class CaptionEngine(
 				null -> {}
 			}
 			if(read.text.isNotBlank()) subColored = read.colored
+			// what is on screen is sent again every few seconds: the TVs keep it as long as the English is there
+			if(now - refreshedAt > 4000) { refreshedAt = now; LinkServer.refresh() }
 			when(val ev = subTracker.feed(read))
 			{
 				is TrackerEvent.NewLine -> translate(++nextId, ev.text, ev.box)
