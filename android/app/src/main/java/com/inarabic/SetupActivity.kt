@@ -39,7 +39,7 @@ class SetupActivity : AppCompatActivity()
 	private var step = 0
 	private val steps = 5
 	private lateinit var body: LinearLayout
-	private lateinit var title: TextView
+	private lateinit var heading: TextView
 	private lateinit var counter: TextView
 	private lateinit var next: Button
 	private lateinit var prev: Button
@@ -56,14 +56,14 @@ class SetupActivity : AppCompatActivity()
 		LinkServer.start(this)
 		val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(20), dp(16), dp(20), dp(16)) }
 		counter = TextView(this).apply { setTextColor(accent); textSize = 13f }
-		this.title = TextView(this).apply { setTextColor(Color.WHITE); textSize = 24f; typeface = ResourcesCompat.getFont(this@SetupActivity, R.font.plex_bold); setPadding(0, dp(4), 0, dp(12)) }
+		heading = TextView(this).apply { setTextColor(Color.WHITE); textSize = 24f; typeface = ResourcesCompat.getFont(this@SetupActivity, R.font.plex_bold); setPadding(0, dp(4), 0, dp(12)) }
 		body = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
 		val nav = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, dp(12), 0, 0) }
 		next = Button(this).apply { background = round(accent, 999); setTextColor(Color.rgb(15, 36, 27)); textSize = 16f; isAllCaps = false }
 		prev = Button(this).apply { background = round(Color.argb(30, 255, 255, 255), 999); setTextColor(Color.WHITE); textSize = 16f; isAllCaps = false; text = "السابق" }
 		nav.addView(next, LinearLayout.LayoutParams(0, dp(52), 1f).apply { marginEnd = dp(10) })
 		nav.addView(prev, LinearLayout.LayoutParams(dp(110), dp(52)))
-		root.addView(counter); root.addView(this.title)
+		root.addView(counter); root.addView(heading)
 		root.addView(ScrollView(this).apply { addView(body) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 		root.addView(nav)
 		setContentView(root)
@@ -102,7 +102,7 @@ class SetupActivity : AppCompatActivity()
 		{
 			0 ->
 			{
-				title.text = "جهّز البلايستيشن"
+				heading.text = "جهّز البلايستيشن"
 				body.addView(para("خطوة وحدة في البلايستيشن، مرة وحدة بس:", text2))
 				body.addView(card("1. الإعدادات ← النظام ← التشغيل عن بعد ← فعّل «تمكين التشغيل عن بعد».",
 					"2. في نفس القائمة فعّل «إخفاء حالة الاتصال» عشان ما يطلع شريط فوق اللعبة.",
@@ -114,7 +114,7 @@ class SetupActivity : AppCompatActivity()
 			}
 			1 ->
 			{
-				title.text = "اربط البلايستيشن"
+				heading.text = "اربط البلايستيشن"
 				val st = para("…", text2)
 				body.addView(st)
 				lifecycleScope.launch {
@@ -130,7 +130,7 @@ class SetupActivity : AppCompatActivity()
 			}
 			2 ->
 			{
-				title.text = "اربط التلفزيون"
+				heading.text = "اربط التلفزيون"
 				val n = LinkServer.screens.size
 				body.addView(status(n > 0, if(n > 0) "متصل بـ $n شاشة" else "ما فيه شاشة متصلة الحين"))
 				body.addView(card("1. ثبّت تطبيق «بالعربي» على التلفزيون وافتحه، يطلع لك باركود.", "2. اضغط «امسح الباركود» تحت ووجّه الكاميرا عليه.",
@@ -140,7 +140,7 @@ class SetupActivity : AppCompatActivity()
 			}
 			3 ->
 			{
-				title.text = "الترجمة"
+				heading.text = "الترجمة"
 				body.addView(para("الترجمة المجانية تشتغل على الجوال بدون إنترنت بعد ما تنزّل نموذجها مرة وحدة (30 ميغا تقريباً).", text2))
 				val st = para("", text2)
 				body.addView(st)
@@ -156,7 +156,7 @@ class SetupActivity : AppCompatActivity()
 			}
 			4 ->
 			{
-				title.text = "جاهز تلعب بالعربي؟"
+				heading.text = "جاهز تلعب بالعربي؟"
 				body.addView(para("الخطوات اللي فاتت ما تحتاج تعيدها. كل مرة:", text2))
 				body.addView(card("1. شغّل التلفزيون والبلايستيشن، وافتح «بالعربي» في التلفزيون.", "2. في الجوال اضغط على البلايستيشن ← «ابدأ اللعب بالعربي».",
 					"3. خل الجوال مفتوح على التطبيق طول اللعب.", "4. أول مرة في لعبة جديدة: من البث اضغط «📐 مكان الترجمة» وحط الإطار على الترجمة الإنجليزية."))
