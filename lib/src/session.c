@@ -50,6 +50,8 @@ const char *chiaki_rp_application_reason_string(uint32_t reason)
 			return "Remote Play on Console crashed";
 		case CHIAKI_RP_APPLICATION_REASON_RP_VERSION:
 			return "RP-Version mismatch";
+		case CHIAKI_RP_APPLICATION_REASON_RP_DISABLED:
+			return "Remote Play is not enabled for this account on the console";
 		default:
 			return "unknown";
 	}
@@ -165,6 +167,8 @@ CHIAKI_EXPORT const char *chiaki_quit_reason_string(ChiakiQuitReason reason)
 			return "Remote has disconnected from Stream Connection the because Server shut down";
 		case CHIAKI_QUIT_REASON_PSN_REGIST_FAILED:
 			return "The Console Registration using PSN has failed";
+		case CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_DISABLED:
+			return "البلايستيشن رفض الاتصال: فعّل «التشغيل عن بُعد» في البلايستيشن (الإعدادات ← النظام ← التشغيل عن بُعد) وتأكد أن حسابك مسجّل دخول عليه";
 		case CHIAKI_QUIT_REASON_NONE:
 		default:
 			return "Unknown";
@@ -1079,6 +1083,9 @@ static ChiakiErrorCode session_thread_request_session(ChiakiSession *session, Ch
 				break;
 			case CHIAKI_RP_APPLICATION_REASON_CRASH:
 				session->quit_reason = CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_CRASH;
+				break;
+			case CHIAKI_RP_APPLICATION_REASON_RP_DISABLED:
+				session->quit_reason = CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_DISABLED;
 				break;
 			case CHIAKI_RP_APPLICATION_REASON_RP_VERSION:
 				session->quit_reason = CHIAKI_QUIT_REASON_SESSION_REQUEST_RP_VERSION_MISMATCH;
