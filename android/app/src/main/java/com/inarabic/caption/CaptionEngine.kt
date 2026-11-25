@@ -259,7 +259,18 @@ class CaptionEngine(
 			}
 			if(busy) return
 			if(prefs.dialogOnly) side.clear() else side.addAll(screenItems)
-			val items = side.mapNotNull { r -> SideText.clean(r.text)?.let { Triple(it, r.box!!, r.colored) } }
+			// never the same text twice: a side text lying on the subtitle (two frames over each other) is dropped
+			val sb = read.box
+			fun onSubtitle(b: FloatArray): Boolean
+			{
+				if(sb == null || read.text.isBlank()) return false
+				val ix = minOf(b[0] + b[2], sb[0] + sb[2]) - maxOf(b[0], sb[0])
+				val iy = minOf(b[1] + b[3], sb[1] + sb[3]) - maxOf(b[1], sb[1])
+				return ix > 0 && iy > 0 && ix * iy > 0.3f * b[2] * b[3]
+			}
+			val seen = HashSet<String>()
+			val items = side.filter { r -> r.box != null && !onSubtitle(r.box) && seen.add(SubtitleTracker.key(r.text)) }
+				.mapNotNull { r -> SideText.clean(r.text)?.let { Triple(it, r.box!!, r.colored) } }
 			when(sideTracker.feed(OcrRead(items.joinToString(" | ") { it.first.text })))
 			{
 				is TrackerEvent.NewLine, is TrackerEvent.Update -> translateSide(items)
