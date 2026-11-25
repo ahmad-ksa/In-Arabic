@@ -80,10 +80,17 @@ jobs:
           npm install -g @webos-tools/cli@3.2.1 > /dev/null
           ares-package -n lg -o .
           mv com.inarabic.lg_*.ipk InArabic-lg.ipk
+      - name: Package Samsung WGT (same page, Tizen config)
+        run: |
+          mkdir -p wgt && cp -r lg/index.html lg/qrcode.js lg/fonts lg/pattern.png lg/largeIcon.png samsung/config.xml wgt/
+          sed -i "s/version=\"0.1.0\"/version=\"0.1.${{ github.run_number }}\"/" wgt/config.xml
+          (cd wgt && zip -qr ../InArabic-samsung.wgt .)
       - uses: actions/upload-artifact@v4
         with:
           name: lg
-          path: InArabic-lg.ipk
+          path: |
+            InArabic-lg.ipk
+            InArabic-samsung.wgt
 
   release:
     needs: [phone, tv, lg]
@@ -98,8 +105,8 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           title="بالعربي — آخر إصدار (0.1.${{ github.run_number }})"
-          notes="InArabic-phone.apk للجوال • InArabic-androidtv.apk لشاشة أندرويد • InArabic-lg.ipk لشاشة LG"
-          files="InArabic-phone.apk InArabic-androidtv.apk InArabic-lg.ipk"
+          notes="InArabic-phone.apk للجوال • InArabic-androidtv.apk لشاشة أندرويد • InArabic-lg.ipk لشاشة LG • InArabic-samsung.wgt لشاشة سامسونج"
+          files="InArabic-phone.apk InArabic-androidtv.apk InArabic-lg.ipk InArabic-samsung.wgt"
           # replace the files in place (deleting the release has been failing with HTTP 500 on GitHub's side)
           if gh release view latest > /dev/null 2>&1; then
             for i in 1 2 3; do gh release upload latest $files --clobber && break; sleep 10; done

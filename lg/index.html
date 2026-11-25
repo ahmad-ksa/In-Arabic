@@ -94,6 +94,9 @@
     get: function (k, d) { try { var v = localStorage.getItem('ia.' + k); return v == null ? d : v; } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem('ia.' + k, v); } catch (e) {} }
   };
+  if (window.tizen) try {
+    tizen.tvinputdevice.registerKeyBatch(['0','1','2','3','4','5','6','7','8','9','ColorF0Red','ColorF1Green','MediaRewind','MediaFastForward']);
+  } catch (e) {}
   var cfg = { ip: store.get('ip', ''), code: store.get('code', ''), hdmi: +store.get('hdmi', '1'), token: store.get('token', '') };
   if (!cfg.token) {
     for (var i = 0; i < 16; i++) cfg.token += '0123456789abcdef'.charAt(Math.floor(Math.random() * 16));
@@ -112,7 +115,17 @@
   var style = { scale: 1, cover: true, opacity: 0.85, color: '#FFFFFF', pos: 'auto', bold: true };
 
   // ---------- the HDMI input inside the app (webOS external input source)
+  // the same page runs on Samsung (Tizen): there the HDMI picture is the TV window behind the page
+  var SAMSUNG = !!window.tizen;
   function showGame() {
+    if (SAMSUNG) {
+      try {
+        document.body.style.background = 'transparent'; $('game').style.display = 'none';
+        tizen.tvwindow.setSource({ type: 'HDMI', number: cfg.hdmi }, function () {}, function () {});
+        tizen.tvwindow.show(function () {}, function () {}, ['0px', '0px', '1920px', '1080px'], 'MAIN');
+      } catch (e) { status('الشاشة ما سمحت بعرض مدخل HDMI داخل التطبيق'); }
+      return;
+    }
     var v = $('game');
     v.innerHTML = '';
     var s = document.createElement('source');
@@ -309,6 +322,13 @@
     var done = false;
     var finish = function (ip) { if (!done) { done = true; cb(ip); } };
     setTimeout(function () { finish(null); }, 2000);
+    if (SAMSUNG) {
+      try {
+        tizen.systeminfo.getPropertyValue('WIFI_NETWORK', function (r) { if (r && r.ipAddress) finish(r.ipAddress); }, function () {});
+        tizen.systeminfo.getPropertyValue('ETHERNET_NETWORK', function (r) { if (r && r.ipAddress) finish(r.ipAddress); }, function () {});
+      } catch (e) { finish(null); }
+      return;
+    }
     try {
       var b = new PalmServiceBridge();
       b.onservicecallback = function (m) {
@@ -381,9 +401,11 @@
     var k = e.keyCode;
     if (!open) {
       if (k === 13) { if ($('panel').style.display === 'block') { $('panel').style.display = 'none'; } else openSetup(true); e.preventDefault(); }
+      if (k === 10009 && SAMSUNG) { try { tizen.application.getCurrentApplication().exit(); } catch (x) {} }
       return; // back etc.: the system handles it
     }
     var id = items[at];
+    if (k === 10009) k = 461; // Samsung's back key
     if (k === 461 || k === 8 || k === 27) { // back: close setup
       if (id === 'f-ip' && k === 8) { cfg.ip = cfg.ip.slice(0, -1); draw(); e.preventDefault(); return; }
       if (id === 'f-code' && k === 8) { cfg.code = cfg.code.slice(0, -1); draw(); e.preventDefault(); return; }
