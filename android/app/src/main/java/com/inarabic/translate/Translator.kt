@@ -50,6 +50,8 @@ class Translator(private val prefs: InArabicPrefs)
 
 	suspend fun quick(english0: String): String?
 	{
+		// a list: each line on its own, kept under each other
+		if('\n' in english0) return english0.split('\n').filter { it.isNotBlank() }.map { quick(it) ?: it }.joinToString("\n")
 		Glossary.lookup(english0)?.let { return it }
 		val english = Glossary.sentenceCase(english0)
 		val k = SubtitleTracker.key(english)
@@ -68,6 +70,7 @@ class Translator(private val prefs: InArabicPrefs)
 	suspend fun better(english: String): String?
 	{
 		if(!prefs.aiEnabled) return null
+		if('\n' in english) return english.split('\n').filter { it.isNotBlank() }.map { better(it) ?: quick(it) ?: it }.joinToString("\n")
 		val k = SubtitleTracker.key(english)
 		aiCache.get(k)?.let { return it }
 		val ar = withTimeoutOrNull(9000) { withContext(Dispatchers.IO) { askAi(english) } }

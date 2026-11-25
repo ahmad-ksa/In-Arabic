@@ -419,7 +419,14 @@ class CaptionEngine(
 		val lineH = lines.mapNotNull { it.boundingBox?.height() }.sorted().let { it[it.size / 2] }
 		val box = floatArrayOf((r.left + area.left) / frame.width.toFloat(), (r.top + area.top) / frame.height.toFloat(),
 			r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat(), lineH / frame.height.toFloat())
-		return OcrRead(texts.joinToString(" "), box, coloredPhrases(crop, lines))
+		// a list (menu entries, short lines under each other) stays one line each; a wrapped sentence is joined
+		// (a wrapped sentence goes on in small letters: "Where are" / "you going?"; menu entries each start with a capital)
+		val list = texts.size >= 2 && texts.all { it.trim().split(Regex("\\s+")).size <= 4 } &&
+			(1 until texts.size).all { i ->
+				val c = texts[i].trimStart().firstOrNull()
+				c != null && (c.isUpperCase() || c.isDigit()) && !texts[i - 1].trimEnd().endsWith(",")
+			}
+		return OcrRead(texts.joinToString(if(list) "\n" else " "), box, coloredPhrases(crop, lines))
 	}
 
 	/** Runs of words drawn in the same (non-white) colour. */

@@ -14,6 +14,14 @@ data class SideText(val text: String, val button: String?)
 
 		fun clean(raw: String): SideText?
 		{
+			// a list: every line cleaned on its own, kept under each other
+			if('\n' in raw)
+			{
+				val parts = raw.split('\n').mapNotNull { clean(it) }
+				if(parts.isEmpty()) return null
+				if(parts.size == 1) return parts[0]
+				return SideText(parts.joinToString("\n") { it.text + (it.button?.let { b -> "  $b" } ?: "") }, null)
+			}
 			var t = raw.trim()
 			var button: String? = null
 			// a button icon in front of a prompt ("△ OPEN") is read as one odd character: drop it

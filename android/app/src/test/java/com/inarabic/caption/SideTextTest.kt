@@ -25,6 +25,11 @@ class SideTextTest
 		assertEquals(SideText("Open", null), SideText.clean("OPEN"))
 	}
 
+	@Test fun listKeepsItsLines()
+	{
+		assertEquals(SideText("Map\nInventory  R1\nSettings", null), SideText.clean("MAP\nINVENTORY R1\nSETTINGS"))
+	}
+
 	@Test fun plainTextStays()
 	{
 		assertEquals(SideText("Bachelor party", null), SideText.clean("BACHELOR PARTY"))
