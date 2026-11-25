@@ -16,7 +16,7 @@ adb shell input swipe 540 1700 540 500 600; sleep 1
 python3 ci/ui.py shot shots/phone-5-settings3.png
 adb shell input keyevent KEYCODE_BACK; sleep 2
 # the + button, then "register"
-python3 ci/ui.py tap "com.inarabic.phone:id/floatingActionButton" || adb shell input tap 980 2150
+adb shell input tap 960 2220
 sleep 2
 python3 ci/ui.py shot shots/phone-6-fab.png
 python3 ci/ui.py tap "ربط البلايستيشن"
