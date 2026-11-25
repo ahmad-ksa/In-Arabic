@@ -54,6 +54,14 @@ class CaptionEngine(
 	private var loop: Job? = null
 	private var lastBox2Read = 0L
 	private var lastScreenRead = 0L
+	/** lines found by the last read of an area (a PlayStation menu fills the screen with text) */
+	private var lastLineCount = 0
+	private var screenLineCount = 0
+	/** the PlayStation's own screens (menus, control centre) are on: translation paused */
+	@Volatile var systemUi = false
+		private set
+	/** called on the main thread when [systemUi] changes */
+	var onSystemUi: ((Boolean) -> Unit)? = null
 	/** coloured phrases of the subtitle on screen now */
 	@Volatile private var subColored: List<Colored> = emptyList()
 	/** prompts found in the rest of the picture ("OPEN" next to a car), from the last whole-screen read */
@@ -125,6 +133,7 @@ class CaptionEngine(
 			val bottom = (frame.height * prefs.areaBottom).toInt().coerceIn(top + 8, frame.height)
 			val side = ArrayList<OcrRead>()
 			val read = readArea(frame, Rect(0, top, frame.width, bottom), 0.018f, if(prefs.centerOnly) side else null)
+			val subLines = lastLineCount
 			// the rest of the picture (above the subtitle area): interaction prompts can be anywhere; read less often
 			val t1 = System.currentTimeMillis()
 			if(prefs.scanScreen && top > 16 && t1 - lastScreenRead > 700)
@@ -132,8 +141,18 @@ class CaptionEngine(
 				lastScreenRead = t1
 				val all = ArrayList<OcrRead>()
 				readArea(frame, Rect(0, 0, frame.width, top), 0.014f, all, everyLine = true)
+				screenLineCount = lastLineCount
 				screenItems = all.filter { it.text.split(' ').size <= 40 } // prompts and help boxes, not pages of text
 			}
+			// a PlayStation menu (control centre, home, store…) is text everywhere: pause, don't translate it
+			val busy = subLines > 5 || screenLineCount > 14
+			if(busy != systemUi)
+			{
+				systemUi = busy
+				if(busy) { subTracker.reset(); sideTracker.reset(); currentId = -1; current = null; LinkServer.sendClear(); LinkServer.sendSideClear(); post(null) }
+				surfaceView.post { onSystemUi?.invoke(busy) }
+			}
+			if(busy) return
 			side.addAll(screenItems)
 			val items = side.mapNotNull { r -> SideText.clean(r.text)?.let { Triple(it, r.box!!, r.colored) } }
 			when(sideTracker.feed(OcrRead(items.joinToString(" | ") { it.first.text })))
@@ -280,6 +299,7 @@ class CaptionEngine(
 	 */
 	private suspend fun readArea(frame: Bitmap, area: Rect, minLineH: Float, sideOut: MutableList<OcrRead>? = null, everyLine: Boolean = false): OcrRead
 	{
+		lastLineCount = 0
 		val crop = Bitmap.createBitmap(frame, area.left, area.top, area.width(), area.height())
 		try
 		{
@@ -290,6 +310,7 @@ class CaptionEngine(
 			} ?: return OcrRead("")
 			val ok = { l: Text.Line -> (l.boundingBox?.height() ?: 0) >= frame.height * minLineH } // skip tiny HUD text
 			val all = result.textBlocks.flatMap { it.lines }.filter(ok).sortedBy { it.boundingBox?.top ?: 0 }
+			lastLineCount = all.size
 			fun centred(l: Text.Line): Boolean
 			{
 				val b = l.boundingBox ?: return false

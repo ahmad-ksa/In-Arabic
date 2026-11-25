@@ -203,17 +203,38 @@ class MainActivity : AppCompatActivity()
 
 			if(host is DiscoveredDisplayHost && host.discoveredHost.state == DiscoveryHost.State.STANDBY)
 			{
-				MaterialAlertDialogBuilder(this)
-					.setMessage(R.string.alert_message_standby_wakeup)
-					.setPositiveButton(R.string.action_wakeup) { _, _ ->
-						wakeupHost(host)
-					}
-					.setNeutralButton(R.string.action_connect_immediately) { _, _ ->
-						connect()
-					}
-					.setNegativeButton(R.string.action_connect_cancel_connect) { _, _ -> }
-					.create()
+				// In Arabic: wake it up and connect by itself as soon as it is ready
+				wakeupHost(host)
+				var waiting = true
+				val dlg = MaterialAlertDialogBuilder(this)
+					.setMessage("البلايستيشن نايم، جاري تشغيله…")
+					.setNegativeButton(R.string.action_connect_cancel_connect) { _, _ -> waiting = false }
+					.setNeutralButton(R.string.action_connect_immediately) { _, _ -> waiting = false; connect() }
+					.setCancelable(false)
 					.show()
+				val started = System.currentTimeMillis()
+				val handler = android.os.Handler(mainLooper)
+				fun check()
+				{
+					if(!waiting) return
+					val now = viewModel.displayHosts.value?.firstOrNull { it is DiscoveredDisplayHost && it.host == host.host } as? DiscoveredDisplayHost
+					when
+					{
+						now?.discoveredHost?.state == DiscoveryHost.State.READY -> { waiting = false; dlg.dismiss(); handler.postDelayed({ connect() }, 1500) }
+						System.currentTimeMillis() - started > 45000 ->
+						{
+							waiting = false; dlg.dismiss()
+							MaterialAlertDialogBuilder(this).setMessage("البلايستيشن ما صحى. شغّله من زره أو من يد التحكم، وجرّب مرة ثانية.")
+								.setPositiveButton("حسناً", null).show()
+						}
+						else ->
+						{
+							if((System.currentTimeMillis() - started) % 10000 < 1000) wakeupHost(host)
+							handler.postDelayed({ check() }, 1000)
+						}
+					}
+				}
+				handler.postDelayed({ check() }, 1000)
 			}
 			else
 				connect()

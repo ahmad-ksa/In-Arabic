@@ -8,6 +8,7 @@
 #include <chiaki/thread.h>
 
 #include <oboe/Oboe.h>
+#include <cstring>
 
 #define BUFFER_CHUNK_SIZE 1024
 #define BUFFER_CHUNKS_COUNT 32
@@ -79,9 +80,14 @@ extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t
 		CHIAKI_LOGE(ao->log, "Audio Output failed to start Oboe stream: %s", oboe::convertToText(result));
 }
 
+// In Arabic: game sound on the phone can be switched off (the TV plays it anyway)
+extern "C" { volatile int android_chiaki_audio_muted = 0; }
+
 extern "C" void android_chiaki_audio_output_frame(int16_t *buf, size_t samples_count, void *audio_output)
 {
 	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+	if(android_chiaki_audio_muted)
+		memset(buf, 0, samples_count * sizeof(int16_t));
 
 	size_t buf_size = samples_count * sizeof(int16_t);
 	size_t pushed = ao->buf.Push(reinterpret_cast<uint8_t *>(buf), buf_size);

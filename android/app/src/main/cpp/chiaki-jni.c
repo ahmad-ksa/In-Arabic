@@ -404,6 +404,27 @@ JNIEXPORT jint JNICALL JNI_FCN(sessionJoin)(JNIEnv *env, jobject obj, jlong ptr)
 	return chiaki_session_join(&session->session);
 }
 
+// In Arabic: mute the game sound on the phone, and read how the stream is doing
+extern volatile int android_chiaki_audio_muted;
+JNIEXPORT void JNICALL JNI_FCN(setAudioMuted)(JNIEnv *env, jobject obj, jboolean muted)
+{
+	android_chiaki_audio_muted = muted ? 1 : 0;
+}
+
+/** [measured bitrate in Mbit/s, packet loss 0..1] */
+JNIEXPORT jdoubleArray JNICALL JNI_FCN(sessionGetStats)(JNIEnv *env, jobject obj, jlong ptr)
+{
+	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;
+	jdoubleArray r = E->NewDoubleArray(env, 2);
+	if(!session)
+		return r;
+	jdouble v[2];
+	v[0] = session->session.stream_connection.measured_bitrate;
+	v[1] = session->session.stream_connection.congestion_control.packet_loss;
+	E->SetDoubleArrayRegion(env, r, 0, 2, v);
+	return r;
+}
+
 JNIEXPORT void JNICALL JNI_FCN(sessionSetSurface)(JNIEnv *env, jobject obj, jlong ptr, jobject surface)
 {
 	AndroidChiakiSession *session = (AndroidChiakiSession *)ptr;

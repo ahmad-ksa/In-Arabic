@@ -35,6 +35,12 @@ class InArabicPrefs(context: Context)
 	val centerOnly get() = p.getBoolean("ia_center_only", true)
 	/** also read the rest of the picture for short prompts (OPEN, ENTER…) and translate them in place */
 	val scanScreen get() = p.getBoolean("ia_scan_screen", true)
+	/** game sound on the phone (off: the TV plays it) */
+	var phoneAudio
+		get() = p.getBoolean("ia_phone_audio", true)
+		set(v) { p.edit().putBoolean("ia_phone_audio", v).apply() }
+	/** reconnect by itself when the stream drops */
+	val autoReconnect get() = p.getBoolean("ia_auto_reconnect", true)
 	val box2Enabled get() = p.getBoolean("ia_box2", false)
 	val box2 get() = floatArrayOf(p.getInt("ia_box2_x", 2) / 100f, p.getInt("ia_box2_y", 3) / 100f,
 		p.getInt("ia_box2_w", 40) / 100f, p.getInt("ia_box2_h", 22) / 100f)

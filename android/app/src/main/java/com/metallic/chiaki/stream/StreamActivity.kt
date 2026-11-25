@@ -2,6 +2,7 @@
 
 package com.metallic.chiaki.stream
 
+import android.content.Intent
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.app.AlertDialog
@@ -33,6 +34,7 @@ import com.metallic.chiaki.touchcontrols.TouchControlsFragment
 import com.metallic.chiaki.touchcontrols.TouchpadOnlyFragment
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.onEach
 import kotlin.math.min
 
@@ -71,7 +73,10 @@ class StreamActivity : AppCompatActivity()
 		}
 		captionEngine = com.inarabic.caption.CaptionEngine(binding.surfaceView, iaPrefs) { text ->
 			binding.iaCaption.visibility = if(text.isNullOrEmpty()) View.GONE else View.VISIBLE
-		}.also { it.start() }
+		}.also {
+			it.onSystemUi = { on -> if(on) notice("شاشة البلايستيشن ظاهرة، الترجمة متوقفة مؤقتاً", 0) else binding.iaNotice.visibility = View.GONE }
+			it.start()
+		}
 		// tap the Arabic line on the phone to correct it: remembered, and replaced on the TV at once
 		binding.iaCaption.setOnClickListener {
 			val cur = captionEngine?.current ?: return@setOnClickListener
@@ -155,6 +160,17 @@ class StreamActivity : AppCompatActivity()
 		}
 
 		//viewModel.session.attachToTextureView(textureView)
+		// In Arabic: game sound on the phone on/off
+		val iaPrefs = com.inarabic.InArabicPrefs(this)
+		com.metallic.chiaki.lib.Session.setAudioMuted(!iaPrefs.phoneAudio)
+		binding.iaAudioSwitch.isChecked = iaPrefs.phoneAudio
+		binding.iaAudioSwitch.setOnCheckedChangeListener { _, on ->
+			iaPrefs.phoneAudio = on
+			com.metallic.chiaki.lib.Session.setAudioMuted(!on)
+			showOverlay()
+		}
+		watchNetwork()
+
 		viewModel.session.attachToSurfaceView(binding.surfaceView)
 		viewModel.session.state.observe(this, Observer { this.stateChanged(it) })
 		adjustStreamViewAspect()
@@ -211,6 +227,57 @@ class StreamActivity : AppCompatActivity()
 		super.onDestroy()
 		controlsJob?.cancel()
 	}
+
+	// ---- In Arabic: notices, network watch, reconnecting by itself ----
+	private val noticeHide = Runnable { binding.iaNotice.visibility = View.GONE }
+	private fun notice(text: String, ms: Long = 4000)
+	{
+		binding.iaNotice.text = text
+		binding.iaNotice.visibility = View.VISIBLE
+		uiVisibilityHandler.removeCallbacks(noticeHide)
+		if(ms > 0) uiVisibilityHandler.postDelayed(noticeHide, ms)
+	}
+
+	private var weakCount = 0
+	private var weakShownAt = 0L
+	private fun watchNetwork()
+	{
+		lifecycleScope.launch {
+			while(true)
+			{
+				kotlinx.coroutines.delay(2000)
+				val s = viewModel.session.session ?: continue
+				if(viewModel.session.state.value != StreamStateConnected) { weakCount = 0; continue }
+				val loss = try { s.stats()[1] } catch(e: Throwable) { 0.0 }
+				weakCount = if(loss > 0.06) weakCount + 1 else 0
+				if(weakCount >= 3 && System.currentTimeMillis() - weakShownAt > 60000)
+				{
+					weakShownAt = System.currentTimeMillis()
+					weakCount = 0
+					showWeakNetwork()
+				}
+			}
+		}
+	}
+
+	private fun showWeakNetwork()
+	{
+		val prefs = Preferences(this)
+		val lower = Preferences.resolutionAll.toList().let { all -> all.getOrNull(all.indexOf(prefs.resolution) - 1) }
+		val snack = com.google.android.material.snackbar.Snackbar.make(binding.root, "الشبكة ضعيفة والصورة تتقطع. قرّب الجوال من الراوتر", 8000)
+		if(lower != null)
+			snack.setAction("خفّض الجودة") {
+				prefs.resolution = lower
+				val info = viewModel.session.connectInfo.copy(videoProfile = prefs.videoProfile)
+				startActivity(Intent(this, StreamActivity::class.java).putExtra(EXTRA_CONNECT_INFO, info))
+				finish()
+			}
+		snack.show()
+	}
+
+	private var autoTries = 0
+	/** quit reasons worth trying again by itself: the network, not a setting */
+	private fun reconnectable(r: Int) = r in setOf(2, 3, 7, 8, 9, 10, 11)
 
 	private fun reconnect()
 	{
@@ -274,11 +341,19 @@ class StreamActivity : AppCompatActivity()
 	{
 		binding.progressBar.visibility = if(state == StreamStateConnecting) View.VISIBLE else View.GONE
 		if(state == StreamStateConnected) startCaptions() else if(state is StreamStateQuit) stopCaptions()
+		if(state == StreamStateConnected && autoTries > 0) { autoTries = 0; notice("رجع البث ✓", 2500) }
 
 		when(state)
 		{
 			is StreamStateQuit ->
 			{
+				if(state.reason.isError && com.inarabic.InArabicPrefs(this).autoReconnect && reconnectable(state.reason.value) && autoTries < 4)
+				{
+					autoTries++
+					notice("انقطع البث. نرجع نتصل… (محاولة $autoTries)", 0)
+					uiVisibilityHandler.postDelayed({ reconnect() }, 2500L * autoTries)
+					return
+				}
 				if(dialogContents != StreamQuitDialog)
 				{
 					if(state.reason.isError)

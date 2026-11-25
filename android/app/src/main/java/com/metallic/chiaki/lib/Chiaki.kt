@@ -93,6 +93,8 @@ private class ChiakiNative
 		@JvmStatic external fun sessionSetSurface(ptr: Long, surface: Surface?)
 		@JvmStatic external fun sessionSetControllerState(ptr: Long, controllerState: ControllerState)
 		@JvmStatic external fun sessionSetLoginPin(ptr: Long, pin: String)
+		@JvmStatic external fun setAudioMuted(muted: Boolean)
+		@JvmStatic external fun sessionGetStats(ptr: Long): DoubleArray
 		@JvmStatic external fun discoveryServiceCreate(result: CreateResult, options: DiscoveryServiceOptions, javaService: DiscoveryService)
 		@JvmStatic external fun discoveryServiceFree(ptr: Long)
 		@JvmStatic external fun discoveryServiceWakeup(ptr: Long, host: String, userCredential: Long, ps5: Boolean)
@@ -341,6 +343,9 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 	}
 
 	fun start() = ErrorCode(ChiakiNative.sessionStart(nativePtr))
+	/** In Arabic: [Mbit/s, packet loss 0..1] while streaming */
+	fun stats(): DoubleArray = if(nativePtr == 0L) DoubleArray(2) else ChiakiNative.sessionGetStats(nativePtr)
+	companion object { fun setAudioMuted(muted: Boolean) = ChiakiNative.setAudioMuted(muted) }
 	fun stop() = ErrorCode(ChiakiNative.sessionStop(nativePtr))
 
 	fun dispose()
