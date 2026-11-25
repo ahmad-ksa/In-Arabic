@@ -29,3 +29,8 @@ class NamesTest
 		org.junit.Assert.assertEquals("مرحبا", Glossary.arabicNames("مرحبا"))
 	}
 }
+
+class CountTest
+{
+	@Test fun keepsCount() { org.junit.Assert.assertEquals("إعادة السحب (3)", Glossary.lookup("REDRAW (3)")) }
+}

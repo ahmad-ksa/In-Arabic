@@ -398,22 +398,37 @@ class CaptionEngine(
 			fun centred(l: Text.Line): Boolean
 			{
 				val b = l.boundingBox ?: return false
-				// a sentence is dialogue wherever it sits; only short texts away from the middle are side texts
-				if(l.text.trim().split(Regex("\\s+")).size >= 4) return true
+				// a menu bar ("SELECT   CONFIRM   REDRAW   SKIP") is never the subtitle
+				if(segments(l).size > 1) return false
+				// the subtitle sits in the middle of its frame (a wide line always does)
 				val cx = b.exactCenterX() / area.width()
-				return kotlin.math.abs(cx - 0.5f) < 0.25f || b.width() > area.width() * 0.45f
+				return kotlin.math.abs(cx - 0.5f) < 0.15f || b.width() > area.width() * 0.6f
 			}
-			val lines = if(sideOut == null) all else all.filter(::centred)
+			// the subtitle is one group of centred lines stacked close together: the lowest such group.
+			// Other centred lines (a screen title, a card's text) are side texts.
+			val subtitle: List<Text.Line> = if(sideOut == null) all else run {
+				val c = all.filter(::centred).sortedBy { it.boundingBox!!.top }
+				if(c.isEmpty()) return@run c
+				val groups = ArrayList<ArrayList<Text.Line>>()
+				for(l in c)
+				{
+					val last = groups.lastOrNull()?.last()
+					val gap = if(last == null) Int.MAX_VALUE else l.boundingBox!!.top - last.boundingBox!!.bottom
+					if(last != null && gap < last.boundingBox!!.height() * 1.2f) groups.last() += l else groups += arrayListOf(l)
+				}
+				groups.last()
+			}
+			val lines = subtitle
 			if(sideOut != null)
 			{
 				// side texts by block: a help box ("Ammu-Nations will expand / their stock…") is one paragraph,
 				// but stacked button prompts ("SHOOT R2 / AIM L2") stay one item per line
 				for(block in result.textBlocks)
 				{
-					val bl = block.lines.filter(ok).filter { it.boundingBox != null && (everyLine || !centred(it)) }
+					val bl = block.lines.filter(ok).filter { it.boundingBox != null && (everyLine || it !in subtitle) }
 						.sortedBy { it.boundingBox!!.top }
 					if(bl.isEmpty()) continue
-					val prompts = bl.size == 1 || bl.any { SideText.clean(it.text)?.button != null }
+					val prompts = bl.size == 1 || bl.any { SideText.clean(it.text)?.button != null || segments(it).size > 1 }
 					if(prompts) for(l in bl) for(seg in segments(l)) sideOut.add(seg.let { (txt, r) -> one(crop, txt, r, l, area, frame) })
 					else sideOut.add(join(crop, bl, area, frame))
 				}

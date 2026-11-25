@@ -48,6 +48,10 @@ object Glossary
 		"tutorials" to "الدروس", "controls" to "التحكم", "display" to "العرض", "audio" to "الصوت", "language" to "اللغة",
 		"store" to "المتجر", "phone" to "الجوال", "camera" to "الكاميرا", "track" to "تتبّع", "untrack" to "إلغاء التتبع",
 		"filter" to "تصفية", "details" to "التفاصيل", "info" to "معلومات", "change" to "تغيير", "view" to "عرض",
+		"redraw" to "إعادة السحب", "reroll" to "إعادة الرمي", "perk" to "ميزة", "perks" to "المزايا", "choose perk" to "اختر ميزة",
+		"choose a perk" to "اختر ميزة", "gear" to "معدّات", "loadout" to "العتاد", "wild card" to "بطاقة عشوائية", "wildcard" to "بطاقة عشوائية",
+		"survival" to "النجاة", "chaos" to "الفوضى", "health gains" to "زيادة الصحة", "health" to "الصحة", "armor" to "الدرع",
+		"ammo" to "الذخيرة", "stamina" to "التحمّل", "damage" to "الضرر", "reward" to "مكافأة", "rewards" to "المكافآت", "random" to "عشوائي",
 		"bachelor party" to "حفلة توديع العزوبية", "fast travel" to "انتقال سريع", "photo mode" to "وضع التصوير"
 	)
 
@@ -103,6 +107,10 @@ object Glossary
 	/** the fixed translation of a whole short text, or null */
 	fun lookup(english: String): String?
 	{
+		// a count in brackets stays: "REDRAW (3)" -> "إعادة السحب (3)"
+		Regex("^(.*?)\\s*\\((\\d+)\\)\\s*$").find(english.trim())?.let { m ->
+			if(m.groupValues[1].isNotBlank()) return lookup(m.groupValues[1])?.let { "$it (${m.groupValues[2]})" }
+		}
 		val n = norm(english)
 		if(n.isEmpty() || n.split(' ').size > 4) return null
 		words[n]?.let { return it }
