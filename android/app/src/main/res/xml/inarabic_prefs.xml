@@ -14,6 +14,12 @@
         <ListPreference app:key="ia_color" app:title="لون الخط" app:defaultValue="#FFFFFF"
             app:entries="@array/ia_color_names" app:entryValues="@array/ia_color_values" app:useSimpleSummaryProvider="true" />
         <SwitchPreference app:key="ia_bold" app:defaultValue="true" app:title="خط عريض" />
+        <SeekBarPreference app:key="ia_tv_zoom" app:title="مطابقة التلفزيون: تكبير المكان (%)"
+            app:summary="إذا الترجمة على التلفزيون أقرب للوسط من الكلام الإنجليزي، زِد هذا وأنت تنظر للشاشة"
+            app:defaultValue="0" android:max="15" app:min="0" app:showSeekBarValue="true" />
+        <SeekBarPreference app:key="ia_tv_shift" app:title="مطابقة التلفزيون: تحريك لأعلى/أسفل (%)"
+            app:summary="سالب = لأعلى، موجب = لأسفل"
+            app:defaultValue="0" android:max="10" app:min="-10" app:showSeekBarValue="true" />
         <ListPreference app:key="ia_position" app:title="مكان الترجمة" app:defaultValue="auto"
             app:entries="@array/ia_pos_names" app:entryValues="@array/ia_pos_values" app:useSimpleSummaryProvider="true" />
         <SwitchPreference app:key="ia_cover" app:defaultValue="true"

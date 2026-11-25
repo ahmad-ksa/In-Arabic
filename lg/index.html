@@ -100,7 +100,22 @@
 
   // ---------- caption
   var hideTimer = 0;
+  // the TV may enlarge the HDMI picture (overscan): the phone sends zoom / dy to match
+  function fit(b) {
+    if (!b) return b;
+    var k = 1 + (style.zoom || 0), o = b.slice();
+    o[0] = 0.5 + (b[0] - 0.5) * k; o[2] = b[2] * k;
+    o[1] = 0.5 + (b[1] - 0.5) * k + (style.dy || 0); o[3] = b[3] * k;
+    if (o.length > 4) o[4] = b[4] * k;
+    return o;
+  }
+  // text size: the English line's own height when known
+  function sizeFor(b, def, lo, hi) {
+    var H = 1080, v = (b && b.length > 4 && b[4] > 0) ? Math.min(Math.max(b[4] * H * 0.95, H * lo), H * hi) : H * def;
+    return Math.round(v * style.scale);
+  }
   function caption(text, box) {
+    box = fit(box);
     var c = $('cap');
     clearTimeout(hideTimer);
     if (!text) { c.style.display = 'none'; return; }
@@ -114,9 +129,9 @@
     } else {
       area = { x: W * 0.1, y: H * 0.79, w: W * 0.8, h: H * 0.12 };
     }
-    var minW = W * 0.6;
+    var minW = W * 0.2;
     if (area.w < minW) { var cx = Math.min(Math.max(area.x + area.w / 2, minW / 2), W - minW / 2); area.x = cx - minW / 2; area.w = minW; }
-    c.style.fontSize = Math.round(H * 0.042 * style.scale) + 'px';
+    c.style.fontSize = sizeFor(box, 0.042, 0.026, 0.055) + 'px';
     c.style.background = 'rgba(0,0,0,' + style.opacity + ')';
     c.style.color = style.color;
     c.style.fontWeight = style.bold ? '700' : '400';
@@ -134,6 +149,7 @@
   function box2(text, box) {
     var b = $('box2');
     if (!text || !box) { b.style.display = 'none'; return; }
+    box = fit(box);
     b.style.left = box[0] * 1920 + 'px'; b.style.top = box[1] * 1080 + 'px';
     b.style.width = box[2] * 1920 + 'px'; b.style.minHeight = box[3] * 1080 + 'px';
     b.style.fontSize = Math.round(1080 * 0.028 * style.scale) + 'px';
@@ -150,11 +166,11 @@
     if (!items || !items.length) { host.style.display = 'none'; return; }
     host.style.display = 'block';
     items.forEach(function (it) {
-      var bx = it.box; if (!it.ar || !bx) return;
+      var bx = fit(it.box); if (!it.ar || !bx) return;
       var d = document.createElement('div');
       d.className = 'side-item';
       d.textContent = it.ar;
-      d.style.fontSize = Math.round(Math.min(1080 * 0.045, Math.max(1080 * 0.02, bx[3] * 1080 * 0.8)) * style.scale) + 'px';
+      d.style.fontSize = sizeFor(bx, 0.03, 0.02, 0.045) + 'px';
       d.style.background = 'rgba(0,0,0,' + style.opacity + ')';
       d.style.color = style.color;
       d.style.minWidth = bx[2] * 1920 + 16 + 'px';
@@ -210,6 +226,7 @@
       else if (o.t === 'style') {
         style.scale = +o.scale || 1; style.cover = o.cover !== false; style.opacity = o.opacity == null ? 0.85 : +o.opacity;
         style.color = o.color || '#FFFFFF'; style.pos = o.pos || 'auto'; style.bold = o.bold !== false;
+        style.zoom = +o.zoom || 0; style.dy = +o.dy || 0;
       }
     };
     ws.onclose = function (e) {

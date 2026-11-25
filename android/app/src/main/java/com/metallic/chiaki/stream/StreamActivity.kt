@@ -63,6 +63,7 @@ class StreamActivity : AppCompatActivity()
 		if(captionEngine != null) return
 		val iaPrefs = com.inarabic.InArabicPrefs(this)
 		val overlay = binding.iaOverlay
+		overlay.fitToTv = false
 		overlay.visibility = if(iaPrefs.showOnPhone) View.VISIBLE else View.GONE
 		// the phone draws what the TVs draw: every message the TVs get goes to its own caption view too
 		com.inarabic.link.LinkServer.local = { msg ->

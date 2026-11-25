@@ -52,6 +52,9 @@ class InArabicPrefs(context: Context)
 	val textColor get() = p.getString("ia_color", "#FFFFFF") ?: "#FFFFFF"
 	/** auto = over the English line, bottom / top = fixed */
 	val position get() = p.getString("ia_position", "auto") ?: "auto"
+	/** TV picture fit: the TV may enlarge the HDMI picture (overscan) or move it */
+	val tvZoom get() = p.getInt("ia_tv_zoom", 0) / 100f
+	val tvShift get() = p.getInt("ia_tv_shift", 0) / 100f
 	val bold get() = p.getBoolean("ia_bold", true)
 
 	/** The game being played (filled from the PS5 when it says, or typed): helps the AI keep names right. */

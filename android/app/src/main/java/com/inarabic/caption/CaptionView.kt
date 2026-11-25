@@ -44,6 +44,27 @@ class CaptionView(context: Context) : View(context)
 	var color = Color.WHITE
 	var position = "auto"
 	var bold = true
+	/** TV picture fit (from the phone): the TV enlarges the HDMI picture by [zoom] and moves it by [dy] */
+	var zoom = 0f
+	var dy = 0f
+	/** false on the phone: its picture is the stream itself */
+	var fitToTv = true
+
+	/** the box from the phone (0..1 of the PS5 picture) in 0..1 of this screen */
+	private fun fit(b: FloatArray): FloatArray
+	{
+		if(!fitToTv || (zoom == 0f && dy == 0f)) return b
+		val k = 1f + zoom
+		val o = b.copyOf()
+		o[0] = 0.5f + (b[0] - 0.5f) * k; o[2] = b[2] * k
+		o[1] = 0.5f + (b[1] - 0.5f) * k + dy; o[3] = b[3] * k
+		if(o.size > 4) o[4] = b[4] * k
+		return o
+	}
+
+	/** text size: the English line's own height when known, else a default share of the screen */
+	private fun sizeFor(b: FloatArray?, h: Float, def: Float, lo: Float, hi: Float) =
+		(if(b != null && b.size > 4 && b[4] > 0f) (b[4] * h * 0.95f).coerceIn(h * lo, h * hi) else h * def) * scale
 	fun styleChanged() = invalidate()
 
 	private val timers = android.os.Handler(android.os.Looper.getMainLooper())
@@ -54,7 +75,7 @@ class CaptionView(context: Context) : View(context)
 	/** A message from the phone (see the phone's LinkServer for the format). */
 	fun handle(o: org.json.JSONObject)
 	{
-		fun box(o: org.json.JSONObject) = o.optJSONArray("box")?.takeIf { it.length() == 4 }?.let { b -> FloatArray(4) { b.optDouble(it).toFloat() } }
+		fun box(o: org.json.JSONObject) = o.optJSONArray("box")?.takeIf { it.length() >= 4 }?.let { b -> FloatArray(b.length()) { b.optDouble(it).toFloat() } }
 		when(o.optString("t"))
 		{
 			"sub" ->
@@ -92,6 +113,8 @@ class CaptionView(context: Context) : View(context)
 				color = try { Color.parseColor(o.optString("color", "#FFFFFF")) } catch(e: Exception) { Color.WHITE }
 				position = o.optString("pos", "auto")
 				bold = o.optBoolean("bold", true)
+				zoom = o.optDouble("zoom", 0.0).toFloat()
+				dy = o.optDouble("dy", 0.0).toFloat()
 				invalidate()
 			}
 		}
@@ -122,7 +145,7 @@ class CaptionView(context: Context) : View(context)
 
 		// second box: in its own area of the picture, smaller text, top aligned
 		val b2t = box2Text
-		val b2 = box2
+		val b2 = box2?.let(::fit)
 		if(!b2t.isNullOrBlank() && b2 != null)
 		{
 			textPaint.textSize = h * 0.028f * scale
@@ -137,8 +160,8 @@ class CaptionView(context: Context) : View(context)
 		// side texts: each exactly over its English text (a bit wider if the Arabic needs it), kept on screen
 		for(sd in sides)
 		{
-			val sb = sd.box
-			textPaint.textSize = (sb[3] * h * 0.8f).coerceIn(h * 0.02f, h * 0.045f) * scale
+			val sb = fit(sd.box)
+			textPaint.textSize = sizeFor(sb, h, 0.03f, 0.02f, 0.045f)
 			val area = RectF(sb[0] * w - w * 0.004f, sb[1] * h - h * 0.004f, (sb[0] + sb[2]) * w + w * 0.004f, (sb[1] + sb[3]) * h + h * 0.004f)
 			val tw = textPaint.measureText(sd.text) + w * 0.012f
 			if(area.width() < tw)
@@ -160,8 +183,8 @@ class CaptionView(context: Context) : View(context)
 		val t = text
 		if(!t.isNullOrBlank())
 		{
-			textPaint.textSize = h * 0.042f * scale
-			val b = box
+			val b = box?.let(::fit)
+			textPaint.textSize = sizeFor(b, h, 0.042f, 0.026f, 0.055f)
 			val area = when
 			{
 				position == "top" -> RectF(w * 0.1f, h * 0.05f, w * 0.9f, h * 0.17f)

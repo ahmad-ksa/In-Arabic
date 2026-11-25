@@ -97,7 +97,7 @@ object LinkServer
 	fun sendSub(id: Int, arabic: String, english: String, final: Boolean, box: FloatArray?)
 	{
 		val o = JSONObject().put("t", "sub").put("id", id).put("ar", arabic).put("en", english).put("final", final)
-		if(box != null) o.put("box", org.json.JSONArray().put(box[0].toDouble()).put(box[1].toDouble()).put(box[2].toDouble()).put(box[3].toDouble()))
+		if(box != null) o.put("box", boxJson(box))
 		val msg = o.toString()
 		lastSub = msg
 		broadcast(msg)
@@ -112,7 +112,7 @@ object LinkServer
 	fun sendBox2(arabic: String, box: FloatArray)
 	{
 		val msg = JSONObject().put("t", "box2").put("ar", arabic)
-			.put("box", org.json.JSONArray().put(box[0].toDouble()).put(box[1].toDouble()).put(box[2].toDouble()).put(box[3].toDouble())).toString()
+			.put("box", boxJson(box)).toString()
 		lastBox2 = msg
 		broadcast(msg)
 	}
@@ -128,7 +128,7 @@ object LinkServer
 	{
 		val arr = org.json.JSONArray()
 		for((ar, box) in items)
-			arr.put(JSONObject().put("ar", ar).put("box", org.json.JSONArray().put(box[0].toDouble()).put(box[1].toDouble()).put(box[2].toDouble()).put(box[3].toDouble())))
+			arr.put(JSONObject().put("ar", ar).put("box", boxJson(box)))
 		val msg = JSONObject().put("t", "side").put("items", arr).toString()
 		lastSide = msg
 		broadcast(msg)
@@ -148,9 +148,18 @@ object LinkServer
 	fun sendStyle(p: com.inarabic.InArabicPrefs)
 	{
 		val msg = JSONObject().put("t", "style").put("scale", p.textScale.toDouble()).put("cover", p.coverOriginal)
-			.put("opacity", p.boxOpacity.toDouble()).put("color", p.textColor).put("pos", p.position).put("bold", p.bold).toString()
+			.put("opacity", p.boxOpacity.toDouble()).put("color", p.textColor).put("pos", p.position).put("bold", p.bold)
+			.put("zoom", p.tvZoom.toDouble()).put("dy", p.tvShift.toDouble()).toString()
 		lastStyle = msg
 		broadcast(msg)
+	}
+
+	/** x, y, w, h (0..1 of the picture) and, if known, the height of one English line */
+	private fun boxJson(b: FloatArray): org.json.JSONArray
+	{
+		val a = org.json.JSONArray()
+		for(i in 0 until minOf(b.size, 5)) a.put(Math.round(b[i] * 10000) / 10000.0)
+		return a
 	}
 
 	/** the phone's own caption view gets every message too */

@@ -293,8 +293,10 @@ class CaptionEngine(
 		val texts = lines.map { line -> reread(crop, line) }
 		val r = Rect(lines[0].boundingBox ?: Rect())
 		for(l in lines) l.boundingBox?.let { r.union(it) }
+		// box[4]: the height of one English line, so the Arabic is drawn the same size
+		val lineH = lines.mapNotNull { it.boundingBox?.height() }.sorted().let { it[it.size / 2] }
 		val box = floatArrayOf((r.left + area.left) / frame.width.toFloat(), (r.top + area.top) / frame.height.toFloat(),
-			r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat())
+			r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat(), lineH / frame.height.toFloat())
 		return OcrRead(texts.joinToString(" "), box)
 	}
 
