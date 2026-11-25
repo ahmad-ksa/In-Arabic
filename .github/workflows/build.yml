@@ -97,10 +97,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release delete latest --cleanup-tag -y || true
-          gh release create latest InArabic-phone.apk InArabic-androidtv.apk InArabic-lg.ipk \
-            --title "بالعربي — آخر إصدار (0.1.${{ github.run_number }})" \
-            --notes "InArabic-phone.apk للجوال • InArabic-androidtv.apk لشاشة أندرويد • InArabic-lg.ipk لشاشة LG"
+          title="بالعربي — آخر إصدار (0.1.${{ github.run_number }})"
+          notes="InArabic-phone.apk للجوال • InArabic-androidtv.apk لشاشة أندرويد • InArabic-lg.ipk لشاشة LG"
+          files="InArabic-phone.apk InArabic-androidtv.apk InArabic-lg.ipk"
+          # replace the files in place (deleting the release has been failing with HTTP 500 on GitHub's side)
+          if gh release view latest > /dev/null 2>&1; then
+            for i in 1 2 3; do gh release upload latest $files --clobber && break; sleep 10; done
+            gh release edit latest --title "$title" --notes "$notes"
+          else
+            gh release create latest $files --title "$title" --notes "$notes"
+          fi
 
   smoke:
     needs: [phone]
