@@ -24,4 +24,10 @@
     <string-array name="ia_box_color_values" translatable="false">
         <item>#000000</item><item>#0B1A33</item><item>#0F2A20</item><item>#2B2B2B</item>
     </string-array>
+    <string-array name="ia_mode_names">
+        <item>الحوارات فقط</item><item>الحوارات + القوائم والمهام والأزرار</item><item>كل شي على الشاشة</item>
+    </string-array>
+    <string-array name="ia_mode_values" translatable="false">
+        <item>dialog</item><item>menus</item><item>all</item>
+    </string-array>
 </resources>

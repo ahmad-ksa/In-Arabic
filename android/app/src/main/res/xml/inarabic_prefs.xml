@@ -35,6 +35,8 @@
     </PreferenceCategory>
 
     <PreferenceCategory app:title="الترجمة">
+        <ListPreference app:key="ia_mode" app:title="وش أترجم؟" app:defaultValue="menus"
+            app:entries="@array/ia_mode_names" app:entryValues="@array/ia_mode_values" app:useSimpleSummaryProvider="true" />
         <SwitchPreference app:key="ia_enabled" app:defaultValue="true"
             app:title="ترجمة النصوص الإنجليزية" app:summary="تعمل أثناء اللعب من الجوال" />
         <Preference app:key="ia_download_model" app:title="تنزيل نموذج الترجمة المجاني"
@@ -69,15 +71,9 @@
     </PreferenceCategory>
 
     <PreferenceCategory app:title="النصوص الجانبية">
-        <SwitchPreference app:key="ia_dialog_only" app:defaultValue="false"
-            app:title="ترجم الحوار فقط"
-            app:summary="الحوار اللي في النص تحت بس، بدون الأزرار والمهام والنصوص الجانبية" />
         <SwitchPreference app:key="ia_center_only" app:defaultValue="true"
             app:title="افصل النصوص الجانبية عن الحوار"
             app:summary="الحوار في الوسط؛ أي نص على الجانب (اسم مهمة، زر) يُترجم مكانه ولا يختلط بالحوار" />
-        <SwitchPreference app:key="ia_scan_screen" app:defaultValue="false"
-            app:title="ترجم الأزرار في كل الشاشة"
-            app:summary="كلمات قصيرة مثل OPEN أو ENTER في أي مكان من الصورة تُترجم فوقها" />
     </PreferenceCategory>
 
 </PreferenceScreen>

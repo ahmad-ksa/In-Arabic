@@ -73,12 +73,16 @@ class InArabicPrefs(context: Context)
 	/** Second box: side texts such as objectives or messages, in its own area of the picture (percent). */
 	/** subtitles are centred: text off to the side of the subtitle area is treated (and drawn) apart */
 	val centerOnly get() = p.getBoolean("ia_center_only", true)
+	/** what to translate: "dialog" (only the dialogue), "menus" (dialogue + side frames, prompts, tasks), "all" (anything on screen) */
+	var mode
+		get() = p.getString("ia_mode", null) ?: when { p.getBoolean("ia_dialog_only", false) -> "dialog"; p.getBoolean("ia_scan_screen", false) -> "all"; else -> "menus" }
+		set(v) { p.edit().putString("ia_mode", v).apply() }
 	/** only the dialogue in the middle: no side texts, no side frames */
 	var dialogOnly
-		get() = p.getBoolean("ia_dialog_only", false)
-		set(v) { p.edit().putBoolean("ia_dialog_only", v).apply() }
+		get() = mode == "dialog"
+		set(v) { mode = if(v) "dialog" else "menus" }
 	/** also read the rest of the picture for short prompts (OPEN, ENTER…) and translate them in place */
-	val scanScreen get() = p.getBoolean("ia_scan_screen", false)
+	val scanScreen get() = mode == "all"
 	/** game sound on the phone (off: the TV plays it) */
 	var phoneAudio
 		get() = p.getBoolean("ia_phone_audio", true)
