@@ -40,7 +40,8 @@ class InArabicPrefs(context: Context)
 			}
 			catch(e: Exception) { }
 			// before frames existed: the subtitle area, and the second box if it was on
-			val list = arrayListOf(Zone(area, true))
+			// and the usual place of help boxes and tasks (top left)
+			val list = arrayListOf(Zone(area, true), Zone(android.graphics.RectF(0.02f, 0.03f, 0.42f, 0.32f), false))
 			if(box2Enabled) box2.let { b -> list += Zone(android.graphics.RectF(b[0], b[1], b[0] + b[2], b[1] + b[3]), false) }
 			return list
 		}
@@ -82,7 +83,9 @@ class InArabicPrefs(context: Context)
 		get() = mode == "dialog"
 		set(v) { mode = if(v) "dialog" else "menus" }
 	/** also read the rest of the picture for short prompts (OPEN, ENTER…) and translate them in place */
-	val scanScreen get() = mode == "all"
+	val scanScreen get() = mode != "dialog"
+	/** reading the whole picture keeps only game words and button prompts (no signs, no shop boards) */
+	val scanOnlyPrompts get() = mode == "menus"
 	/** game sound on the phone (off: the TV plays it) */
 	var phoneAudio
 		get() = p.getBoolean("ia_phone_audio", true)

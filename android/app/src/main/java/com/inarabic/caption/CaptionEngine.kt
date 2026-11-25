@@ -233,7 +233,18 @@ class CaptionEngine(
 				if(prefs.scanScreen)
 				{
 					val top = zones.filter { it.dialog }.minOfOrNull { it.r.top } ?: 0.62f
-					if(top > 0.05f) { readArea(frame, Rect(0, 0, frame.width, (top * frame.height).toInt()), 0.014f, all, everyLine = true); screenLineCount = lastLineCount }
+					if(top > 0.05f)
+					{
+						val found = ArrayList<OcrRead>()
+						readArea(frame, Rect(0, 0, frame.width, (top * frame.height).toInt()), 0.014f, found, everyLine = true)
+						screenLineCount = lastLineCount
+						// "menus": only what the game draws for you (OPEN, Hold to skip, a button next to a word),
+						// not the world (restaurant boards, shop signs, posters)
+						all += if(!prefs.scanOnlyPrompts) found else found.filter { r ->
+							val st = SideText.clean(r.text)
+							st != null && (st.button != null || com.inarabic.translate.Glossary.lookup(st.text) != null)
+						}
+					}
 				}
 				screenItems = all.filter { it.text.split(' ').size <= 60 }
 			}
