@@ -295,6 +295,13 @@ class CaptionEngine(
 				show(id, english, known.arabic, true, box)
 				return@launch
 			}
+			if(prefs.aiOnly)
+			{
+				// the AI only: wait for it; the free translation only if it does not answer
+				val better = translator.better(english)
+				if(currentId != id) { better?.let { SessionLog.add(english, it) }; return@launch }
+				if(better != null) { TranslationMemory.put(english, better, TranslationMemory.Source.AI); show(id, english, better, true, box); return@launch }
+			}
 			val quick = known?.arabic ?: translator.quick(english)
 			if(currentId != id) return@launch
 			if(quick != null)
@@ -302,7 +309,7 @@ class CaptionEngine(
 				TranslationMemory.put(english, quick, TranslationMemory.Source.QUICK)
 				show(id, english, quick, !wantAi, box)
 			}
-			if(wantAi)
+			if(wantAi && !prefs.aiOnly)
 			{
 				val better = translator.better(english) ?: return@launch
 				TranslationMemory.put(english, better, TranslationMemory.Source.AI)
@@ -338,8 +345,9 @@ class CaptionEngine(
 			val out = items.mapNotNull { (st, box, colored) ->
 				val known = TranslationMemory.get(st.text)?.takeIf { it.source == TranslationMemory.Source.USER || com.inarabic.translate.Glossary.lookup(st.text) == null }
 				// longer help texts are worth the AI (when on); short prompts take the quick model
-				val ai = if(known == null && prefs.aiEnabled && st.text.split(' ').size > 4) translator.better(st.text) else null
-				val ar = known?.arabic ?: ai?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) }
+				val ai = if((known == null || (prefs.aiOnly && known.source == TranslationMemory.Source.QUICK)) && prefs.aiEnabled && (prefs.aiOnly || st.text.split(' ').size > 4) && com.inarabic.translate.Glossary.lookup(st.text) == null) translator.better(st.text) else null
+				val ar = ai?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) }
+					?: known?.arabic
 					?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) } ?: return@mapNotNull null
 				val arN = com.inarabic.translate.Glossary.arabicNames(ar)
 				Triple(if(st.button != null) "$arN  ${st.button}" else arN, box, spans(st.text, arN, colored))
