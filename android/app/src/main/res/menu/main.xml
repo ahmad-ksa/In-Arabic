@@ -15,6 +15,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_xbox"
+        android:title="🟢 العب إكس بوكس بالعربي"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_camera"
         android:title="📷 وضع الكاميرا (بدون تشغيل عن بعد)"
         app:showAsAction="never" />

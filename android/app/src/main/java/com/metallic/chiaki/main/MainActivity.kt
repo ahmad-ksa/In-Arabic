@@ -149,6 +149,15 @@ class MainActivity : AppCompatActivity()
 			true
 		}
 
+		R.id.action_xbox ->
+		{
+			MaterialAlertDialogBuilder(this).setTitle("جهّز الإكس بوكس")
+				.setMessage("مرة وحدة في الإكس بوكس: زر Xbox ← Profile & system ← Settings ← Devices & connections ← Remote features ← فعّل Enable remote features، واختر Sleep في Power options.\n\nبعدها تنفتح صفحة إكس بوكس الرسمية: سجّل بحساب مايكروسوفت اللي على الإكس بوكس، واختر جهازك. وصّل يد الإكس بوكس بالجوال بالبلوتوث إذا طلبت الصفحة يد.")
+				.setPositiveButton("افتح صفحة إكس بوكس") { _, _ -> startActivity(Intent(this, com.inarabic.xbox.XboxActivity::class.java)) }
+				.setNegativeButton("إلغاء", null).show()
+			true
+		}
+
 		R.id.action_camera ->
 		{
 			startActivity(Intent(this, com.inarabic.camera.CameraActivity::class.java))
