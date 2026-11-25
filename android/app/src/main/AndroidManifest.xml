@@ -57,6 +57,7 @@
             android:name=".settings.SettingsActivity" />
 
         <activity android:name="com.inarabic.InArabicSettingsActivity" android:theme="@style/AppTheme.WithBar" />
+        <activity android:name="com.inarabic.SetupActivity" android:theme="@style/AppTheme.WithBar" />
         <activity android:name="com.inarabic.psn.PsnLoginActivity" android:theme="@style/AppTheme.WithBar"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize" />
 

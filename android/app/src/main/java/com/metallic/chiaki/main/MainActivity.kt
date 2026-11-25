@@ -36,6 +36,7 @@ class MainActivity : AppCompatActivity()
 	override fun onCreate(savedInstanceState: Bundle?)
 	{
 		super.onCreate(savedInstanceState)
+		if(savedInstanceState == null && !com.inarabic.SetupActivity.done(this)) startActivity(Intent(this, com.inarabic.SetupActivity::class.java))
 		com.inarabic.link.LinkServer.start(this) // TVs can connect as soon as the app is open
 		binding = ActivityMainBinding.inflate(layoutInflater)
 		setContentView(binding.root)
@@ -145,6 +146,12 @@ class MainActivity : AppCompatActivity()
 		R.id.action_discover ->
 		{
 			viewModel.discoveryManager.active = !(viewModel.discoveryActive.value ?: false)
+			true
+		}
+
+		R.id.action_setup ->
+		{
+			startActivity(Intent(this, com.inarabic.SetupActivity::class.java))
 			true
 		}
 

@@ -10,6 +10,11 @@
         app:showAsAction="ifRoom" />
 
     <item
+        android:id="@+id/action_setup"
+        android:title="🧭 خطوات التجهيز"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_pair"
         android:title="📷 اربط شاشة بالباركود"
         app:showAsAction="never" />
