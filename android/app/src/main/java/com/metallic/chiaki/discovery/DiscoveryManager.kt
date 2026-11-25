@@ -83,7 +83,7 @@ class DiscoveryManager
 			try
 			{
 				discoveryService = DiscoveryService(DiscoveryServiceOptions(
-					HOSTS_MAX, DROP_PINGS, PING_MS, InetSocketAddress("255.255.255.255", PORT)
+					HOSTS_MAX, DROP_PINGS, PING_MS, InetSocketAddress(com.inarabic.NetUtil.broadcastAddress(), PORT)
 				)) { hosts -> _discoveredHosts.value = hosts }
 			}
 			catch(e: CreateError)
