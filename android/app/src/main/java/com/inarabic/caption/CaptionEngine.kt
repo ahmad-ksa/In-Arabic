@@ -95,6 +95,17 @@ class CaptionEngine(
 	/** prompts found in the rest of the picture ("OPEN" next to a car), from the last whole-screen read */
 	private var screenItems: List<OcrRead> = emptyList()
 	@Volatile private var lastLineAt = 0L
+	private var zonesCache: List<InArabicPrefs.Zone> = emptyList()
+	private var zonesAt = 0L
+	/** the reading frames, read again from the settings every 2 s (they change while you drag them) */
+	private fun zonesNow(): List<InArabicPrefs.Zone>
+	{
+		val t = System.currentTimeMillis()
+		if(t - zonesAt > 2000) { zonesCache = prefs.zones; zonesAt = t }
+		return zonesCache
+	}
+	/** frames set right now (while placing them), used at once */
+	fun setZones(z: List<InArabicPrefs.Zone>) { zonesCache = z; zonesAt = System.currentTimeMillis() }
 
 	fun start()
 	{
@@ -192,24 +203,39 @@ class CaptionEngine(
 		val frame = source() ?: return
 		try
 		{
-			// the subtitle
-			val top = (frame.height * prefs.areaTop).toInt().coerceIn(0, frame.height - 8)
-			val bottom = (frame.height * prefs.areaBottom).toInt().coerceIn(top + 8, frame.height)
-			val left = (frame.width * prefs.areaLeft).toInt().coerceIn(0, frame.width - 16)
-			val right = (frame.width * prefs.areaRight).toInt().coerceIn(left + 16, frame.width)
 			if(autoUntil > 0L) { autoStep(frame); return }
+			val zones = zonesNow()
+			fun px(r: android.graphics.RectF) = Rect((r.left * frame.width).toInt(), (r.top * frame.height).toInt(),
+				(r.right * frame.width).toInt(), (r.bottom * frame.height).toInt()).apply { intersect(0, 0, frame.width, frame.height) }
+			// the dialogue: every dialogue frame; the first with text is the subtitle
 			val side = ArrayList<OcrRead>()
-			val read = readArea(frame, Rect(left, top, right, bottom), 0.018f, if(prefs.centerOnly) side else null)
-			val subLines = lastLineCount
-			// the rest of the picture (above the subtitle area): interaction prompts can be anywhere; read less often
+			var read = OcrRead("")
+			var subLines = 0
+			for(z in zones.filter { it.dialog })
+			{
+				val r = px(z.r); if(r.width() < 16 || r.height() < 8) continue
+				val got = readArea(frame, r, 0.018f, if(prefs.centerOnly) side else null)
+				subLines += lastLineCount
+				if(read.text.isBlank() && got.text.isNotBlank()) read = got
+			}
+			// side frames (tasks, prompts, messages) and, if on, the whole picture: read less often
 			val t1 = System.currentTimeMillis()
-			if(prefs.scanScreen && top > 16 && t1 - lastScreenRead > 700)
+			if(t1 - lastScreenRead > 700)
 			{
 				lastScreenRead = t1
 				val all = ArrayList<OcrRead>()
-				readArea(frame, Rect(0, 0, frame.width, top), 0.014f, all, everyLine = true)
-				screenLineCount = lastLineCount
-				screenItems = all.filter { it.text.split(' ').size <= 40 } // prompts and help boxes, not pages of text
+				for(z in zones.filter { !it.dialog })
+				{
+					val r = px(z.r); if(r.width() < 16 || r.height() < 8) continue
+					readArea(frame, r, 0.012f, all, everyLine = true)
+				}
+				screenLineCount = 0
+				if(prefs.scanScreen)
+				{
+					val top = zones.filter { it.dialog }.minOfOrNull { it.r.top } ?: 0.62f
+					if(top > 0.05f) { readArea(frame, Rect(0, 0, frame.width, (top * frame.height).toInt()), 0.014f, all, everyLine = true); screenLineCount = lastLineCount }
+				}
+				screenItems = all.filter { it.text.split(' ').size <= 60 }
 			}
 			// a PlayStation menu (control centre, home, store…) is text everywhere: pause, don't translate it
 			val busy = subLines > 5 || screenLineCount > 14
@@ -235,26 +261,6 @@ class CaptionEngine(
 				is TrackerEvent.Update -> translate(currentId.takeIf { it >= 0 } ?: ++nextId, ev.text, ev.box)
 				TrackerEvent.Clear -> { currentId = -1; current = null; LinkServer.sendClear(); post(null) }
 				null -> {}
-			}
-			// side texts: read less often
-			val now = System.currentTimeMillis()
-			if(prefs.box2Enabled && now - lastBox2Read > 900)
-			{
-				lastBox2Read = now
-				val b = prefs.box2
-				val r = Rect((b[0] * frame.width).toInt(), (b[1] * frame.height).toInt(),
-					((b[0] + b[2]) * frame.width).toInt(), ((b[1] + b[3]) * frame.height).toInt())
-				r.intersect(0, 0, frame.width, frame.height)
-				if(r.width() > 16 && r.height() > 16)
-				{
-					when(val ev = box2Tracker.feed(readArea(frame, r, 0.012f)))
-					{
-						is TrackerEvent.NewLine -> translateBox2(ev.text, b)
-						is TrackerEvent.Update -> translateBox2(ev.text, b)
-						TrackerEvent.Clear -> LinkServer.sendBox2Clear()
-						null -> {}
-					}
-				}
 			}
 		}
 		finally { frame.recycle() }
@@ -363,8 +369,9 @@ class CaptionEngine(
 			fun centred(l: Text.Line): Boolean
 			{
 				val b = l.boundingBox ?: return false
-				val cx = (b.exactCenterX() + area.left) / frame.width
-				return kotlin.math.abs(cx - 0.5f) < 0.12f || b.width() > frame.width * 0.55f
+				// centred in its frame (a full-width frame: the middle of the picture)
+				val cx = b.exactCenterX() / area.width()
+				return kotlin.math.abs(cx - 0.5f) < 0.15f || b.width() > area.width() * 0.55f
 			}
 			val lines = if(sideOut == null) all else all.filter(::centred)
 			if(sideOut != null)

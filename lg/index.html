@@ -33,8 +33,11 @@
     background: url(pattern.png) repeat, linear-gradient(135deg, #1F3A30 0%, #0F1C17 60%); background-blend-mode: normal; }
   #setup::before { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(31,58,48,.55), rgba(15,28,23,.92)); }
   #setup > * { position: relative; }
-  #zone { position: absolute; display: none; border: 5px dashed var(--accent); border-radius: 12px; box-sizing: border-box; }
-  #zone span { position: absolute; top: -46px; left: 50%; transform: translateX(-50%); color: var(--accent); font-size: 28px; white-space: nowrap; }
+  #zones { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+  .zone { position: absolute; border: 5px dashed var(--accent); border-radius: 12px; box-sizing: border-box; }
+  .zone.side { border-color: var(--warn); }
+  .zone.side span { color: var(--warn); }
+  .zone span { position: absolute; top: -46px; left: 50%; transform: translateX(-50%); color: var(--accent); font-size: 28px; white-space: nowrap; }
   .logo { font-family: Kufi; font-size: 84px; line-height: 1; margin: 0; }
   .bar { width: 90px; height: 5px; border-radius: 5px; background: var(--accent); margin: 14px 0 18px; }
   #setup .lead { font-size: 28px; color: var(--text2); margin: 0 0 34px; }
@@ -62,7 +65,7 @@
 <div id="cap"></div>
 <div id="box2"></div>
 <div id="side"></div>
-<div id="zone"><span>مكان قراءة الترجمة</span></div>
+<div id="zones"></div>
 <div id="panel"><h2 id="panel-t"></h2><div id="panel-b"></div></div>
 <div id="status"></div>
 
@@ -245,14 +248,17 @@
     sideTimer = setTimeout(function () { host.style.display = 'none'; }, 15000);
   }
   var zoneTimer = 0;
-  function zone(box) {
-    var z = $('zone'); clearTimeout(zoneTimer);
-    if (!box) { z.style.display = 'none'; return; }
-    box = fit(box);
-    z.style.left = box[0] * 1920 + 'px'; z.style.top = box[1] * 1080 + 'px';
-    z.style.width = box[2] * 1920 + 'px'; z.style.height = box[3] * 1080 + 'px';
-    z.style.display = 'block';
-    zoneTimer = setTimeout(function () { z.style.display = 'none'; }, 5000);
+  // the reading frames while they are placed from the phone: [{box, dialog}]
+  function zones(list) {
+    var host = $('zones'); clearTimeout(zoneTimer); host.innerHTML = '';
+    (list || []).forEach(function (z, i) {
+      var b = fit(z.box); if (!b) return;
+      var d = document.createElement('div'); d.className = 'zone' + (z.dialog === false ? ' side' : '');
+      d.style.left = b[0] * 1920 + 'px'; d.style.top = b[1] * 1080 + 'px'; d.style.width = b[2] * 1920 + 'px'; d.style.height = b[3] * 1080 + 'px';
+      var s = document.createElement('span'); s.textContent = (z.dialog === false ? 'نص جانبي ' : 'حوار ') + (i + 1); d.appendChild(s);
+      host.appendChild(d);
+    });
+    zoneTimer = setTimeout(function () { host.innerHTML = ''; }, 8000);
   }
   var panelTimer = 0;
   function panel(title, text, ttl) {
@@ -291,7 +297,8 @@
       else if (o.t === 'box2clear') box2(null);
       else if (o.t === 'side') side(o.items);
       else if (o.t === 'sideclear') side(null);
-      else if (o.t === 'zone') zone(o.box);
+      else if (o.t === 'zone') zones(o.box ? [{ box: o.box, dialog: true }] : []);
+      else if (o.t === 'zones') zones(o.zones);
       else if (o.t === 'panel') panel(o.title, o.text, o.ttl);
       else if (o.t === 'style') {
         style.scale = +o.scale || 1; style.cover = o.cover !== false; style.opacity = o.opacity == null ? 0.85 : +o.opacity;

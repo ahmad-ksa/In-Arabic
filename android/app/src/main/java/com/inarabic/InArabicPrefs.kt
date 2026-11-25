@@ -22,6 +22,36 @@ class InArabicPrefs(context: Context)
 	val areaBottom get() = p.getInt("ia_area_bottom", 97) / 100f
 	val areaLeft get() = p.getInt("ia_area_left", 0) / 100f
 	val areaRight get() = p.getInt("ia_area_right", 100) / 100f
+	/** one reading frame: [dialog] = the subtitle (Arabic drawn over it); otherwise side text (tasks, prompts, messages) */
+	data class Zone(val r: android.graphics.RectF, val dialog: Boolean)
+
+	/** every reading frame; the app reads only inside them */
+	var zones: List<Zone>
+		get()
+		{
+			val s = p.getString("ia_zones", null)
+			if(s != null) try
+			{
+				val a = org.json.JSONArray(s)
+				return (0 until a.length()).map { i ->
+					val o = a.getJSONObject(i)
+					Zone(android.graphics.RectF(o.getDouble("l").toFloat(), o.getDouble("t").toFloat(), o.getDouble("r").toFloat(), o.getDouble("b").toFloat()), o.optBoolean("dialog", true))
+				}
+			}
+			catch(e: Exception) { }
+			// before frames existed: the subtitle area, and the second box if it was on
+			val list = arrayListOf(Zone(area, true))
+			if(box2Enabled) box2.let { b -> list += Zone(android.graphics.RectF(b[0], b[1], b[0] + b[2], b[1] + b[3]), false) }
+			return list
+		}
+		set(v)
+		{
+			val a = org.json.JSONArray()
+			for(z in v) a.put(org.json.JSONObject().put("l", z.r.left.toDouble()).put("t", z.r.top.toDouble()).put("r", z.r.right.toDouble()).put("b", z.r.bottom.toDouble()).put("dialog", z.dialog))
+			p.edit().putString("ia_zones", a.toString()).apply()
+			v.firstOrNull { it.dialog }?.let { area = it.r }
+		}
+
 	/** where the subtitles are read, 0..1 of the picture (set by dragging the frame on the live picture) */
 	var area: android.graphics.RectF
 		get() = android.graphics.RectF(areaLeft, areaTop, areaRight, areaBottom)
@@ -44,7 +74,7 @@ class InArabicPrefs(context: Context)
 	/** subtitles are centred: text off to the side of the subtitle area is treated (and drawn) apart */
 	val centerOnly get() = p.getBoolean("ia_center_only", true)
 	/** also read the rest of the picture for short prompts (OPEN, ENTER…) and translate them in place */
-	val scanScreen get() = p.getBoolean("ia_scan_screen", true)
+	val scanScreen get() = p.getBoolean("ia_scan_screen", false)
 	/** game sound on the phone (off: the TV plays it) */
 	var phoneAudio
 		get() = p.getBoolean("ia_phone_audio", true)

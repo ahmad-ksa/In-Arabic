@@ -184,12 +184,32 @@
             app:strokeColor="@color/accent"
             app:cornerRadius="999dp"/>
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/iaZoneDefault"
+            android:id="@+id/iaZoneAddDialog"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="6dp"
-            android:text="الافتراضي"
+            android:text="+ حوار"
+            android:textColor="@color/accent"
+            app:strokeColor="@color/accent"
+            app:cornerRadius="999dp"/>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/iaZoneAddSide"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:text="+ نص جانبي"
+            android:textColor="@color/ia_warn"
+            app:strokeColor="@color/ia_warn"
+            app:cornerRadius="999dp"/>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/iaZoneDelete"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:text="🗑"
             android:textColor="#FFFFFF"
             app:strokeColor="@color/accent"
             app:cornerRadius="999dp"/>

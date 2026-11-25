@@ -56,10 +56,8 @@
     </PreferenceCategory>
 
     <PreferenceCategory app:title="قراءة النص من الصورة">
-        <SeekBarPreference app:key="ia_area_top" app:title="بداية منطقة الترجمة (من أعلى الصورة %)"
-            app:defaultValue="62" android:max="95" app:min="0" app:showSeekBarValue="true" />
-        <SeekBarPreference app:key="ia_area_bottom" app:title="نهاية منطقة الترجمة (%)"
-            app:defaultValue="97" android:max="100" app:min="10" app:showSeekBarValue="true" />
+        <Preference app:key="ia_zones_info" app:title="📐 مربعات القراءة"
+            app:summary="من شاشة البث اضغط «📐 مكان الترجمة»: ضيف مربعات للحوار وللنصوص الجانبية واسحبها على أماكنها. البرنامج يقرأ اللي داخلها بس." />
         <SeekBarPreference app:key="ia_read_every" app:title="سرعة القراءة (ملّي ثانية بين كل قراءة)"
             app:defaultValue="300" android:max="1000" app:min="150" app:showSeekBarValue="true" />
         <SwitchPreference app:key="ia_paddle" app:defaultValue="true"
@@ -72,21 +70,9 @@
         <SwitchPreference app:key="ia_center_only" app:defaultValue="true"
             app:title="افصل النصوص الجانبية عن الحوار"
             app:summary="الحوار في الوسط؛ أي نص على الجانب (اسم مهمة، زر) يُترجم مكانه ولا يختلط بالحوار" />
-        <SwitchPreference app:key="ia_scan_screen" app:defaultValue="true"
+        <SwitchPreference app:key="ia_scan_screen" app:defaultValue="false"
             app:title="ترجم الأزرار في كل الشاشة"
             app:summary="كلمات قصيرة مثل OPEN أو ENTER في أي مكان من الصورة تُترجم فوقها" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="الصندوق الثاني (المهام والرسائل)">
-        <SwitchPreference app:key="ia_box2" app:defaultValue="false"
-            app:title="ترجم نصوصًا جانبية أيضًا" app:summary="منطقة ثانية من الصورة مثل الأهداف والرسائل" />
-        <SeekBarPreference app:key="ia_box2_x" app:title="من اليسار (%)" app:dependency="ia_box2"
-            app:defaultValue="2" android:max="95" app:min="0" app:showSeekBarValue="true" />
-        <SeekBarPreference app:key="ia_box2_y" app:title="من الأعلى (%)" app:dependency="ia_box2"
-            app:defaultValue="3" android:max="95" app:min="0" app:showSeekBarValue="true" />
-        <SeekBarPreference app:key="ia_box2_w" app:title="العرض (%)" app:dependency="ia_box2"
-            app:defaultValue="40" android:max="100" app:min="5" app:showSeekBarValue="true" />
-        <SeekBarPreference app:key="ia_box2_h" app:title="الارتفاع (%)" app:dependency="ia_box2"
-            app:defaultValue="22" android:max="100" app:min="5" app:showSeekBarValue="true" />
-    </PreferenceCategory>
 </PreferenceScreen>

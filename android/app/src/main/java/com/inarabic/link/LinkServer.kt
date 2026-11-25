@@ -141,6 +141,14 @@ object LinkServer
 		broadcast("{\"t\":\"sideclear\"}")
 	}
 
+	/** all reading frames while you place them on the phone (empty: hide) */
+	fun sendZones(list: List<com.inarabic.InArabicPrefs.Zone>)
+	{
+		val a = org.json.JSONArray()
+		for(z in list) a.put(JSONObject().put("box", boxJson(floatArrayOf(z.r.left, z.r.top, z.r.width(), z.r.height()))).put("dialog", z.dialog))
+		broadcast(JSONObject().put("t", "zones").put("zones", a).toString())
+	}
+
 	/** the reading frame while you drag it on the phone (null: hide) */
 	fun sendZone(r: android.graphics.RectF?)
 	{

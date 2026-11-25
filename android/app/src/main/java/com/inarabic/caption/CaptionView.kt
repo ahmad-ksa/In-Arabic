@@ -41,8 +41,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	private val hideBanner = Runnable { bannerText = null; invalidate() }
 	fun banner(t: String) { bannerText = t; invalidate(); timers.removeCallbacks(hideBanner); timers.postDelayed(hideBanner, 6000) }
 
-	/** the reading frame being placed from the phone */
-	var zone: FloatArray? = null
+	/** the reading frames being placed from the phone (box, dialogue?) */
+	var zoneList: List<Pair<FloatArray, Boolean>> = emptyList()
 		set(v) { field = v; invalidate() }
 	var panelTitle: String? = null
 	var panelText: String? = null
@@ -83,7 +83,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	private val hide = Runnable { text = null }
 	private val hidePanel = Runnable { panelText = null }
 	private val hideSide = Runnable { sides = emptyList() }
-	private val hideZone = Runnable { zone = null }
+	private val hideZone = Runnable { zoneList = emptyList() }
 
 	/** A message from the phone (see the phone's LinkServer for the format). */
 	fun handle(o: org.json.JSONObject)
@@ -123,8 +123,14 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			}
 			"zone" ->
 			{
-				zone = box(o)
+				zoneList = box(o)?.let { listOf(it to true) } ?: emptyList()
 				timers.removeCallbacks(hideZone); timers.postDelayed(hideZone, 5000)
+			}
+			"zones" ->
+			{
+				val a = o.optJSONArray("zones")
+				zoneList = if(a == null) emptyList() else (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { z -> box(z)?.let { it to z.optBoolean("dialog", true) } } }
+				timers.removeCallbacks(hideZone); timers.postDelayed(hideZone, 8000)
 			}
 			"sideclear" -> { timers.removeCallbacks(hideSide); sides = emptyList() }
 			"panel" ->
@@ -230,19 +236,19 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			textPaint.color = color
 		}
 
-		// the reading frame (only on the TV: the phone shows its own handles)
-		val zb = zone?.let(::fit)
-		if(zb != null && fitToTv)
-		{
+		// the reading frames (only on the TV: the phone shows its own handles)
+		if(fitToTv) zoneList.forEachIndexed { i, (zb0, dialog) ->
+			val zb = fit(zb0)
+			val c = if(dialog) Color.rgb(159, 211, 180) else Color.rgb(232, 194, 122)
 			val r = RectF(zb[0] * w, zb[1] * h, (zb[0] + zb[2]) * w, (zb[1] + zb[3]) * h)
 			val zp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-				style = Paint.Style.STROKE; strokeWidth = h * 0.004f; color = Color.rgb(159, 211, 180)
+				style = Paint.Style.STROKE; strokeWidth = h * 0.004f; color = c
 				pathEffect = android.graphics.DashPathEffect(floatArrayOf(h * 0.02f, h * 0.012f), 0f)
 			}
 			canvas.drawRoundRect(r, h * 0.01f, h * 0.01f, zp)
-			textPaint.textSize = h * 0.028f; textPaint.color = Color.rgb(159, 211, 180)
-			val l = layout("مكان قراءة الترجمة", (w * 0.4f).toInt())
-			canvas.save(); canvas.translate(r.centerX() - w * 0.2f, (r.top - l.height - h * 0.01f).coerceAtLeast(0f)); drawText(l, canvas); canvas.restore()
+			textPaint.textSize = h * 0.024f; textPaint.color = c
+			val l = layout((if(dialog) "حوار" else "نص جانبي") + " ${i + 1}", (w * 0.3f).toInt())
+			canvas.save(); canvas.translate(r.centerX() - w * 0.15f, (r.top - l.height - h * 0.005f).coerceAtLeast(0f)); l.draw(canvas); canvas.restore()
 			textPaint.color = color
 		}
 
