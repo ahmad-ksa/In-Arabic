@@ -97,8 +97,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
-        with:
-          merge-multiple: true
+        with: { name: phone }
+      - uses: actions/download-artifact@v4
+        with: { name: tv }
+      - uses: actions/download-artifact@v4
+        with: { name: lg }
+      - name: Check the files are all here
+        run: ls -la && for f in InArabic-phone.apk InArabic-androidtv.apk InArabic-lg.ipk InArabic-samsung.wgt; do test -s $f || { echo "::error::$f missing"; exit 1; }; done
       - name: Publish "latest" release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -109,7 +114,7 @@ jobs:
           files="InArabic-phone.apk InArabic-androidtv.apk InArabic-lg.ipk InArabic-samsung.wgt"
           # replace the files in place (deleting the release has been failing with HTTP 500 on GitHub's side)
           if gh release view latest > /dev/null 2>&1; then
-            for i in 1 2 3; do gh release upload latest $files --clobber && break; sleep 10; done
+            ok=0; for i in 1 2 3; do gh release upload latest $files --clobber && { ok=1; break; }; sleep 10; done; test $ok = 1
             gh release edit latest --title "$title" --notes "$notes"
           else
             gh release create latest $files --title "$title" --notes "$notes"
