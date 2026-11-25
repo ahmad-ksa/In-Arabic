@@ -96,3 +96,6 @@
 -keep class ai.onnxruntime.** { *; }
 # layout behaviours are created by name from XML
 -keep class com.metallic.chiaki.main.FloatingActionButton*Behavior { <init>(...); }
+
+# In Arabic: views inflated from layouts
+-keep class com.inarabic.caption.CaptionView { <init>(...); }

@@ -17,7 +17,7 @@ import android.view.View
 import kotlin.math.max
 import kotlin.math.min
 
-class CaptionView(context: Context) : View(context)
+class CaptionView @JvmOverloads constructor(context: Context, attrs: android.util.AttributeSet? = null) : View(context, attrs)
 {
 	var text: String? = null
 		set(v) { field = v; invalidate() }
