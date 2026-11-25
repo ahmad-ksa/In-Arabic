@@ -70,7 +70,7 @@ class ZoneEditorView @JvmOverloads constructor(context: Context, attrs: Attribut
 			val sel = i == selected
 			fill.color = Color.argb(if(sel) 60 else 30, Color.red(c), Color.green(c), Color.blue(c))
 			canvas.drawRoundRect(r, 8 * dp, 8 * dp, fill)
-			stroke.color = c; stroke.strokeWidth = (if(sel) 3 else 1.5f) * dp
+			stroke.color = c; stroke.strokeWidth = (if(sel) 3f else 1.5f) * dp
 			canvas.drawRoundRect(r, 8 * dp, 8 * dp, stroke)
 			label.color = c
 			canvas.drawText((if(z.dialog) "حوار" else "نص جانبي") + " ${i + 1}", r.centerX(), r.top + 16 * dp, label)
