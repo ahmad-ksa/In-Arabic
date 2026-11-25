@@ -141,6 +141,10 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		timers.removeCallbacks(hide); timers.postDelayed(hide, 6000)
 	}
 
+	// IBM Plex Sans Arabic from the app's assets (clear Arabic on a TV), the system font if missing
+	private val fontRegular = try { Typeface.createFromAsset(context.assets, "fonts/plex_regular.ttf") } catch(e: Exception) { Typeface.DEFAULT }
+	private val fontBold = try { Typeface.createFromAsset(context.assets, "fonts/plex_bold.ttf") } catch(e: Exception) { Typeface.DEFAULT_BOLD }
+
 	private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { setShadowLayer(4f, 0f, 2f, Color.BLACK) }
 	private val boxPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
@@ -164,7 +168,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		val w = width.toFloat()
 		val h = height.toFloat()
 		textPaint.color = color
-		textPaint.typeface = Typeface.create(Typeface.DEFAULT, if(bold) Typeface.BOLD else Typeface.NORMAL)
+		textPaint.typeface = if(bold) fontBold else fontRegular
 		boxPaint.color = Color.argb((opacity * 255).toInt(), 0, 0, 0)
 
 		// second box: in its own area of the picture, smaller text, top aligned

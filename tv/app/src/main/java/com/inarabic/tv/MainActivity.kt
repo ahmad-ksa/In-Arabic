@@ -33,77 +33,101 @@ import com.google.zxing.qrcode.QRCodeWriter
 class MainActivity : Activity()
 {
 	private lateinit var statusView: TextView
-	private lateinit var startBtn: Button
+	private lateinit var startBtn: Ui.Tile
 	private var triedPage = false
+
+	private lateinit var statusDot: View
 
 	override fun onCreate(savedInstanceState: Bundle?)
 	{
 		super.onCreate(savedInstanceState)
 		val dp = resources.displayMetrics.density
-		val pad = (24 * dp).toInt()
+		fun px(v: Int) = (v * dp).toInt()
+		val ui = Ui(this)
 		// TVs crop the picture edges (overscan): keep everything inside a 5 % safe margin
 		val safeX = (resources.displayMetrics.widthPixels * 0.05f).toInt()
 		val safeY = (resources.displayMetrics.heightPixels * 0.05f).toInt()
-		fun label(t: String, size: Float, alpha: Float = 1f) = TextView(this).apply {
-			text = t; textSize = size; setTextColor(Color.WHITE); this.alpha = alpha; setPadding(0, pad / 4, 0, pad / 4)
-		}
-		fun button(t: String, onClick: () -> Unit) = Button(this).apply {
-			text = t; textSize = 18f; isAllCaps = false; setOnClickListener { onClick() }
-		}
 
-		// right: QR code to pair with the phone
-		val qrCol = LinearLayout(this).apply {
-			orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL; setPadding(pad, pad, pad, pad)
-		}
-		qrCol.addView(ImageView(this).apply {
-			setImageBitmap(qr(Prefs.pairUri(this@MainActivity), 480))
-			layoutParams = LinearLayout.LayoutParams((260 * dp).toInt(), (260 * dp).toInt())
+		// header: the name in Kufi, a short line, what it does
+		val header = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+		header.addView(ui.text("بالعربي", 44f, Color.WHITE, kufi = true))
+		header.addView(View(this).apply {
+			background = ui.round(Ui.ACCENT, px(2).toFloat())
+			layoutParams = LinearLayout.LayoutParams(px(56), px(3)).apply { topMargin = px(4); bottomMargin = px(10) }
 		})
-		qrCol.addView(label("امسح الباركود من تطبيق الجوال:\nإعدادات الترجمة ← اربط شاشة بالباركود", 16f).apply { gravity = Gravity.CENTER })
+		header.addView(ui.text("ترجمة ألعاب البلايستيشن إلى العربية — فوق اللعبة مباشرة", 17f, Ui.TEXT2))
 
-		// left: status and actions
-		val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, pad) }
-		col.addView(label("بالعربي — ترجمة الألعاب على الشاشة", 28f))
-		col.addView(label("افتح تطبيق «بالعربي» في الجوال وابدأ البث من البلايستيشن، وستظهر الترجمة العربية هنا فوق اللعبة.", 16f, 0.75f))
-		statusView = label("", 18f)
-		col.addView(label("أندرويد ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) • ${Build.MANUFACTURER} ${Build.MODEL}", 13f, 0.5f))
-		col.addView(statusView)
-		col.addView(button("🎮 العب داخل التطبيق (بدون أي صلاحيات)") { pickHdmi(inside = true) }.apply { requestFocus() })
-		col.addView(label("أو: الترجمة فوق مدخل الـHDMI نفسه (تحتاج صلاحية العرض فوق التطبيقات)", 14f, 0.6f))
-		startBtn = button("") { toggle() }
-		col.addView(startBtn)
-		col.addView(button("♿ طريقة بديلة: التفعيل من «إمكانية الوصول»") { accessibilityWay() })
-		col.addView(button("افتح مدخل البلايستيشن (HDMI)") { pickHdmi(inside = false) })
-		col.addView(button("اعرض سطرًا تجريبيًا") { if(OverlayService.running) OverlayService.test(this) else toggle(test = true) })
-		col.addView(label("بدون باركود (اختياري): عنوان الجوال ورمز الاقتران من إعدادات الترجمة بالجوال", 15f, 0.6f))
-		val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-		val addr = EditText(this).apply {
-			setText(Prefs.phoneAddress(this@MainActivity)); hint = "العنوان (تلقائي)"; textSize = 16f
-			setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); inputType = InputType.TYPE_CLASS_PHONE; gravity = Gravity.CENTER
-			layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f)
+		// status card
+		val status = LinearLayout(this).apply {
+			orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+			background = ui.card(); setPadding(px(18), px(14), px(18), px(14))
 		}
-		val code = EditText(this).apply {
-			setText(Prefs.pairCode(this@MainActivity)); hint = "الرمز"; textSize = 16f
-			setTextColor(Color.WHITE); setHintTextColor(Color.GRAY); inputType = InputType.TYPE_CLASS_NUMBER; gravity = Gravity.CENTER
-			layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+		statusDot = View(this).apply { layoutParams = LinearLayout.LayoutParams(px(12), px(12)).apply { marginEnd = px(12) } }
+		statusView = ui.text("", 17f, Color.WHITE, bold = true)
+		status.addView(statusDot); status.addView(statusView)
+
+		// main actions: big tiles, the focused one lights up in the accent colour
+		val tiles = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+		val play = ui.tile("🎮", "العب داخل التطبيق", "بدون أي صلاحيات") { pickHdmi(inside = true) }
+		startBtn = ui.tile("▶", "", "الترجمة فوق مدخل HDMI") { toggle() }
+		tiles.addView(play, LinearLayout.LayoutParams(0, px(132), 1f).apply { marginEnd = px(14) })
+		tiles.addView(startBtn, LinearLayout.LayoutParams(0, px(132), 1f))
+
+		// secondary actions
+		val more = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+		val sec = listOf(
+			ui.pill("سطر تجريبي") { if(OverlayService.running) OverlayService.test(this) else toggle(test = true) },
+			ui.pill("مدخل البلايستيشن") { pickHdmi(inside = false) },
+			ui.pill("طريقة بديلة ♿") { accessibilityWay() })
+		sec.forEachIndexed { i, v -> more.addView(v, LinearLayout.LayoutParams(0, px(52), 1f).apply { if(i < sec.size - 1) marginEnd = px(10) }) }
+
+		// manual address (optional)
+		val manual = LinearLayout(this).apply {
+			orientation = LinearLayout.VERTICAL; background = ui.card(); setPadding(px(18), px(12), px(18), px(14))
 		}
-		row.addView(addr); row.addView(code)
-		row.addView(button("احفظ") {
+		manual.addView(ui.text("بدون باركود (اختياري): عنوان الجوال ورمز الاقتران من إعدادات الترجمة في الجوال", 14f, Ui.TEXT2))
+		val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, px(8), 0, 0) }
+		val addr = ui.field(Prefs.phoneAddress(this), "العنوان (تلقائي)", InputType.TYPE_CLASS_PHONE)
+		val code = ui.field(Prefs.pairCode(this), "الرمز", InputType.TYPE_CLASS_NUMBER)
+		row.addView(addr, LinearLayout.LayoutParams(0, px(48), 2f).apply { marginEnd = px(10) })
+		row.addView(code, LinearLayout.LayoutParams(0, px(48), 1f).apply { marginEnd = px(10) })
+		row.addView(ui.pill("احفظ") {
 			Prefs.setPhoneAddress(this, addr.text.toString())
 			Prefs.setPairCode(this, code.text.toString())
 			if(OverlayService.running) { stopService(Intent(this, OverlayService::class.java)); startOverlay() }
+		}, LinearLayout.LayoutParams(px(110), px(48)))
+		manual.addView(row)
+
+		val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 0, px(28), 0) }
+		fun gap(v: Int) = View(this).apply { layoutParams = LinearLayout.LayoutParams(1, px(v)) }
+		col.addView(header); col.addView(gap(18)); col.addView(status); col.addView(gap(16)); col.addView(tiles)
+		col.addView(gap(12)); col.addView(more); col.addView(gap(16)); col.addView(manual); col.addView(gap(10))
+		col.addView(ui.text("أندرويد ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) • ${Build.MANUFACTURER} ${Build.MODEL}", 12f, Ui.TEXT3))
+
+		// side: the QR code on a white card, and the steps
+		val qrCol = LinearLayout(this).apply {
+			orientation = LinearLayout.VERTICAL; gravity = Gravity.CENTER_HORIZONTAL
+			background = ui.card(); setPadding(px(22), px(22), px(22), px(22))
+		}
+		qrCol.addView(ui.text("اربط جوالك", 22f, Color.WHITE, bold = true).apply { gravity = Gravity.CENTER })
+		qrCol.addView(ImageView(this).apply {
+			setImageBitmap(qr(Prefs.pairUri(this@MainActivity), 480))
+			background = ui.round(Color.WHITE, px(16).toFloat()); setPadding(px(10), px(10), px(10), px(10))
+			layoutParams = LinearLayout.LayoutParams(px(230), px(230)).apply { topMargin = px(14); bottomMargin = px(14) }
 		})
-		col.addView(row)
+		qrCol.addView(ui.text("١  افتح «بالعربي» في الجوال\n٢  إعدادات الترجمة ← اربط شاشة بالباركود\n٣  وجّه الكاميرا إلى الباركود", 15f, Ui.TEXT2).apply { setLineSpacing(0f, 1.35f) })
 
 		val root = LinearLayout(this).apply {
 			orientation = LinearLayout.HORIZONTAL
-			setBackgroundColor(Color.rgb(10, 25, 41))
+			background = ui.backdrop()
 			layoutDirection = View.LAYOUT_DIRECTION_RTL
 			setPadding(safeX, safeY, safeX, safeY)
 		}
-		root.addView(ScrollView(this).apply { addView(col); layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1.6f) })
-		root.addView(qrCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+		root.addView(ScrollView(this).apply { addView(col); isFillViewport = true }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1.7f))
+		root.addView(LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; addView(qrCol, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)) },
+			LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
 		setContentView(root)
+		play.requestFocus()
 		OverlayService.onStatus = { s -> runOnUiThread { showStatus(s) } }
 	}
 
@@ -115,8 +139,10 @@ class MainActivity : Activity()
 
 	private fun showStatus(s: String)
 	{
-		statusView.text = "الحالة: $s"
-		startBtn.text = if(OverlayService.running) "■ أوقف الترجمة" else "▶ شغّل الترجمة"
+		statusView.text = s
+		val ok = s.contains("متصل") && !s.contains("تعذّر")
+		statusDot.background = Ui(this).round(if(ok) Ui.OK else if(OverlayService.running) Ui.WARN else Ui.TEXT3, 99f)
+		startBtn.set(if(OverlayService.running) "■" else "▶", if(OverlayService.running) "أوقف الترجمة" else "شغّل الترجمة")
 	}
 
 	private fun qr(text: String, size: Int): Bitmap

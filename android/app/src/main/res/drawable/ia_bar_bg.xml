@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- title bar: dark green with the faint Arabic star pattern -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient android:startColor="#1A3329" android:endColor="#24463A" android:angle="0"/>
+        </shape>
+    </item>
+    <item>
+        <bitmap android:src="@drawable/ia_pattern_tile" android:tileMode="repeat" android:alpha="0.55"/>
+    </item>
+</layer-list>

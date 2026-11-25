@@ -4,9 +4,16 @@
 <meta charset="utf-8">
 <title>بالعربي</title>
 <style>
-  :root { --accent: #0E98AA; --ground: #0A1929; }
+  @font-face { font-family: Plex; font-weight: 400; src: url(fonts/plex-ar-400.woff2) format("woff2"); unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF; }
+  @font-face { font-family: Plex; font-weight: 700; src: url(fonts/plex-ar-700.woff2) format("woff2"); unicode-range: U+0600-06FF, U+0750-077F, U+FB50-FDFF, U+FE70-FEFF; }
+  @font-face { font-family: Plex; font-weight: 400; src: url(fonts/plex-la-400.woff2) format("woff2"); unicode-range: U+0000-00FF, U+2000-206F; }
+  @font-face { font-family: Plex; font-weight: 700; src: url(fonts/plex-la-700.woff2) format("woff2"); unicode-range: U+0000-00FF, U+2000-206F; }
+  @font-face { font-family: Kufi; font-weight: 700; src: url(fonts/kufi.woff2) format("woff2"); }
+  /* In Arabic palette: muted dark greens, a soft sage accent */
+  :root { --accent: #9FD3B4; --on-accent: #0F241B; --ground: #0F1C17; --card: rgba(23,44,36,.94); --stroke: #294A3C;
+          --text2: #A6C0B3; --ok: #7FD49E; --warn: #E8C27A; }
   html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; color: #fff;
-    font-family: "LG Smart UI", "Noto Naskh Arabic", "Tajawal", sans-serif; }
+    font-family: Plex, "LG Smart UI", sans-serif; }
   /* the PlayStation, from the TV's own HDMI input, fills the screen */
   #game { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: contain; background: #000; }
   #cap { position: absolute; display: none; text-align: center; direction: rtl; font-weight: 700;
@@ -17,25 +24,35 @@
   #box2 { position: absolute; display: none; direction: rtl; text-align: right; font-weight: 700; line-height: 1.3;
     padding: 10px 16px; border-radius: 10px; box-sizing: border-box; text-shadow: 0 2px 4px #000; }
   #panel { position: absolute; left: 345px; top: 130px; width: 1230px; max-height: 820px; overflow: hidden; display: none;
-    background: rgba(10,25,41,.93); border-radius: 22px; padding: 44px 60px; box-sizing: border-box; direction: rtl; }
+    background: rgba(15,28,23,.95); border: 2px solid var(--stroke); border-radius: 26px; padding: 44px 60px; box-sizing: border-box; direction: rtl; }
   #panel h2 { margin: 0 0 24px; font-size: 46px; text-align: center; }
   #panel div { font-size: 34px; line-height: 1.55; white-space: pre-wrap; }
-  #status { position: absolute; top: 24px; left: 24px; font-size: 22px; padding: 8px 16px; border-radius: 10px;
-    background: rgba(0,0,0,.6); transition: opacity .6s; }
-  #setup { position: absolute; inset: 0; background: rgba(10,25,41,.96); display: none; padding: 80px 160px; box-sizing: border-box; }
-  #setup h1 { font-size: 52px; margin: 0 0 12px; }
-  #setup p { font-size: 26px; opacity: .8; margin: 8px 0 26px; }
-  .row { display: flex; gap: 24px; align-items: center; margin: 18px 0; font-size: 30px; }
-  .field { min-width: 520px; padding: 14px 22px; border-radius: 12px; background: #13283f; border: 3px solid transparent;
-    direction: ltr; text-align: center; font-size: 36px; }
-  .btn { padding: 14px 34px; border-radius: 12px; background: #13283f; border: 3px solid transparent; font-size: 30px; }
-  .focus { border-color: var(--accent) !important; background: #18405a; }
-  .hint { font-size: 22px; opacity: .65; }
-  #qrbox { position: absolute; left: 110px; top: 150px; width: 470px; text-align: center; }
-  #qr { background: #fff; padding: 18px; border-radius: 18px; display: inline-block; line-height: 0; }
-  #qr svg { width: 400px; height: 400px; }
-  #qrbox p { font-size: 26px; opacity: .9; margin-top: 18px; }
-  #setup .main { margin-left: 560px; }
+  #status { position: absolute; top: 24px; left: 24px; font-size: 22px; padding: 8px 18px; border-radius: 999px;
+    background: rgba(15,28,23,.85); border: 1px solid var(--stroke); transition: opacity .6s; }
+  #setup { position: absolute; inset: 0; display: none; padding: 70px 110px; box-sizing: border-box;
+    background: url(pattern.png) repeat, linear-gradient(135deg, #1F3A30 0%, #0F1C17 60%); background-blend-mode: normal; }
+  #setup::before { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(31,58,48,.55), rgba(15,28,23,.92)); }
+  #setup > * { position: relative; }
+  .logo { font-family: Kufi; font-size: 84px; line-height: 1; margin: 0; }
+  .bar { width: 90px; height: 5px; border-radius: 5px; background: var(--accent); margin: 14px 0 18px; }
+  #setup .lead { font-size: 28px; color: var(--text2); margin: 0 0 34px; }
+  .card { background: var(--card); border: 2px solid var(--stroke); border-radius: 28px; padding: 30px 36px; box-sizing: border-box; }
+  .row { display: flex; gap: 22px; align-items: center; margin: 14px 0; font-size: 28px; }
+  .row > span { min-width: 250px; color: var(--text2); }
+  .field { min-width: 480px; padding: 14px 22px; border-radius: 16px; background: rgba(255,255,255,.07); border: 3px solid var(--stroke);
+    direction: ltr; text-align: center; font-size: 34px; }
+  .btn { padding: 16px 38px; border-radius: 999px; background: rgba(255,255,255,.08); border: 3px solid var(--stroke); font-size: 28px; font-weight: 700;
+    transition: transform .12s; }
+  .btn.primary { background: rgba(159,211,180,.18); }
+  .focus { border-color: var(--accent) !important; background: var(--accent) !important; color: var(--on-accent); transform: scale(1.04); }
+  .field.focus { color: var(--on-accent); }
+  .hint { font-size: 21px; color: var(--text2); opacity: .8; margin-top: 22px; line-height: 1.6; }
+  #qrbox { position: absolute; left: 110px; top: 110px; width: 520px; text-align: center; }
+  #qrbox h3 { font-size: 36px; margin: 0 0 20px; }
+  #qr { background: #fff; padding: 18px; border-radius: 22px; display: inline-block; line-height: 0; }
+  #qr svg { width: 380px; height: 380px; }
+  #qrbox ol { text-align: right; font-size: 24px; color: var(--text2); line-height: 1.7; margin: 22px 0 0; padding-right: 34px; }
+  #setup .main { margin-left: 640px; }
 </style>
 </head>
 <body>
@@ -47,16 +64,20 @@
 <div id="status"></div>
 
 <div id="setup">
-  <div id="qrbox"><div id="qr"></div><p>امسح الباركود من تطبيق الجوال<br>إعدادات الترجمة ← 📷 اربط شاشة بالباركود</p></div>
+  <div id="qrbox" class="card"><h3>اربط جوالك</h3><div id="qr"></div>
+    <ol><li>افتح «بالعربي» في الجوال</li><li>إعدادات الترجمة ← اربط شاشة بالباركود</li><li>وجّه الكاميرا إلى الباركود</li></ol></div>
   <div class="main">
-  <h1>بالعربي — ترجمة الألعاب</h1>
-  <p>امسح الباركود بالجوال، والشاشة تلقى الجوال في الشبكة بنفسها. العنوان والرمز اختياريان (إذا ما اشتغل البحث التلقائي).</p>
-  <div class="row"><span>عنوان الجوال:</span><div class="field" id="f-ip" data-k="ip"></div></div>
-  <div class="row"><span>رمز الاقتران:</span><div class="field" id="f-code" data-k="code"></div></div>
-  <div class="row"><span>مدخل البلايستيشن:</span><div class="btn" id="f-hdmi" data-k="hdmi"></div></div>
-  <div class="row"><div class="btn" id="f-test" data-k="test">اعرض سطرًا تجريبيًا</div><div class="btn" id="f-go" data-k="go">ابدأ ▶</div></div>
-  <p class="hint">الأسهم للتنقل • الأرقام لكتابة العنوان • زر ⏪ أو الأحمر لمسح رقم • النقطة: زر ⏩ أو الأخضر • OK للاختيار<br>
-  أثناء اللعب: زر OK يفتح هذه الصفحة، والرجوع يغلق التطبيق.</p>
+  <h1 class="logo">بالعربي</h1><div class="bar"></div>
+  <p class="lead">ترجمة ألعاب البلايستيشن إلى العربية — فوق اللعبة مباشرة</p>
+  <div class="card">
+  <div class="row"><span>عنوان الجوال</span><div class="field" id="f-ip" data-k="ip"></div></div>
+  <div class="row"><span>رمز الاقتران</span><div class="field" id="f-code" data-k="code"></div></div>
+  <div class="row"><span>مدخل البلايستيشن</span><div class="btn" id="f-hdmi" data-k="hdmi"></div></div>
+  <div class="row" style="margin-top:26px"><div class="btn primary" id="f-go" data-k="go">▶  ابدأ اللعب</div><div class="btn" id="f-test" data-k="test">سطر تجريبي</div></div>
+  </div>
+  <p class="hint">امسح الباركود والشاشة تلقى الجوال بنفسها — العنوان والرمز اختياريان.<br>
+  الأسهم للتنقل • الأرقام للكتابة • ⏪ أو الأحمر لمسح رقم • ⏩ أو الأخضر للنقطة • OK للاختيار<br>
+  أثناء اللعب: OK يفتح هذه الصفحة، والرجوع يغلق التطبيق.</p>
   </div>
 </div>
 <script src="qrcode.js"></script>
@@ -324,7 +345,7 @@
   }
 
   // ---------- setup screen (remote control only)
-  var items = ['f-ip', 'f-code', 'f-hdmi', 'f-test', 'f-go'], at = 0, open = false;
+  var items = ['f-ip', 'f-code', 'f-hdmi', 'f-go', 'f-test'], at = 0, open = false;
   function draw() {
     $('f-ip').textContent = cfg.ip || '— — —';
     $('f-code').textContent = cfg.code || '— — — —';

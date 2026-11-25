@@ -1,73 +1,93 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-<androidx.cardview.widget.CardView
+<!-- In Arabic: a console card — status chips, name, console picture and a clear "play" pill -->
+<com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="250dp"
-    app:cardCornerRadius="4dp"
-    android:layout_marginTop="8dp"
-    android:layout_marginLeft="8dp"
-    android:layout_marginRight="8dp"
-    android:layout_marginBottom="0dp"
-    android:elevation="8dp"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="10dp"
+    android:layout_marginStart="14dp"
+    android:layout_marginEnd="14dp"
+    app:cardCornerRadius="22dp"
+    app:cardBackgroundColor="@color/ia_card"
+    app:strokeColor="@color/ia_card_stroke"
+    app:strokeWidth="1dp"
+    app:cardElevation="0dp"
     android:foreground="?android:attr/selectableItemBackground">
-
-    <FrameLayout
-        android:id="@+id/discoveredIndicatorLayout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="left|top" >
-        <ImageView
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:src="@drawable/ic_triangle"/>
-        <ImageView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:src="@drawable/ic_discovered_on_secondary"
-            android:layout_gravity="left|top"
-            android:layout_margin="8dp" />
-    </FrameLayout>
-
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:padding="8dp">
+        android:layout_height="wrap_content"
+        android:padding="18dp">
+
+        <LinearLayout
+            android:id="@+id/chipsRow"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/menuButton">
+
+            <TextView
+                android:id="@+id/registeredChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/ia_chip_ok"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="4dp"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:textColor="@color/ia_ok"
+                tools:text="● مربوط" />
+
+            <TextView
+                android:id="@+id/discoveredIndicatorLayout"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/ia_chip_plain"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="4dp"
+                android:textSize="12sp"
+                android:textColor="@color/ia_text_secondary"
+                android:text="على الشبكة" />
+        </LinearLayout>
 
         <androidx.appcompat.widget.AppCompatImageButton
             android:id="@+id/menuButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
             android:src="@drawable/ic_overflow"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintRight_toRightOf="parent"
-            android:padding="4dp"
+            app:tint="@color/ia_text_secondary"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
             android:background="?android:attr/selectableItemBackgroundBorderless"/>
 
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/nameTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-condensed-medium"
-            app:layout_constraintTop_toTopOf="parent"
-            tools:text="Name"
-            android:textSize="32sp"
-            android:gravity="center"
-            android:textColor="?attr/colorOnSurface"/>
+            android:layout_marginTop="14dp"
+            app:layout_constraintTop_toBottomOf="@id/chipsRow"
+            tools:text="PS5-718"
+            android:textSize="26sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"/>
 
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/hostTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-condensed-medium"
             app:layout_constraintTop_toBottomOf="@id/nameTextView"
-            tools:text="Address: Host"
-            android:textSize="16sp"
-            android:gravity="center"
-            android:textColor="?attr/colorOnSurface"
+            tools:text="العنوان: 192.168.0.190"
+            android:textSize="13sp"
+            android:textColor="@color/ia_text_secondary"
             android:maxLines="1"
             android:ellipsize="end"/>
 
@@ -75,41 +95,57 @@
             android:id="@+id/idTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="sans-serif-condensed-medium"
             app:layout_constraintTop_toBottomOf="@id/hostTextView"
-            tools:text="ID: C0FFEE1337"
-            android:textSize="16sp"
-            android:gravity="center"
-            android:textColor="?attr/colorOnSurface"
+            tools:text="المعرّف: 98FA2E57CEC9"
+            android:textSize="13sp"
+            android:textColor="@color/ia_text_secondary"
             android:maxLines="1"
             android:ellipsize="end"/>
 
-        <ImageView
-            android:id="@+id/stateIndicatorImageView"
+        <FrameLayout
+            android:id="@+id/consoleBox"
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:src="@drawable/ic_console_ps5"
-            app:layout_constraintTop_toBottomOf="@id/idTextView"
-            app:layout_constraintBottom_toTopOf="@id/bottomInfoTextView"
-            android:layout_marginLeft="32dp"
-            android:layout_marginRight="32dp"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="4dp"/>
+            android:layout_height="120dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/ia_card_glow"
+            app:layout_constraintTop_toBottomOf="@id/idTextView">
+            <ImageView
+                android:id="@+id/stateIndicatorImageView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginStart="48dp"
+                android:layout_marginEnd="48dp"
+                android:layout_marginTop="14dp"
+                android:layout_marginBottom="14dp"
+                android:src="@drawable/ic_console_ps5"/>
+        </FrameLayout>
 
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/bottomInfoTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textColor="?attr/colorOnSurface"
-            android:textSize="16sp"
-            android:fontFamily="sans-serif-condensed-light"
+            android:layout_marginTop="8dp"
+            android:textColor="@color/ia_text_secondary"
+            android:textSize="13sp"
             android:gravity="center"
-            tools:text="App: Persona 5\nTitle ID: 1337"
-            app:layout_constraintBottom_toBottomOf="parent"
-            android:layout_marginBottom="8dp"
+            tools:text="اللعبة: …"
+            app:layout_constraintTop_toBottomOf="@id/consoleBox"
             android:maxLines="2"
             android:ellipsize="end"/>
 
+        <TextView
+            android:id="@+id/playPill"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/ia_play_pill"
+            android:gravity="center"
+            android:textColor="@color/on_accent"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            tools:text="▶  ابدأ اللعب بالعربي"
+            app:layout_constraintTop_toBottomOf="@id/bottomInfoTextView"/>
+
     </androidx.constraintlayout.widget.ConstraintLayout>
 
-</androidx.cardview.widget.CardView>
+</com.google.android.material.card.MaterialCardView>

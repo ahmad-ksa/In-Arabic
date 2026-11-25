@@ -11,6 +11,7 @@
         android:id="@+id/hostsRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:paddingTop="8dp"
         android:paddingBottom="96dp"
         android:clipToPadding="false"
         android:clipChildren="false"
@@ -40,7 +41,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:fontFamily="sans-serif-condensed"
+            android:textColor="@color/ia_text_secondary"
+            android:textSize="15sp"
             android:text="@string/display_hosts_empty_discovery_off_info"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"
@@ -137,6 +139,8 @@
         app:srcCompat="@drawable/selector_add_fab"
         android:layout_margin="16dp"
         android:layout_gravity="bottom|end"
+        app:backgroundTint="@color/accent"
+        app:tint="@color/on_accent"
         app:fabSize="normal" />
 
 
@@ -146,20 +150,32 @@
         android:layout_width="match_parent">
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
-            android:layout_height="wrap_content"
+            android:layout_height="64dp"
             android:layout_width="match_parent"
-            android:background="@color/primary"
+            android:background="@drawable/ia_bar_bg"
             android:elevation="6dp"
             android:theme="@style/AppTheme.Toolbar">
 
-            <androidx.appcompat.widget.AppCompatTextView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:fontFamily="sans-serif-condensed"
-                android:text="@string/title_main"
-                android:textColor="?attr/colorOnPrimary"
-                android:textSize="20dp" />
+                android:orientation="vertical"
+                android:gravity="center_horizontal">
+                <androidx.appcompat.widget.AppCompatTextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/kufi"
+                    android:text="@string/title_main"
+                    android:textColor="#FFFFFF"
+                    android:textSize="24sp"
+                    android:includeFontPadding="false" />
+                <View
+                    android:layout_width="34dp"
+                    android:layout_height="2dp"
+                    android:layout_marginTop="5dp"
+                    android:background="@drawable/ia_play_pill" />
+            </LinearLayout>
 
         </com.google.android.material.appbar.MaterialToolbar>
     </com.google.android.material.appbar.AppBarLayout>
