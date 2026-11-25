@@ -51,6 +51,36 @@ object Glossary
 		"bachelor party" to "حفلة توديع العزوبية", "fast travel" to "انتقال سريع", "photo mode" to "وضع التصوير"
 	)
 
+	/**
+	 * Names the translator leaves in English (people, places): written in Arabic letters instead.
+	 * GTA VI first; more games can be added the same way.
+	 */
+	private val names: Map<String, String> = linkedMapOf(
+		"vice city" to "فايس سيتي", "leonida keys" to "جزر ليونيدا", "leonida" to "ليونيدا", "port gellhorn" to "بورت جيلهورن",
+		"grassrivers" to "غراس ريفرز", "ambrosia" to "أمبروسيا", "mount kalaga" to "جبل كالاغا", "key lento" to "كي لينتو",
+		"jason" to "جيسون", "lucia" to "لوسيا", "kenton" to "كينتون", "cal" to "كال", "boobie" to "بوبي", "raul" to "راؤول",
+		"brian" to "براين", "real dimez" to "ريل دايمز", "dre'quan" to "دريكوان", "drequan" to "دريكوان",
+		"ammu-nation" to "أمونيشن", "ammu-nations" to "أمونيشن", "los santos" to "لوس سانتوس", "liberty city" to "ليبرتي سيتي"
+	)
+
+	/** English names left in a translation, written in Arabic letters */
+	fun arabicNames(ar: String): String
+	{
+		if(ar.none { it in 'A'..'Z' || it in 'a'..'z' }) return ar
+		var out = ar
+		for((en, a) in names)
+			out = Regex("(?i)(?<![A-Za-z])" + Regex.escape(en) + "(?![A-Za-z])").replace(out, a)
+		return out
+	}
+
+	/** a line made only of names ("JASON & LUCIA") */
+	private fun onlyNames(n: String): String?
+	{
+		val parts = n.split(Regex("\\s*(&|and|,)\\s*")).filter { it.isNotBlank() }
+		if(parts.isEmpty() || parts.any { it !in names }) return null
+		return parts.joinToString(" و") { names.getValue(it) }
+	}
+
 	private fun norm(s: String) = s.lowercase().trim { !it.isLetterOrDigit() }.replace(Regex("\\s+"), " ")
 
 	/** the fixed translation of a whole short text, or null */
@@ -59,6 +89,7 @@ object Glossary
 		val n = norm(english)
 		if(n.isEmpty() || n.split(' ').size > 4) return null
 		words[n]?.let { return it }
+		onlyNames(n)?.let { return it }
 		// "<something> unlocked" / "new <something>"
 		Regex("^(.+) (unlocked|acquired|received|completed|complete)$").find(n)?.let { m ->
 			val head = words[m.groupValues[1]] ?: return null

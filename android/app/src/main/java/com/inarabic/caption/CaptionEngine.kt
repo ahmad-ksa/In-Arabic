@@ -312,8 +312,9 @@ class CaptionEngine(
 		}
 	}
 
-	private suspend fun show(id: Int, english: String, arabic: String, final: Boolean, box: FloatArray?)
+	private suspend fun show(id: Int, english: String, arabic0: String, final: Boolean, box: FloatArray?)
 	{
+		val arabic = com.inarabic.translate.Glossary.arabicNames(arabic0)
 		current = Current(id, english, arabic, box)
 		LinkServer.sendSub(id, arabic, english, final, box, spans(english, arabic, subColored))
 		if(final) SessionLog.add(english, arabic)
@@ -340,7 +341,8 @@ class CaptionEngine(
 				val ai = if(known == null && prefs.aiEnabled && st.text.split(' ').size > 4) translator.better(st.text) else null
 				val ar = known?.arabic ?: ai?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) }
 					?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) } ?: return@mapNotNull null
-				Triple(if(st.button != null) "$ar  ${st.button}" else ar, box, spans(st.text, ar, colored))
+				val arN = com.inarabic.translate.Glossary.arabicNames(ar)
+				Triple(if(st.button != null) "$arN  ${st.button}" else arN, box, spans(st.text, arN, colored))
 			}
 			if(out.isNotEmpty()) LinkServer.sendSide(out)
 		}

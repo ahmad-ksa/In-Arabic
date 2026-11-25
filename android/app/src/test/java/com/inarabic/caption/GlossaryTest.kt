@@ -19,3 +19,13 @@ class GlossaryTest
 
 	@Test fun caps() { assertEquals("Where are you going", Glossary.sentenceCase("WHERE ARE YOU GOING")) }
 }
+
+class NamesTest
+{
+	@Test fun namesInArabic()
+	{
+		org.junit.Assert.assertEquals("جيسون ولوسيا", Glossary.lookup("JASON & LUCIA"))
+		org.junit.Assert.assertEquals("وين رايح يا جيسون؟", Glossary.arabicNames("وين رايح يا Jason؟"))
+		org.junit.Assert.assertEquals("مرحبا", Glossary.arabicNames("مرحبا"))
+	}
+}

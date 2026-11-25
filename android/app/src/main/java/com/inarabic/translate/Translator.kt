@@ -62,8 +62,9 @@ class Translator(private val prefs: InArabicPrefs)
 				.addOnSuccessListener { if(c.isActive) c.resume(it) }
 				.addOnFailureListener { Log.w(TAG, "translate failed", it); if(c.isActive) c.resume(null) }
 		}
-		if(ar != null) quickCache.put(k, ar)
-		return ar
+		val named = ar?.let { Glossary.arabicNames(it) }
+		if(named != null) quickCache.put(k, named)
+		return named
 	}
 
 	/** Better translation by the AI model, or null (no key, offline, timeout). */
@@ -73,7 +74,8 @@ class Translator(private val prefs: InArabicPrefs)
 		if('\n' in english) return english.split('\n').filter { it.isNotBlank() }.map { better(it) ?: quick(it) ?: it }.joinToString("\n")
 		val k = SubtitleTracker.key(english)
 		aiCache.get(k)?.let { return it }
-		val ar = withTimeoutOrNull(9000) { withContext(Dispatchers.IO) { askAi(english) } }
+		val ar0 = withTimeoutOrNull(9000) { withContext(Dispatchers.IO) { askAi(english) } }
+		val ar = ar0?.let { Glossary.arabicNames(it) }
 		if(ar != null)
 		{
 			aiCache.put(k, ar)
