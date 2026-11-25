@@ -101,3 +101,42 @@ jobs:
           gh release create latest InArabic-phone.apk InArabic-androidtv.apk InArabic-lg.ipk \
             --title "بالعربي — آخر إصدار (0.1.${{ github.run_number }})" \
             --notes "InArabic-phone.apk للجوال • InArabic-androidtv.apk لشاشة أندرويد • InArabic-lg.ipk لشاشة LG"
+
+  smoke:
+    needs: [phone]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: phone
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - name: Start the app on an emulator and capture crashes
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            adb install -r InArabic-phone.apk
+            adb logcat -c
+            adb shell monkey -p com.inarabic.phone -c android.intent.category.LAUNCHER 1
+            sleep 15
+            adb shell am start -n com.inarabic.phone/com.inarabic.InArabicSettingsActivity || true
+            sleep 8
+            adb logcat -d -b crash > crash.txt || true
+            adb logcat -d | grep -E "AndroidRuntime|FATAL|InArabic|chiaki" > app.txt || true
+            adb shell pidof com.inarabic.phone && echo "APP STILL RUNNING" || echo "APP NOT RUNNING"
+            adb exec-out screencap -p > screen.png
+            echo "===== crash buffer"; cat crash.txt | head -80
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke
+          path: |
+            crash.txt
+            app.txt
+            screen.png
