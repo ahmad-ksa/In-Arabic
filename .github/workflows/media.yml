@@ -41,6 +41,7 @@ jobs:
           api-level: 30
           target: android-tv
           arch: x86
+          profile: tv_1080p
           disable-animations: true
           script: bash ci/tv_shots.sh
       - uses: actions/upload-artifact@v4
@@ -49,13 +50,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pip install edge-tts==7.0.2
+      - run: pip install -U edge-tts gTTS
       - name: Arabic narration
         run: |
           mkdir -p voice
           while IFS='|' read -r n t; do
             [ -z "$n" ] && continue
-            edge-tts --voice ar-SA-HamedNeural --rate=-4% --text "$t" --write-media voice/$n.mp3
+            edge-tts --voice ar-SA-HamedNeural --rate=-4% --text "$t" --write-media voice/$n.mp3 \
+              || gtts-cli -l ar "$t" --output voice/$n.mp3
           done < ci/narration.txt
           ls -la voice
       - uses: actions/upload-artifact@v4

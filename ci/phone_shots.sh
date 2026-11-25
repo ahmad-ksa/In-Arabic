@@ -1,8 +1,9 @@
 set -x
 mkdir -p shots
 adb install -r InArabic-phone.apk
-adb shell monkey -p com.inarabic.phone -c android.intent.category.LAUNCHER 1
-sleep 8
+adb shell am start -W -n com.inarabic.phone/com.metallic.chiaki.main.MainActivity
+sleep 10
+adb shell dumpsys activity activities | grep -m3 -i 'mResumedActivity\|topResumed'
 python3 ci/ui.py shot shots/phone-1-main.png
 python3 ci/ui.py tap "More options" || python3 ci/ui.py tap "خيارات"
 python3 ci/ui.py shot shots/phone-2-menu.png
