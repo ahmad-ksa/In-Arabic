@@ -94,10 +94,11 @@ object LinkServer
 		catch(e: Exception) { Log.w(TAG, "nsd", e) }
 	}
 
-	fun sendSub(id: Int, arabic: String, english: String, final: Boolean, box: FloatArray?)
+	fun sendSub(id: Int, arabic: String, english: String, final: Boolean, box: FloatArray?, spans: List<com.inarabic.caption.ColorSpan> = emptyList())
 	{
 		val o = JSONObject().put("t", "sub").put("id", id).put("ar", arabic).put("en", english).put("final", final)
 		if(box != null) o.put("box", boxJson(box))
+		if(spans.isNotEmpty()) o.put("spans", spansJson(spans))
 		val msg = o.toString()
 		lastSub = msg
 		broadcast(msg)
@@ -124,11 +125,11 @@ object LinkServer
 	}
 
 	/** texts off to the side of the subtitle (mission titles, button prompts): each drawn over its English one */
-	fun sendSide(items: List<Pair<String, FloatArray>>)
+	fun sendSide(items: List<Triple<String, FloatArray, List<com.inarabic.caption.ColorSpan>>>)
 	{
 		val arr = org.json.JSONArray()
-		for((ar, box) in items)
-			arr.put(JSONObject().put("ar", ar).put("box", boxJson(box)))
+		for((ar, box, spans) in items)
+			arr.put(JSONObject().put("ar", ar).put("box", boxJson(box)).apply { if(spans.isNotEmpty()) put("spans", spansJson(spans)) })
 		val msg = JSONObject().put("t", "side").put("items", arr).toString()
 		lastSide = msg
 		broadcast(msg)
@@ -160,6 +161,11 @@ object LinkServer
 		val a = org.json.JSONArray()
 		for(i in 0 until minOf(b.size, 5)) a.put(Math.round(b[i] * 10000) / 10000.0)
 		return a
+	}
+
+	/** coloured stretches of the Arabic text: [start, end, "#RRGGBB"] */
+	private fun spansJson(spans: List<com.inarabic.caption.ColorSpan>) = org.json.JSONArray().apply {
+		for(sp in spans) put(org.json.JSONArray().put(sp.start).put(sp.end).put(String.format("#%06X", sp.color and 0xFFFFFF)))
 	}
 
 	/** the phone's own caption view gets every message too */

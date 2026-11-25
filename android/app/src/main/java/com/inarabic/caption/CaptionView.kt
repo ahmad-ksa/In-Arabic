@@ -23,6 +23,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 {
 	var text: String? = null
 		set(v) { field = v; invalidate() }
+	/** coloured stretches of [text]: start, end, colour (the game's coloured words) */
+	var textSpans: List<IntArray> = emptyList()
 	/** original subtitle box, 0..1 of the screen: x, y, w, h */
 	var box: FloatArray? = null
 		set(v) { field = v; invalidate() }
@@ -31,7 +33,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	var box2: FloatArray? = null
 		set(v) { field = v; invalidate() }
 	/** texts found off to the side (mission title, button prompts): each drawn over its English one */
-	class Side(val text: String, val box: FloatArray)
+	class Side(val text: String, val box: FloatArray, val spans: List<IntArray> = emptyList())
 	var sides: List<Side> = emptyList()
 		set(v) { field = v; invalidate() }
 	var panelTitle: String? = null
@@ -75,12 +77,22 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	/** A message from the phone (see the phone's LinkServer for the format). */
 	fun handle(o: org.json.JSONObject)
 	{
+		fun spans(o: org.json.JSONObject): List<IntArray>
+		{
+			val a = o.optJSONArray("spans") ?: return emptyList()
+			return (0 until a.length()).mapNotNull { i ->
+				val x = a.optJSONArray(i) ?: return@mapNotNull null
+				val c = try { Color.parseColor(x.optString(2)) } catch(e: Exception) { return@mapNotNull null }
+				intArrayOf(x.optInt(0), x.optInt(1), c)
+			}
+		}
 		fun box(o: org.json.JSONObject) = o.optJSONArray("box")?.takeIf { it.length() >= 4 }?.let { b -> FloatArray(b.length()) { b.optDouble(it).toFloat() } }
 		when(o.optString("t"))
 		{
 			"sub" ->
 			{
 				box = box(o)
+				textSpans = spans(o)
 				text = o.optString("ar")
 				// safety: never leave a line on screen forever if the phone disappears
 				timers.removeCallbacks(hide); timers.postDelayed(hide, 15000)
@@ -94,7 +106,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				sides = if(items == null) emptyList() else (0 until items.length()).mapNotNull { i ->
 					val it = items.optJSONObject(i) ?: return@mapNotNull null
 					val b = box(it) ?: return@mapNotNull null
-					it.optString("ar").takeIf { a -> a.isNotBlank() }?.let { a -> Side(a, b) }
+					it.optString("ar").takeIf { a -> a.isNotBlank() }?.let { a -> Side(a, b, spans(it)) }
 				}
 				timers.removeCallbacks(hideSide); timers.postDelayed(hideSide, 15000)
 			}
@@ -124,14 +136,28 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	fun test()
 	{
 		box = floatArrayOf(0.25f, 0.84f, 0.5f, 0.06f)
-		text = "هذا سطر تجريبي للترجمة العربية فوق اللعبة"
+		val t = "هذا سطر تجريبي للترجمة العربية فوق اللعبة"
+		val i = t.indexOf("العربية")
+		textSpans = listOf(intArrayOf(i, i + "العربية".length, Color.rgb(90, 220, 110))) // a coloured word, like games do
+		text = t
 		timers.removeCallbacks(hide); timers.postDelayed(hide, 6000)
 	}
 
 	private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { setShadowLayer(4f, 0f, 2f, Color.BLACK) }
 	private val boxPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
-	private fun layout(t: String, width: Int, align: Layout.Alignment = Layout.Alignment.ALIGN_CENTER) =
+	/** the text with its coloured words (spans outside the text are ignored) */
+	private fun styled(t: String, spans: List<IntArray>): CharSequence
+	{
+		if(spans.isEmpty()) return t
+		val s = android.text.SpannableString(t)
+		for(sp in spans)
+			if(sp[0] in 0 until sp[1] && sp[1] <= t.length)
+				s.setSpan(android.text.style.ForegroundColorSpan(sp[2]), sp[0], sp[1], android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+		return s
+	}
+
+	private fun layout(t: CharSequence, width: Int, align: Layout.Alignment = Layout.Alignment.ALIGN_CENTER) =
 		StaticLayout.Builder.obtain(t, 0, t.length, textPaint, width)
 			.setAlignment(align).setTextDirection(TextDirectionHeuristics.RTL).setLineSpacing(0f, 1.1f).build()
 
@@ -172,7 +198,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				if(area.centerX() > w / 2) area.left = max(0f, area.right - tw) else area.right = min(w, area.left + tw)
 			}
 			val inner = (area.width() - w * 0.008f).toInt().coerceAtLeast(30)
-			val l = layout(sd.text, inner, if(para) Layout.Alignment.ALIGN_NORMAL else Layout.Alignment.ALIGN_CENTER)
+			val l = layout(styled(sd.text, sd.spans), inner, if(para) Layout.Alignment.ALIGN_NORMAL else Layout.Alignment.ALIGN_CENTER)
 			val need = l.height + h * 0.008f
 			if(area.height() < need)
 			{
@@ -206,7 +232,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				area.left = cx - minW / 2; area.right = cx + minW / 2
 			}
 			val inner = (area.width() - w * 0.02f).toInt().coerceAtLeast(50)
-			val l = layout(t, inner)
+			val l = layout(styled(t, textSpans), inner)
 			val need = l.height + h * 0.024f
 			if(area.height() < need)
 			{

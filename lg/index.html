@@ -114,7 +114,19 @@
     var H = 1080, v = (b && b.length > 4 && b[4] > 0) ? Math.min(Math.max(b[4] * H * 0.95, H * lo), H * hi) : H * def;
     return Math.round(v * style.scale);
   }
-  function caption(text, box) {
+  // the text with the game's coloured words: spans = [[start, end, "#RRGGBB"], …]
+  function paint(el, text, spans) {
+    el.textContent = '';
+    var at = 0;
+    (spans || []).slice().sort(function (a, b) { return a[0] - b[0]; }).forEach(function (sp) {
+      if (sp[0] < at || sp[1] > text.length || sp[0] >= sp[1]) return;
+      if (sp[0] > at) el.appendChild(document.createTextNode(text.slice(at, sp[0])));
+      var c = document.createElement('span'); c.style.color = sp[2]; c.textContent = text.slice(sp[0], sp[1]);
+      el.appendChild(c); at = sp[1];
+    });
+    if (at < text.length) el.appendChild(document.createTextNode(text.slice(at)));
+  }
+  function caption(text, box, spans) {
     box = fit(box);
     var c = $('cap');
     clearTimeout(hideTimer);
@@ -138,7 +150,7 @@
     c.style.left = area.x + 'px';
     c.style.width = area.w + 'px';
     c.style.minHeight = area.h + 'px';
-    c.textContent = text;
+    paint(c, text, spans);
     c.style.display = 'block';
     // keep the bottom edge where the English line was; grow upward if the Arabic needs more lines
     var bottom = area.y + area.h;
@@ -169,7 +181,7 @@
       var bx = fit(it.box); if (!it.ar || !bx) return;
       var d = document.createElement('div');
       d.className = 'side-item';
-      d.textContent = it.ar;
+      paint(d, it.ar, it.spans);
       d.style.fontSize = sizeFor(bx, 0.03, 0.02, 0.045) + 'px';
       d.style.background = 'rgba(0,0,0,' + style.opacity + ')';
       d.style.color = style.color;
@@ -219,7 +231,7 @@
     };
     ws.onmessage = function (e) {
       var o; try { o = JSON.parse(e.data); } catch (x) { return; }
-      if (o.t === 'sub') caption(o.ar, o.box);
+      if (o.t === 'sub') caption(o.ar, o.box, o.spans);
       else if (o.t === 'clear') caption(null);
       else if (o.t === 'box2') box2(o.ar, o.box);
       else if (o.t === 'box2clear') box2(null);

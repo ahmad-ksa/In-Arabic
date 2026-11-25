@@ -54,6 +54,8 @@ class CaptionEngine(
 	private var loop: Job? = null
 	private var lastBox2Read = 0L
 	private var lastScreenRead = 0L
+	/** coloured phrases of the subtitle on screen now */
+	@Volatile private var subColored: List<Colored> = emptyList()
 	/** prompts found in the rest of the picture ("OPEN" next to a car), from the last whole-screen read */
 	private var screenItems: List<OcrRead> = emptyList()
 	@Volatile private var lastLineAt = 0L
@@ -109,7 +111,7 @@ class CaptionEngine(
 		val c = current ?: return
 		TranslationMemory.put(c.english, arabic, TranslationMemory.Source.USER)
 		current = c.copy(arabic = arabic)
-		LinkServer.sendSub(c.id, arabic, c.english, true, c.box)
+		LinkServer.sendSub(c.id, arabic, c.english, true, c.box, emptyList())
 		post(arabic)
 	}
 
@@ -133,13 +135,14 @@ class CaptionEngine(
 				screenItems = all.filter { it.text.split(' ').size <= 40 } // prompts and help boxes, not pages of text
 			}
 			side.addAll(screenItems)
-			val items = side.mapNotNull { r -> SideText.clean(r.text)?.let { it to r.box!! } }
+			val items = side.mapNotNull { r -> SideText.clean(r.text)?.let { Triple(it, r.box!!, r.colored) } }
 			when(sideTracker.feed(OcrRead(items.joinToString(" | ") { it.first.text })))
 			{
 				is TrackerEvent.NewLine, is TrackerEvent.Update -> translateSide(items)
 				TrackerEvent.Clear -> LinkServer.sendSideClear()
 				null -> {}
 			}
+			if(read.text.isNotBlank()) subColored = read.colored
 			when(val ev = subTracker.feed(read))
 			{
 				is TrackerEvent.NewLine -> translate(++nextId, ev.text, ev.box)
@@ -201,10 +204,10 @@ class CaptionEngine(
 		}
 	}
 
-	private fun show(id: Int, english: String, arabic: String, final: Boolean, box: FloatArray?)
+	private suspend fun show(id: Int, english: String, arabic: String, final: Boolean, box: FloatArray?)
 	{
 		current = Current(id, english, arabic, box)
-		LinkServer.sendSub(id, arabic, english, final, box)
+		LinkServer.sendSub(id, arabic, english, final, box, spans(english, arabic, subColored))
 		if(final) SessionLog.add(english, arabic)
 		post(arabic)
 	}
@@ -219,20 +222,35 @@ class CaptionEngine(
 		}
 	}
 
-	private fun translateSide(items: List<Pair<SideText, FloatArray>>)
+	private fun translateSide(items: List<Triple<SideText, FloatArray, List<Colored>>>)
 	{
 		if(items.isEmpty()) return
 		scope.launch {
-			val out = items.mapNotNull { (st, box) ->
+			val out = items.mapNotNull { (st, box, colored) ->
 				val known = TranslationMemory.get(st.text)
 				// longer help texts are worth the AI (when on); short prompts take the quick model
 				val ai = if(known == null && prefs.aiEnabled && st.text.split(' ').size > 4) translator.better(st.text) else null
 				val ar = known?.arabic ?: ai?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) }
 					?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) } ?: return@mapNotNull null
-				(if(st.button != null) "$ar  ${st.button}" else ar) to box
+				Triple(if(st.button != null) "$ar  ${st.button}" else ar, box, spans(st.text, ar, colored))
 			}
 			if(out.isNotEmpty()) LinkServer.sendSide(out)
 		}
+	}
+
+	/** Arabic stretches to colour like the English: each coloured phrase translated alone, then found in the line. */
+	private suspend fun spans(english: String, arabic: String, colored: List<Colored>): List<ColorSpan>
+	{
+		val mine = colored.filter { english.contains(it.english, ignoreCase = true) }
+		if(mine.isEmpty()) return emptyList()
+		// the whole line in one colour: colour all of it
+		if(mine.size == 1 && mine[0].english.length >= english.trim { !it.isLetterOrDigit() }.length - 1)
+			return listOf(ColorSpan(0, arabic.length, mine[0].color))
+		val phrases = mine.mapNotNull { c ->
+			val ar = TranslationMemory.get(c.english)?.arabic ?: translator.quick(c.english) ?: return@mapNotNull null
+			ar to c.color
+		}
+		return ColorText.place(arabic, phrases)
 	}
 
 	private fun post(text: String?) { surfaceView.post { if(prefs.showOnPhone) onCaption(text) else onCaption(null) } }
@@ -308,7 +326,62 @@ class CaptionEngine(
 		val lineH = lines.mapNotNull { it.boundingBox?.height() }.sorted().let { it[it.size / 2] }
 		val box = floatArrayOf((r.left + area.left) / frame.width.toFloat(), (r.top + area.top) / frame.height.toFloat(),
 			r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat(), lineH / frame.height.toFloat())
-		return OcrRead(texts.joinToString(" "), box)
+		return OcrRead(texts.joinToString(" "), box, coloredPhrases(crop, lines))
+	}
+
+	/** Runs of words drawn in the same (non-white) colour. */
+	private fun coloredPhrases(crop: Bitmap, lines: List<Text.Line>): List<Colored>
+	{
+		val out = ArrayList<Colored>()
+		val run = ArrayList<String>()
+		var runColor = 0
+		fun flush()
+		{
+			if(run.isNotEmpty()) out += Colored(run.joinToString(" ").trim { !it.isLetterOrDigit() }, runColor)
+			run.clear()
+		}
+		for(line in lines) for(el in line.elements)
+		{
+			val c = el.boundingBox?.let { colorOf(crop, it) }
+			if(c == null) { flush(); continue }
+			if(run.isNotEmpty() && !sameHue(c, runColor)) flush()
+			if(run.isEmpty()) runColor = c
+			run += el.text
+		}
+		flush()
+		return out.filter { it.english.any(Char::isLetter) }
+	}
+
+	private fun sameHue(a: Int, b: Int): Boolean
+	{
+		val x = FloatArray(3); val y = FloatArray(3)
+		android.graphics.Color.colorToHSV(a, x); android.graphics.Color.colorToHSV(b, y)
+		val d = kotlin.math.abs(x[0] - y[0]).let { minOf(it, 360 - it) }
+		return d < 30
+	}
+
+	/**
+	 * The colour of a word: the brightest pixels in its box are the letters (text is drawn bright over the
+	 * game); white or grey letters -> null, clearly coloured ones -> that colour, made bright enough to read.
+	 */
+	private fun colorOf(bmp: Bitmap, r: Rect): Int?
+	{
+		val box = Rect(r); if(!box.intersect(0, 0, bmp.width, bmp.height) || box.width() < 3 || box.height() < 3) return null
+		val sx = maxOf(1, box.width() / 28); val sy = maxOf(1, box.height() / 10)
+		val px = ArrayList<Int>(300)
+		var y = box.top
+		while(y < box.bottom) { var x = box.left; while(x < box.right) { px += bmp.getPixel(x, y); x += sx }; y += sy }
+		if(px.size < 8) return null
+		fun lum(c: Int) = 0.299 * ((c shr 16) and 255) + 0.587 * ((c shr 8) and 255) + 0.114 * (c and 255)
+		val top = px.sortedByDescending(::lum).take(maxOf(4, px.size / 5))
+		val rr = top.sumOf { (it shr 16) and 255 } / top.size
+		val gg = top.sumOf { (it shr 8) and 255 } / top.size
+		val bb = top.sumOf { it and 255 } / top.size
+		val hsv = FloatArray(3)
+		android.graphics.Color.RGBToHSV(rr, gg, bb, hsv)
+		if(hsv[1] < 0.35f || hsv[2] < 0.4f) return null
+		hsv[1] = minOf(1f, hsv[1] * 1.1f); hsv[2] = maxOf(hsv[2], 0.9f)
+		return android.graphics.Color.HSVToColor(hsv)
 	}
 
 	/** ML Kit's text, or PaddleOCR's when ML Kit is unsure and Paddle is surer. */

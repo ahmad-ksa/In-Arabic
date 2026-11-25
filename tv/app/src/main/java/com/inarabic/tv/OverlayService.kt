@@ -71,9 +71,7 @@ class OverlayService : Service()
 	{
 		if(intent?.action == "test")
 		{
-			view?.box = floatArrayOf(0.25f, 0.84f, 0.5f, 0.06f)
-			view?.text = "هذا سطر تجريبي للترجمة العربية فوق اللعبة"
-			main.removeCallbacks(hide); main.postDelayed(hide, 6000)
+			view?.test()
 		}
 		return START_STICKY
 	}
