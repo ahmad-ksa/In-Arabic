@@ -1,79 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- In Arabic settings, in the order you need them: what to translate, the screens, the look, where to read,
+     then everything else folded under "متقدم". -->
 <PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <PreferenceCategory app:title="الشاشة">
-        <Preference app:key="ia_pair_scan" app:title="📷 اربط شاشة بالباركود" />
-        <Preference app:key="ia_pair_forget" app:title="ألغِ ربط كل الشاشات" />
-        <Preference app:key="ia_address" app:title="بدون باركود: عنوان الجوال ورمز الاقتران"
-            app:summary=" " />
-        <Preference app:key="ia_test" app:title="اعرض سطرًا تجريبيًا على الشاشة"
-            app:summary="جرّب الحجم والمكان واللون وأنت تنظر إلى الشاشة" />
-        <ListPreference app:key="ia_preset" app:title="شكل جاهز" app:defaultValue="normal"
-            app:entries="@array/ia_preset_names" app:entryValues="@array/ia_preset_values" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference app:key="ia_text_scale" app:title="حجم الخط (%) — 100 = نفس حجم الإنجليزي"
-            app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
-        <ListPreference app:key="ia_color" app:title="لون الخط" app:defaultValue="#FFFFFF"
-            app:entries="@array/ia_color_names" app:entryValues="@array/ia_color_values" app:useSimpleSummaryProvider="true" />
-        <SwitchPreference app:key="ia_bold" app:defaultValue="true" app:title="خط عريض" />
-        <SwitchPreference app:key="ia_outline" app:defaultValue="false" app:title="حدّ أسود حول الحروف"
-            app:summary="يخلي النص واضح حتى بدون خلفية" />
-        <ListPreference app:key="ia_box_color" app:title="لون خلفية الترجمة" app:defaultValue="#000000"
-            app:entries="@array/ia_box_color_names" app:entryValues="@array/ia_box_color_values" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference app:key="ia_tv_zoom" app:title="مطابقة التلفزيون: تكبير المكان (%)"
-            app:summary="إذا الترجمة على التلفزيون أقرب للوسط من الكلام الإنجليزي، زِد هذا وأنت تنظر للشاشة"
-            app:defaultValue="0" android:max="15" app:min="0" app:showSeekBarValue="true" />
-        <SeekBarPreference app:key="ia_tv_shift" app:title="مطابقة التلفزيون: تحريك لأعلى/أسفل (%)"
-            app:summary="سالب = لأعلى، موجب = لأسفل"
-            app:defaultValue="0" android:max="10" app:min="-10" app:showSeekBarValue="true" />
-        <ListPreference app:key="ia_position" app:title="مكان الترجمة" app:defaultValue="auto"
-            app:entries="@array/ia_pos_names" app:entryValues="@array/ia_pos_values" app:useSimpleSummaryProvider="true" />
-        <SwitchPreference app:key="ia_cover" app:defaultValue="true"
-            app:title="غطِّ الترجمة الإنجليزية الأصلية" />
-        <SeekBarPreference app:key="ia_box_opacity" app:title="عتامة خلفية الترجمة (%)"
-            app:defaultValue="85" android:max="100" app:min="0" app:showSeekBarValue="true" />
-    </PreferenceCategory>
-
-    <PreferenceCategory app:title="الترجمة">
-        <ListPreference app:key="ia_mode" app:title="وش أترجم؟" app:defaultValue="menus"
+    <PreferenceCategory app:title="١. الترجمة" app:iconSpaceReserved="false">
+        <SwitchPreference app:key="ia_enabled" app:defaultValue="true" app:iconSpaceReserved="false"
+            app:title="الترجمة شغالة" app:summary="تترجم وقت اللعب من الجوال" />
+        <ListPreference app:key="ia_mode" app:title="وش أترجم؟" app:defaultValue="menus" app:iconSpaceReserved="false"
             app:entries="@array/ia_mode_names" app:entryValues="@array/ia_mode_values" app:useSimpleSummaryProvider="true" />
-        <SwitchPreference app:key="ia_enabled" app:defaultValue="true"
-            app:title="ترجمة النصوص الإنجليزية" app:summary="تعمل أثناء اللعب من الجوال" />
-        <Preference app:key="ia_download_model" app:title="تنزيل نموذج الترجمة المجاني"
-            app:summary="مرة واحدة (حوالي 30 ميغا) — بعدها تعمل الترجمة الفورية بدون إنترنت" />
-        <SwitchPreference app:key="ia_ai_enabled" app:defaultValue="false"
-            app:title="ترجمة أدق بالذكاء الاصطناعي"
-            app:summary="تظهر الترجمة المجانية فورًا ثم تُستبدل بترجمة الذكاء الاصطناعي" />
-        <Preference app:key="ia_ai_gemini" app:title="⭐ استخدم Gemini المجاني (أنصح فيه)"
-            app:summary="ترجمة أدق بكثير وتفهم سياق اللعبة. خذ مفتاح مجاني من Google AI Studio والصقه في «مفتاح API»" />
-        <EditTextPreference app:key="ia_ai_key" app:title="مفتاح API" app:dependency="ia_ai_enabled" />
-        <EditTextPreference app:key="ia_ai_base" app:title="عنوان الخدمة" app:dependency="ia_ai_enabled"
-            app:defaultValue="https://api.openai.com/v1" app:useSimpleSummaryProvider="true" />
-        <EditTextPreference app:key="ia_ai_model" app:title="النموذج" app:dependency="ia_ai_enabled"
-            app:defaultValue="gpt-4o-mini" app:useSimpleSummaryProvider="true" />
-        <Preference app:key="ia_game_pick" app:title="🎮 اختر لعبتك" />
-        <Preference app:key="ia_memory" app:title="ذاكرة الترجمة" />
-        <Preference app:key="ia_review" app:title="راجع الترجمات الآن"
-            app:summary="الذكاء الاصطناعي يصحّح كل الأسطر المحفوظة من الترجمة المجانية (يحدث تلقائيًا أيضًا وقت الهدوء)" />
-        <Preference app:key="ia_summary" app:title="📖 سجل الجلسات والملخص"
-            app:summary="كل جلسة لعب: الحوار كامل، وملخص عادي أو قصير يذكّرك وين وقفت" />
+        <Preference app:key="ia_game_pick" app:title="اللعبة" app:iconSpaceReserved="false" />
+        <Preference app:key="ia_download_model" app:title="نزّل نموذج الترجمة" app:iconSpaceReserved="false"
+            app:summary="مرة وحدة (30 ميغا تقريباً)، بعدها تشتغل الترجمة بدون إنترنت" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="قراءة النص من الصورة">
-        <Preference app:key="ia_zones_info" app:title="📐 مربعات القراءة"
-            app:summary="من شاشة البث اضغط «📐 مكان الترجمة»: ضيف مربعات للحوار وللنصوص الجانبية واسحبها على أماكنها. البرنامج يقرأ اللي داخلها بس." />
-        <SeekBarPreference app:key="ia_read_every" app:title="سرعة القراءة (ملّي ثانية بين كل قراءة)"
+    <PreferenceCategory app:title="٢. الشاشة (التلفزيون)" app:iconSpaceReserved="false">
+        <Preference app:key="ia_pair_scan" app:title="اربط شاشة بالباركود" app:iconSpaceReserved="false" />
+        <Preference app:key="ia_test" app:title="اعرض سطر تجريبي على الشاشة" app:iconSpaceReserved="false"
+            app:summary="جرّب الحجم والمكان واللون وأنت تشوف التلفزيون" />
+        <SwitchPreference app:key="ia_show_on_phone" app:defaultValue="true" app:iconSpaceReserved="false"
+            app:title="اعرض الترجمة على الجوال بعد" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="٣. شكل الترجمة" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="3">
+        <ListPreference app:key="ia_preset" app:title="شكل جاهز" app:defaultValue="normal" app:iconSpaceReserved="false"
+            app:entries="@array/ia_preset_names" app:entryValues="@array/ia_preset_values" app:useSimpleSummaryProvider="true" />
+        <SeekBarPreference app:key="ia_text_scale" app:title="حجم الخط (100 = نفس حجم الإنجليزي)" app:iconSpaceReserved="false"
+            app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
+        <ListPreference app:key="ia_color" app:title="لون الخط" app:defaultValue="#FFFFFF" app:iconSpaceReserved="false"
+            app:entries="@array/ia_color_names" app:entryValues="@array/ia_color_values" app:useSimpleSummaryProvider="true" />
+        <SwitchPreference app:key="ia_bold" app:defaultValue="true" app:title="خط عريض" app:iconSpaceReserved="false" />
+        <SwitchPreference app:key="ia_outline" app:defaultValue="false" app:title="حدّ أسود حول الحروف" app:iconSpaceReserved="false" />
+        <ListPreference app:key="ia_box_color" app:title="لون الخلفية" app:defaultValue="#000000" app:iconSpaceReserved="false"
+            app:entries="@array/ia_box_color_names" app:entryValues="@array/ia_box_color_values" app:useSimpleSummaryProvider="true" />
+        <SeekBarPreference app:key="ia_box_opacity" app:title="عتامة الخلفية (%)" app:iconSpaceReserved="false"
+            app:defaultValue="85" android:max="100" app:min="0" app:showSeekBarValue="true" />
+        <ListPreference app:key="ia_position" app:title="مكان الترجمة" app:defaultValue="auto" app:iconSpaceReserved="false"
+            app:entries="@array/ia_pos_names" app:entryValues="@array/ia_pos_values" app:useSimpleSummaryProvider="true" />
+        <SwitchPreference app:key="ia_cover" app:defaultValue="true" app:iconSpaceReserved="false"
+            app:title="غطِّ الترجمة الإنجليزية" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="٤. مكان القراءة" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="1">
+        <Preference app:key="ia_zones_info" app:title="مربعات القراءة" app:iconSpaceReserved="false"
+            app:summary="من البث: المس الشاشة ← «📐 المربعات». حط مربع على الحوار، ومربعات للمهام إذا تبي." />
+        <SeekBarPreference app:key="ia_tv_zoom" app:title="مطابقة التلفزيون: تكبير (%)" app:iconSpaceReserved="false"
+            app:summary="إذا الترجمة على التلفزيون أقرب للوسط من الإنجليزي، زِده"
+            app:defaultValue="0" android:max="15" app:min="0" app:showSeekBarValue="true" />
+        <SeekBarPreference app:key="ia_tv_shift" app:title="مطابقة التلفزيون: أعلى/أسفل (%)" app:iconSpaceReserved="false"
+            app:defaultValue="0" android:max="10" app:min="-10" app:showSeekBarValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="٥. الجلسات والذاكرة" app:iconSpaceReserved="false">
+        <Preference app:key="ia_summary" app:title="سجل الجلسات والملخص" app:iconSpaceReserved="false"
+            app:summary="حوار كل جلسة، وملخص يذكّرك وين وقفت" />
+        <Preference app:key="ia_memory" app:title="ذاكرة الترجمة" app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="متقدم" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="0">
+        <Preference app:key="ia_address" app:title="بدون باركود: عنوان الجوال ورمز الاقتران" app:summary=" " app:iconSpaceReserved="false" />
+        <Preference app:key="ia_pair_forget" app:title="ألغِ ربط كل الشاشات" app:iconSpaceReserved="false" />
+        <SeekBarPreference app:key="ia_read_every" app:title="سرعة القراءة (ملّي ثانية)" app:iconSpaceReserved="false"
             app:defaultValue="300" android:max="1000" app:min="150" app:showSeekBarValue="true" />
-        <SwitchPreference app:key="ia_paddle" app:defaultValue="true"
-            app:title="قارئ ثانٍ للأسطر غير الواضحة" app:summary="PaddleOCR: أدق مع الصورة الضعيفة، يستهلك بطارية أكثر قليلًا" />
-        <SwitchPreference app:key="ia_show_on_phone" app:defaultValue="true"
-            app:title="اعرض الترجمة على الجوال أيضًا" app:summary="اضغط على الترجمة في الجوال لتصحيحها" />
+        <SwitchPreference app:key="ia_paddle" app:defaultValue="true" app:iconSpaceReserved="false"
+            app:title="قارئ ثاني للأسطر غير الواضحة" app:summary="أدق، يستهلك بطارية أكثر شوي" />
+        <SwitchPreference app:key="ia_center_only" app:defaultValue="true" app:iconSpaceReserved="false"
+            app:title="افصل الأزرار عن الحوار" app:summary="النص القصير على طرف مربع الحوار يُترجم مكانه" />
+        <SwitchPreference app:key="ia_auto_reconnect" app:defaultValue="true" app:iconSpaceReserved="false"
+            app:title="أعد الاتصال تلقائياً إذا انقطع البث" />
+        <SwitchPreference app:key="ia_ai_enabled" app:defaultValue="false" app:iconSpaceReserved="false"
+            app:title="ترجمة بالذكاء الاصطناعي (اختياري)" app:summary="تحتاج مفتاح API. بدونها تشتغل الترجمة المجانية على الجوال" />
+        <Preference app:key="ia_ai_gemini" app:title="مفتاح Gemini المجاني" app:dependency="ia_ai_enabled" app:iconSpaceReserved="false" />
+        <EditTextPreference app:key="ia_ai_key" app:title="مفتاح API" app:dependency="ia_ai_enabled" app:iconSpaceReserved="false" />
+        <EditTextPreference app:key="ia_ai_base" app:title="عنوان الخدمة" app:dependency="ia_ai_enabled" app:iconSpaceReserved="false"
+            app:defaultValue="https://api.openai.com/v1" app:useSimpleSummaryProvider="true" />
+        <EditTextPreference app:key="ia_ai_model" app:title="النموذج" app:dependency="ia_ai_enabled" app:iconSpaceReserved="false"
+            app:defaultValue="gpt-4o-mini" app:useSimpleSummaryProvider="true" />
+        <Preference app:key="ia_review" app:title="راجع الترجمات المحفوظة بالذكاء الاصطناعي" app:dependency="ia_ai_enabled" app:iconSpaceReserved="false" />
     </PreferenceCategory>
-
-    <PreferenceCategory app:title="النصوص الجانبية">
-        <SwitchPreference app:key="ia_center_only" app:defaultValue="true"
-            app:title="افصل النصوص الجانبية عن الحوار"
-            app:summary="الحوار في الوسط؛ أي نص على الجانب (اسم مهمة، زر) يُترجم مكانه ولا يختلط بالحوار" />
-    </PreferenceCategory>
-
 </PreferenceScreen>
