@@ -40,6 +40,53 @@ class CaptionView(context: Context) : View(context)
 	var bold = true
 	fun styleChanged() = invalidate()
 
+	private val timers = android.os.Handler(android.os.Looper.getMainLooper())
+	private val hide = Runnable { text = null }
+	private val hidePanel = Runnable { panelText = null }
+
+	/** A message from the phone (see the phone's LinkServer for the format). */
+	fun handle(o: org.json.JSONObject)
+	{
+		fun box(o: org.json.JSONObject) = o.optJSONArray("box")?.takeIf { it.length() == 4 }?.let { b -> FloatArray(4) { b.optDouble(it).toFloat() } }
+		when(o.optString("t"))
+		{
+			"sub" ->
+			{
+				box = box(o)
+				text = o.optString("ar")
+				// safety: never leave a line on screen forever if the phone disappears
+				timers.removeCallbacks(hide); timers.postDelayed(hide, 15000)
+			}
+			"clear" -> { timers.removeCallbacks(hide); text = null }
+			"box2" -> { box2 = box(o); box2Text = o.optString("ar") }
+			"box2clear" -> box2Text = null
+			"panel" ->
+			{
+				panelTitle = o.optString("title")
+				panelText = o.optString("text")
+				timers.removeCallbacks(hidePanel); timers.postDelayed(hidePanel, o.optLong("ttl", 30000))
+			}
+			"style" ->
+			{
+				scale = o.optDouble("scale", 1.0).toFloat()
+				cover = o.optBoolean("cover", true)
+				opacity = o.optDouble("opacity", 0.85).toFloat()
+				color = try { Color.parseColor(o.optString("color", "#FFFFFF")) } catch(e: Exception) { Color.WHITE }
+				position = o.optString("pos", "auto")
+				bold = o.optBoolean("bold", true)
+				invalidate()
+			}
+		}
+	}
+
+	/** a sample line, to check size and place */
+	fun test()
+	{
+		box = floatArrayOf(0.25f, 0.84f, 0.5f, 0.06f)
+		text = "هذا سطر تجريبي للترجمة العربية فوق اللعبة"
+		timers.removeCallbacks(hide); timers.postDelayed(hide, 6000)
+	}
+
 	private val textPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { setShadowLayer(4f, 0f, 2f, Color.BLACK) }
 	private val boxPaint = Paint(Paint.ANTI_ALIAS_FLAG)
 

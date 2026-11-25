@@ -146,6 +146,8 @@ object Prefs
 	fun phoneAddress(c: Context) = p(c).getString("phone", "") ?: ""
 	fun setPhoneAddress(c: Context, v: String) = p(c).edit().putString("phone", v.trim()).apply()
 	fun pairCode(c: Context) = p(c).getString("code", "") ?: ""
+	fun lastInput(c: Context): String? = p(c).getString("input", null)
+	fun setLastInput(c: Context, v: String) = p(c).edit().putString("input", v).apply()
 	/** this screen's own token: shown as a QR code, the phone scans it once and then accepts this screen */
 	fun token(c: Context): String
 	{

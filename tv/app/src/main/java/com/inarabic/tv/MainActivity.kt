@@ -64,9 +64,11 @@ class MainActivity : Activity()
 		col.addView(label("افتح تطبيق «بالعربي» في الجوال وابدأ البث من البلايستيشن، وستظهر الترجمة العربية هنا فوق اللعبة.", 16f, 0.75f))
 		statusView = label("", 18f)
 		col.addView(statusView)
+		col.addView(button("🎮 العب داخل التطبيق (بدون أي صلاحيات)") { pickHdmi(inside = true) }.apply { requestFocus() })
+		col.addView(label("أو: الترجمة فوق مدخل الـHDMI نفسه (تحتاج صلاحية العرض فوق التطبيقات)", 14f, 0.6f))
 		startBtn = button("") { toggle() }
 		col.addView(startBtn)
-		col.addView(button("افتح مدخل البلايستيشن (HDMI)") { pickHdmi() })
+		col.addView(button("افتح مدخل البلايستيشن (HDMI)") { pickHdmi(inside = false) })
 		col.addView(button("اعرض سطرًا تجريبيًا") { if(OverlayService.running) OverlayService.test(this) else toggle(test = true) })
 		col.addView(label("بدون باركود (اختياري): عنوان الجوال ورمز الاقتران من إعدادات الترجمة بالجوال", 15f, 0.6f))
 		val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
@@ -188,18 +190,25 @@ class MainActivity : Activity()
 	}
 
 	/** Opens the HDMI input (the PS5) like the TV's own input menu; our window stays above it. */
-	private fun pickHdmi()
+	private fun pickHdmi(inside: Boolean)
 	{
 		val tim = getSystemService(TV_INPUT_SERVICE) as? TvInputManager
-		val inputs = try { tim?.tvInputList?.filter { it.type == TvInputInfo.TYPE_HDMI } } catch(e: Exception) { null } ?: emptyList()
+		val inputs = try { tim?.tvInputList?.filter { it.type == TvInputInfo.TYPE_HDMI || it.isPassthroughInput } } catch(e: Exception) { null } ?: emptyList()
 		if(inputs.isEmpty())
 		{
-			AlertDialog.Builder(this).setMessage("لم أجد مداخل HDMI. اختر مدخل البلايستيشن من زر المداخل في الريموت؛ الترجمة تظهر فوقه.")
+			AlertDialog.Builder(this).setMessage(if(inside) "الشاشة لا تعطي التطبيقات قائمة مداخل HDMI، فلا يمكن العرض داخل التطبيق. استعمل الترجمة فوق المدخل." else "لم أجد مداخل HDMI. اختر مدخل البلايستيشن من زر المداخل في الريموت؛ الترجمة تظهر فوقه.")
 				.setPositiveButton("حسنًا", null).show()
 			return
 		}
 		val names = inputs.map { (it.loadLabel(this)?.toString() ?: it.id) }.toTypedArray()
 		AlertDialog.Builder(this).setTitle("اختر مدخل البلايستيشن").setItems(names) { _, i ->
+			Prefs.setLastInput(this, inputs[i].id)
+			if(inside)
+			{
+				if(OverlayService.running) stopService(Intent(this, OverlayService::class.java))
+				startActivity(Intent(this, PlayerActivity::class.java).putExtra(PlayerActivity.EXTRA_INPUT, inputs[i].id))
+				return@setItems
+			}
 			if(!OverlayService.running && canDraw()) startOverlay()
 			try
 			{
