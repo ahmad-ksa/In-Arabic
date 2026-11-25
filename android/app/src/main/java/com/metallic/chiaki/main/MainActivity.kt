@@ -149,6 +149,12 @@ class MainActivity : AppCompatActivity()
 			true
 		}
 
+		R.id.action_camera ->
+		{
+			startActivity(Intent(this, com.inarabic.camera.CameraActivity::class.java))
+			true
+		}
+
 		R.id.action_setup ->
 		{
 			startActivity(Intent(this, com.inarabic.SetupActivity::class.java))

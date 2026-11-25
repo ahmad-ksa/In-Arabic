@@ -94,6 +94,9 @@ class InArabicPrefs(context: Context)
 	val bold get() = p.getBoolean("ia_bold", true)
 
 	/** The game being played (filled from the PS5 when it says, or typed): helps the AI keep names right. */
+	/** camera mode: the TV's corners in the camera picture */
+	val cameraCorners get() = p.getString("ia_cam_corners", "") ?: ""
+	fun setCameraCorners(v: String) = p.edit().putString("ia_cam_corners", v).apply()
 	fun setGame(name: String) = p.edit().putString("ia_game", name.trim()).apply()
 	val gameName: String get() = GameContext.running?.takeIf { it.isNotBlank() } ?: (p.getString("ia_game", "")?.trim() ?: "")
 

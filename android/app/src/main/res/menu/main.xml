@@ -15,6 +15,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_camera"
+        android:title="📷 وضع الكاميرا (بدون تشغيل عن بعد)"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_pair"
         android:title="📷 اربط شاشة بالباركود"
         app:showAsAction="never" />

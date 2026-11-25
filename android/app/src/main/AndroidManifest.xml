@@ -10,6 +10,8 @@
         android:required="false" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
@@ -58,6 +60,8 @@
 
         <activity android:name="com.inarabic.InArabicSettingsActivity" android:theme="@style/AppTheme.WithBar" />
         <activity android:name="com.inarabic.SetupActivity" android:theme="@style/AppTheme.WithBar" />
+        <activity android:name="com.inarabic.camera.CameraActivity" android:theme="@style/StreamTheme"
+            android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity android:name="com.inarabic.psn.PsnLoginActivity" android:theme="@style/AppTheme.WithBar"
             android:configChanges="keyboard|keyboardHidden|orientation|screenSize" />
 

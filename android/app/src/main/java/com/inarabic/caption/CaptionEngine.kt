@@ -26,23 +26,51 @@ import kotlinx.coroutines.*
 import kotlin.coroutines.resume
 
 class CaptionEngine(
-	private val surfaceView: SurfaceView,
+	appContext: android.content.Context,
 	private val prefs: InArabicPrefs,
+	/** the picture to read: the Remote Play stream, or the camera pointed at the TV */
+	private val source: suspend () -> Bitmap?,
 	/** called on the main thread with the Arabic line (null = clear), for the caption on the phone */
 	private val onCaption: (String?) -> Unit,
 )
 {
-	companion object { private const val TAG = "InArabic" }
+	/** reading the Remote Play stream */
+	constructor(surfaceView: SurfaceView, prefs: InArabicPrefs, onCaption: (String?) -> Unit) :
+		this(surfaceView.context, prefs, { grabSurface(surfaceView) }, onCaption)
+
+	companion object
+	{
+		private const val TAG = "InArabic"
+		private val copyThread = HandlerThread("ia-pixelcopy").apply { start() }
+		private val copyHandler = Handler(copyThread.looper)
+
+		/** A copy of the stream picture, at most 1280 px wide (enough for subtitles, cheap to read). */
+		suspend fun grabSurface(surfaceView: SurfaceView): Bitmap? = withContext(Dispatchers.Main) {
+			val w = surfaceView.width
+			val h = surfaceView.height
+			if(w < 16 || h < 16 || !surfaceView.holder.surface.isValid) return@withContext null
+			val scale = minOf(1f, 1280f / w)
+			val bmp = Bitmap.createBitmap((w * scale).toInt(), (h * scale).toInt(), Bitmap.Config.ARGB_8888)
+			suspendCancellableCoroutine { c ->
+				try
+				{
+					PixelCopy.request(surfaceView, bmp, { result ->
+						if(c.isActive) c.resume(if(result == PixelCopy.SUCCESS) bmp else { bmp.recycle(); null })
+					}, copyHandler)
+				}
+				catch(e: Exception) { bmp.recycle(); if(c.isActive) c.resume(null) }
+			}
+		}
+	}
 
 	/** The line on screen now, for the "correct this line" dialog. */
 	data class Current(val id: Int, val english: String, val arabic: String, val box: FloatArray?)
 	@Volatile var current: Current? = null
 		private set
 
-	private val context = surfaceView.context.applicationContext
+	private val context = appContext.applicationContext
+	private val mainHandler = Handler(android.os.Looper.getMainLooper())
 	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-	private val copyThread = HandlerThread("ia-pixelcopy").apply { start() }
-	private val copyHandler = Handler(copyThread.looper)
 	private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 	private val translator = Translator(prefs)
 	private var paddle: PaddleReader? = null
@@ -107,7 +135,6 @@ class CaptionEngine(
 		LinkServer.sendBox2Clear()
 		LinkServer.sendSideClear()
 		scope.cancel()
-		copyThread.quitSafely()
 		recognizer.close()
 		translator.close()
 		paddle?.close()
@@ -146,7 +173,7 @@ class CaptionEngine(
 					(0.5f + half).coerceAtMost(1f), (r.bottom + 0.03f).coerceAtMost(1f))
 			}
 			val cb = autoDone; autoDone = null
-			surfaceView.post { cb?.invoke(found) }
+			mainHandler.post { cb?.invoke(found) }
 		}
 	}
 
@@ -162,7 +189,7 @@ class CaptionEngine(
 
 	private suspend fun step()
 	{
-		val frame = grab() ?: return
+		val frame = source() ?: return
 		try
 		{
 			// the subtitle
@@ -190,7 +217,7 @@ class CaptionEngine(
 			{
 				systemUi = busy
 				if(busy) { subTracker.reset(); sideTracker.reset(); currentId = -1; current = null; LinkServer.sendClear(); LinkServer.sendSideClear(); post(null) }
-				surfaceView.post { onSystemUi?.invoke(busy) }
+				mainHandler.post { onSystemUi?.invoke(busy) }
 			}
 			if(busy) return
 			side.addAll(screenItems)
@@ -312,25 +339,7 @@ class CaptionEngine(
 		return ColorText.place(arabic, phrases)
 	}
 
-	private fun post(text: String?) { surfaceView.post { if(prefs.showOnPhone) onCaption(text) else onCaption(null) } }
-
-	/** A copy of the stream picture, at most 1280 px wide (enough for subtitles, cheap to read). */
-	private suspend fun grab(): Bitmap? = withContext(Dispatchers.Main) {
-		val w = surfaceView.width
-		val h = surfaceView.height
-		if(w < 16 || h < 16 || !surfaceView.holder.surface.isValid) return@withContext null
-		val scale = minOf(1f, 1280f / w)
-		val bmp = Bitmap.createBitmap((w * scale).toInt(), (h * scale).toInt(), Bitmap.Config.ARGB_8888)
-		suspendCancellableCoroutine { c ->
-			try
-			{
-				PixelCopy.request(surfaceView, bmp, { result ->
-					if(c.isActive) c.resume(if(result == PixelCopy.SUCCESS) bmp else { bmp.recycle(); null })
-				}, copyHandler)
-			}
-			catch(e: Exception) { bmp.recycle(); if(c.isActive) c.resume(null) }
-		}
-	}
+	private fun post(text: String?) { mainHandler.post { if(prefs.showOnPhone) onCaption(text) else onCaption(null) } }
 
 	/**
 	 * OCR of one area of the picture; lines joined top to bottom; box is in 0..1 of the whole picture.
