@@ -99,3 +99,13 @@
 
 # In Arabic: views inflated from layouts
 -keep class com.inarabic.caption.CaptionView { <init>(...); }
+
+# JSch (LG install over SSH)
+-keep class com.jcraft.jsch.** { *; }
+-dontwarn com.jcraft.jsch.**
+-dontwarn org.ietf.jgss.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.newsclub.**
+-dontwarn com.sun.jna.**
+-dontwarn org.apache.logging.log4j.**
+-dontwarn org.slf4j.**

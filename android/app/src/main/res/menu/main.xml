@@ -20,6 +20,11 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_lg"
+        android:title="📺 ثبّت التطبيق على تلفزيون LG"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_pair"
         android:title="📷 اربط شاشة بالباركود"
         app:showAsAction="never" />

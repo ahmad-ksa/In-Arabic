@@ -60,6 +60,7 @@
 
         <activity android:name="com.inarabic.InArabicSettingsActivity" android:theme="@style/AppTheme.WithBar" />
         <activity android:name="com.inarabic.SetupActivity" android:theme="@style/AppTheme.WithBar" />
+        <activity android:name="com.inarabic.lg.LgInstallActivity" android:theme="@style/AppTheme.WithBar" />
         <activity android:name="com.inarabic.camera.CameraActivity" android:theme="@style/StreamTheme"
             android:screenOrientation="sensorLandscape" android:configChanges="orientation|screenSize|keyboardHidden" />
         <activity android:name="com.inarabic.psn.PsnLoginActivity" android:theme="@style/AppTheme.WithBar"

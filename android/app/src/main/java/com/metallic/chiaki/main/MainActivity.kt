@@ -155,6 +155,12 @@ class MainActivity : AppCompatActivity()
 			true
 		}
 
+		R.id.action_lg ->
+		{
+			startActivity(Intent(this, com.inarabic.lg.LgInstallActivity::class.java))
+			true
+		}
+
 		R.id.action_setup ->
 		{
 			startActivity(Intent(this, com.inarabic.SetupActivity::class.java))
