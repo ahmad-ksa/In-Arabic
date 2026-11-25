@@ -1,0 +1,76 @@
+name: media
+on:
+  workflow_dispatch:
+  push:
+    branches: [media-run]
+permissions:
+  contents: write
+jobs:
+  phone:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: gh release download latest -p InArabic-phone.apk
+        env: { GH_TOKEN: "${{ github.token }}" }
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: bash ci/phone_shots.sh
+      - uses: actions/upload-artifact@v4
+        with: { name: phone-shots, path: shots }
+  tv:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: gh release download latest -p InArabic-androidtv.apk
+        env: { GH_TOKEN: "${{ github.token }}" }
+      - name: KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: android-tv
+          arch: x86
+          disable-animations: true
+          script: bash ci/tv_shots.sh
+      - uses: actions/upload-artifact@v4
+        with: { name: tv-shots, path: shots }
+  voice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install edge-tts==7.0.2
+      - name: Arabic narration
+        run: |
+          mkdir -p voice
+          while IFS='|' read -r n t; do
+            [ -z "$n" ] && continue
+            edge-tts --voice ar-SA-HamedNeural --rate=-4% --text "$t" --write-media voice/$n.mp3
+          done < ci/narration.txt
+          ls -la voice
+      - uses: actions/upload-artifact@v4
+        with: { name: voice, path: voice }
+  publish:
+    needs: [phone, tv, voice]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: out, merge-multiple: true }
+      - name: Push to the media branch
+        run: |
+          cd out
+          git init -q -b media
+          git config user.name ci; git config user.email ci@users.noreply.github.com
+          git add -A; git commit -qm "media ${{ github.run_number }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" media
