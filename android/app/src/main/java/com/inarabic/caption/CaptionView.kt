@@ -259,8 +259,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			textPaint.textSize = sizeFor(sb, h, 0.03f, 0.02f, 0.045f)
 			val area = RectF(sb[0] * w - w * 0.004f, sb[1] * h - h * 0.004f, (sb[0] + sb[2]) * w + w * 0.004f, (sb[1] + sb[3]) * h + h * 0.004f)
 			// a paragraph (help box) keeps the English box's width and wraps; a short prompt may widen
-			val para = sb.size > 4 && sb[4] > 0f && sb[3] > sb[4] * 1.6f
-			val tw = if(para) area.width() else min(textPaint.measureText(sd.text) + w * 0.012f, w * 0.6f)
+			// a paragraph (help box, description) keeps the English box's width and wraps; a list or a prompt does not
+			val para = sb.size > 4 && sb[4] > 0f && sb[3] > sb[4] * 1.6f && sd.text.split('\n').any { it.length > 30 }
+			val tw = if(para) area.width() else min(sd.text.split('\n').maxOf { textPaint.measureText(it) } + w * 0.012f, w * 0.6f)
 			if(area.width() < tw)
 			{
 				// grow toward the middle of the screen: right-side prompts grow left, left-side ones grow right
@@ -294,7 +295,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				else -> RectF(w * 0.1f, h * 0.78f, w * 0.9f, h * 0.92f)
 			}
 			// the Arabic line may need more room than the English one: widen only as much as it needs (max 80 %)
-			val minW = min(w * 0.8f, textPaint.measureText(t) + w * 0.03f)
+			val minW = min(w * 0.8f, t.split('\n').maxOf { textPaint.measureText(it) } + w * 0.03f)
 			if(area.width() < minW)
 			{
 				val cx = area.centerX().coerceIn(minW / 2, w - minW / 2)

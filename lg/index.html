@@ -232,8 +232,8 @@
       d.style.fontSize = sizeFor(bx, 0.03, 0.02, 0.045) + 'px';
       d.style.background = bg();
       d.style.color = style.color;
-      var para = bx.length > 4 && bx[4] > 0 && bx[3] > bx[4] * 1.6;
-      if (para) { d.style.width = bx[2] * 1920 + 16 + 'px'; d.style.whiteSpace = 'normal'; d.style.textAlign = 'right'; }
+      var para = bx.length > 4 && bx[4] > 0 && bx[3] > bx[4] * 1.6 && it.ar.split('\n').some(function (x) { return x.length > 30; });
+      if (para) { d.style.width = bx[2] * 1920 + 16 + 'px'; d.style.whiteSpace = 'pre-line'; d.style.textAlign = 'right'; }
       else d.style.minWidth = bx[2] * 1920 + 16 + 'px';
       host.appendChild(d);
       var w = d.offsetWidth, hgt = d.offsetHeight;

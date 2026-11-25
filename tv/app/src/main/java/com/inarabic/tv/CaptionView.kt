@@ -257,7 +257,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			textPaint.textSize = sizeFor(sb, h, 0.03f, 0.02f, 0.045f)
 			val area = RectF(sb[0] * w - w * 0.004f, sb[1] * h - h * 0.004f, (sb[0] + sb[2]) * w + w * 0.004f, (sb[1] + sb[3]) * h + h * 0.004f)
 			// a paragraph (help box) keeps the English box's width and wraps; a short prompt may widen
-			val para = sb.size > 4 && sb[4] > 0f && sb[3] > sb[4] * 1.6f && '\n' !in sd.text
+			// a paragraph (help box, description) keeps the English box's width and wraps; a list or a prompt does not
+			val para = sb.size > 4 && sb[4] > 0f && sb[3] > sb[4] * 1.6f && sd.text.split('\n').any { it.length > 30 }
 			val tw = if(para) area.width() else min(sd.text.split('\n').maxOf { textPaint.measureText(it) } + w * 0.012f, w * 0.6f)
 			if(area.width() < tw)
 			{
