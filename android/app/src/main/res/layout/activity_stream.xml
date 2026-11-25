@@ -166,6 +166,19 @@
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 
+    <!-- In Arabic: the menu, always on screen (the app is for translating, not for playing on the phone) -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/iaMenu"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="10dp"
+        android:alpha="0.85"
+        android:text="☰  القائمة"
+        android:textColor="@color/on_accent"
+        app:backgroundTint="@color/accent"
+        app:cornerRadius="999dp"/>
+
     <!-- In Arabic: placing the reading frame -->
     <LinearLayout
         android:id="@+id/iaZoneBar"

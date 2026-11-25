@@ -171,6 +171,10 @@ class StreamActivity : AppCompatActivity()
 		}
 		watchNetwork()
 		setupZoneEditor(iaPrefs)
+		// In Arabic: no on-screen game buttons (you play with the controller); one clear menu button instead
+		viewModel.setOnScreenControlsEnabled(false)
+		viewModel.setTouchpadOnlyEnabled(false)
+		binding.iaMenu.setOnClickListener { showIaMenu(iaPrefs) }
 
 		viewModel.session.attachToSurfaceView(binding.surfaceView)
 		viewModel.session.state.observe(this, Observer { this.stateChanged(it) })
@@ -317,6 +321,39 @@ class StreamActivity : AppCompatActivity()
 				else { z.setSelectedRect(found); notice("لقيناه ✓ اضغط «احفظ»", 3000) }
 			}
 		}
+	}
+
+	private fun hideGameButtons()
+	{
+		supportFragmentManager.findFragmentById(R.id.controlsFragment)?.view?.visibility = View.GONE
+		supportFragmentManager.findFragmentById(R.id.touchpadOnlyFragment)?.view?.visibility = View.GONE
+	}
+
+	override fun onPostResume() { super.onPostResume(); hideGameButtons() }
+
+	/** In Arabic: everything for the translation in one list */
+	private fun showIaMenu(prefs: com.inarabic.InArabicPrefs)
+	{
+		val modeNames = mapOf("dialog" to "الحوارات فقط", "menus" to "الحوارات + القوائم والمهام", "all" to "كل شي على الشاشة")
+		val items = arrayOf(
+			"📐  مربعات القراءة (وين أقرأ الترجمة)",
+			"🔤  وش أترجم: " + (modeNames[prefs.mode] ?: ""),
+			(if(prefs.phoneAudio) "🔊  صوت اللعبة في الجوال: شغال" else "🔇  صوت اللعبة في الجوال: مطفي"),
+			"✎  صحّح الترجمة اللي على الشاشة",
+			"⚙  إعدادات الترجمة",
+			"⏹  أوقف البث واطلع")
+		MaterialAlertDialogBuilder(this).setTitle("بالعربي")
+			.setItems(items) { _, i ->
+				when(i)
+				{
+					0 -> binding.iaZoneButton.performClick()
+					1 -> binding.iaModeButton.performClick()
+					2 -> binding.iaAudioSwitch.isChecked = !binding.iaAudioSwitch.isChecked
+					3 -> if(captionEngine?.current == null) notice("ما فيه ترجمة على الشاشة الحين", 2500) else binding.iaCaption.performClick()
+					4 -> startActivity(Intent(this, com.inarabic.InArabicSettingsActivity::class.java))
+					5 -> finish()
+				}
+			}.show()
 	}
 
 	private var autoTries = 0
