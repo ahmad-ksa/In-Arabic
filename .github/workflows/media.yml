@@ -56,7 +56,7 @@ jobs:
           mkdir -p voice
           while IFS='|' read -r n t; do
             [ -z "$n" ] && continue
-            edge-tts --voice ar-SA-HamedNeural --rate=-4% --text "$t" --write-media voice/$n.mp3 \
+            edge-tts --voice ar-SA-HamedNeural --rate=+10% --text "$t" --write-media voice/$n.mp3 \
               || gtts-cli -l ar "$t" --output voice/$n.mp3
           done < ci/narration.txt
           ls -la voice
