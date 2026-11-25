@@ -73,6 +73,10 @@ class InArabicPrefs(context: Context)
 	/** Second box: side texts such as objectives or messages, in its own area of the picture (percent). */
 	/** subtitles are centred: text off to the side of the subtitle area is treated (and drawn) apart */
 	val centerOnly get() = p.getBoolean("ia_center_only", true)
+	/** only the dialogue in the middle: no side texts, no side frames */
+	var dialogOnly
+		get() = p.getBoolean("ia_dialog_only", false)
+		set(v) { p.edit().putBoolean("ia_dialog_only", v).apply() }
 	/** also read the rest of the picture for short prompts (OPEN, ENTER…) and translate them in place */
 	val scanScreen get() = p.getBoolean("ia_scan_screen", false)
 	/** game sound on the phone (off: the TV plays it) */

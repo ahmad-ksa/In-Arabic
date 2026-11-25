@@ -67,6 +67,9 @@
     </PreferenceCategory>
 
     <PreferenceCategory app:title="النصوص الجانبية">
+        <SwitchPreference app:key="ia_dialog_only" app:defaultValue="false"
+            app:title="ترجم الحوار فقط"
+            app:summary="الحوار اللي في النص تحت بس، بدون الأزرار والمهام والنصوص الجانبية" />
         <SwitchPreference app:key="ia_center_only" app:defaultValue="true"
             app:title="افصل النصوص الجانبية عن الحوار"
             app:summary="الحوار في الوسط؛ أي نص على الجانب (اسم مهمة، زر) يُترجم مكانه ولا يختلط بالحوار" />

@@ -224,7 +224,7 @@ class CaptionEngine(
 			{
 				lastScreenRead = t1
 				val all = ArrayList<OcrRead>()
-				for(z in zones.filter { !it.dialog })
+				for(z in zones.filter { !it.dialog && !prefs.dialogOnly })
 				{
 					val r = px(z.r); if(r.width() < 16 || r.height() < 8) continue
 					readArea(frame, r, 0.012f, all, everyLine = true)
@@ -246,7 +246,7 @@ class CaptionEngine(
 				mainHandler.post { onSystemUi?.invoke(busy) }
 			}
 			if(busy) return
-			side.addAll(screenItems)
+			if(prefs.dialogOnly) side.clear() else side.addAll(screenItems)
 			val items = side.mapNotNull { r -> SideText.clean(r.text)?.let { Triple(it, r.box!!, r.colored) } }
 			when(sideTracker.feed(OcrRead(items.joinToString(" | ") { it.first.text })))
 			{

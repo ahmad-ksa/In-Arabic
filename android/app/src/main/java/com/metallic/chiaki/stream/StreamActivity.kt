@@ -290,8 +290,9 @@ class StreamActivity : AppCompatActivity()
 		}
 		z.onChange = { com.inarabic.link.LinkServer.sendZones(it) }
 		binding.iaZoneAddDialog.setOnClickListener { z.add(true) }
-		binding.iaZoneAddSide.setOnClickListener { z.add(false) }
+		binding.iaZoneAddSide.setOnClickListener { z.add(false); prefs.dialogOnly = false }
 		binding.iaZoneDelete.setOnClickListener { z.removeSelected() }
+		binding.iaZoneReset.setOnClickListener { z.reset(); prefs.dialogOnly = true; notice("الحوار اللي في النص تحت بس. اضغط «احفظ»", 3000) }
 		binding.iaZoneSave.setOnClickListener {
 			if(z.zones.none { it.dialog }) { notice("لازم يكون فيه مربع حوار واحد على الأقل", 3000); return@setOnClickListener }
 			prefs.zones = z.zones.toList()

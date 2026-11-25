@@ -35,6 +35,12 @@ class ZoneEditorView @JvmOverloads constructor(context: Context, attrs: Attribut
 		selected = zones.size - 1; changed()
 	}
 
+	/** back to the start: one dialogue frame at the bottom middle */
+	fun reset()
+	{
+		zones.clear(); zones += InArabicPrefs.Zone(RectF(0.1f, 0.68f, 0.9f, 0.97f), true); selected = 0; changed()
+	}
+
 	fun removeSelected()
 	{
 		if(zones.isEmpty()) return
