@@ -106,7 +106,7 @@ class LgInstallActivity : AppCompatActivity()
 	/** the subnet's addresses with the key server open */
 	private fun scan(): String?
 	{
-		val me = com.inarabic.NetUtil.broadcastAddress().hostAddress ?: return null
+		val me = com.inarabic.NetUtil.broadcastAddress().takeIf { it != "255.255.255.255" } ?: return null
 		val base = me.substringBeforeLast('.')
 		val pool = java.util.concurrent.Executors.newFixedThreadPool(32)
 		try
