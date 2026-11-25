@@ -82,11 +82,14 @@ object SessionLog
 {
 	private var file: File? = null
 
-	@Synchronized fun begin(context: Context)
+	/** one past play session: its file, when it started, the game, how many lines */
+	data class Session(val file: File, val started: Long, val game: String, val lines: Int, val lastAt: Long)
+
+	@Synchronized fun begin(context: Context, game: String = "")
 	{
 		val dir = File(context.filesDir, "sessions").apply { mkdirs() }
-		dir.listFiles()?.sortedBy { it.name }?.dropLast(19)?.forEach { it.delete() }
-		file = File(dir, "${System.currentTimeMillis()}.tsv")
+		dir.listFiles()?.sortedBy { it.name }?.dropLast(39)?.forEach { it.delete() }
+		file = File(dir, "${System.currentTimeMillis()}.tsv").apply { if(game.isNotBlank()) try { writeText("#game\t$game\n") } catch(e: Exception) { } }
 	}
 
 	@Synchronized fun add(english: String, arabic: String)
@@ -94,11 +97,23 @@ object SessionLog
 		try { file?.appendText("${System.currentTimeMillis()}\t${english.replace('\t', ' ')}\t${arabic.replace('\t', ' ').replace('\n', ' ')}\n") } catch(e: Exception) { }
 	}
 
-	/** Lines of the latest session that has any (English, Arabic). */
-	fun lastSession(context: Context): List<Pair<String, String>>
+	fun lines(f: File): List<Pair<String, String>> =
+		try { f.readLines().filter { !it.startsWith("#") }.mapNotNull { l -> l.split('\t').takeIf { it.size >= 3 }?.let { it[1] to it[2] } } } catch(e: Exception) { emptyList() }
+
+	/** past sessions with at least a few lines, newest first */
+	fun sessions(context: Context): List<Session>
 	{
 		val dir = File(context.filesDir, "sessions")
-		val f = dir.listFiles()?.filter { it.length() > 0 }?.maxByOrNull { it.name } ?: return emptyList()
-		return f.readLines().mapNotNull { l -> l.split('\t').takeIf { it.size >= 3 }?.let { it[1] to it[2] } }
+		return (dir.listFiles() ?: emptyArray()).filter { it.length() > 0 }.mapNotNull { f ->
+			val all = try { f.readLines() } catch(e: Exception) { return@mapNotNull null }
+			val game = all.firstOrNull { it.startsWith("#game\t") }?.substringAfter('\t') ?: ""
+			val body = all.filter { !it.startsWith("#") }
+			if(body.size < 3) return@mapNotNull null
+			Session(f, f.nameWithoutExtension.toLongOrNull() ?: f.lastModified(), game, body.size,
+				body.last().substringBefore('\t').toLongOrNull() ?: f.lastModified())
+		}.sortedByDescending { it.started }
 	}
+
+	/** Lines of the latest session that has any (English, Arabic). */
+	fun lastSession(context: Context): List<Pair<String, String>> = sessions(context).firstOrNull()?.let { lines(it.file) } ?: emptyList()
 }

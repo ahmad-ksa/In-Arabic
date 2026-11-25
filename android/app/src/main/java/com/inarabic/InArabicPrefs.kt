@@ -94,6 +94,7 @@ class InArabicPrefs(context: Context)
 	val bold get() = p.getBoolean("ia_bold", true)
 
 	/** The game being played (filled from the PS5 when it says, or typed): helps the AI keep names right. */
+	fun setGame(name: String) = p.edit().putString("ia_game", name.trim()).apply()
 	val gameName: String get() = GameContext.running?.takeIf { it.isNotBlank() } ?: (p.getString("ia_game", "")?.trim() ?: "")
 
 	/** 4-digit code the TV apps must give to receive subtitles (made once). */

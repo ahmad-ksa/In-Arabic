@@ -72,7 +72,7 @@ class CaptionEngine(
 	{
 		if(loop != null || !prefs.enabled) return
 		TranslationMemory.load(context)
-		SessionLog.begin(context)
+		SessionLog.begin(context, prefs.gameName)
 		LinkServer.start(context)
 		LinkServer.sendStyle(prefs)
 		scope.launch { translator.prepare() }

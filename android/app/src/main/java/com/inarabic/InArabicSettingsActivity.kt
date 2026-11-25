@@ -74,7 +74,11 @@ class InArabicSettingsActivity : AppCompatActivity()
 				Toast.makeText(ctx, "أرسلت سطرًا تجريبيًا إلى الشاشات (${LinkServer.screens.size})", Toast.LENGTH_SHORT).show()
 				true
 			}
-			findPreference<Preference>("ia_summary")?.setOnPreferenceClickListener { summary(prefs); true }
+			findPreference<Preference>("ia_summary")?.setOnPreferenceClickListener { SessionsUi.show(ctx, lifecycleScope, prefs); true }
+			findPreference<Preference>("ia_game_pick")?.apply {
+				summary = prefs.gameName.ifBlank { "أي لعبة (تُعرف تلقائيًا إذا كانت شغالة)" }
+				setOnPreferenceClickListener { SessionsUi.pickGame(ctx, lifecycleScope, prefs) { summary = prefs.gameName.ifBlank { "أي لعبة" } }; true }
+			}
 			findPreference<Preference>("ia_pair_scan")?.apply {
 				summary = pairedText()
 				setOnPreferenceClickListener { com.inarabic.link.Pairing.scan(requireActivity()) { summary = pairedText() }; true }
