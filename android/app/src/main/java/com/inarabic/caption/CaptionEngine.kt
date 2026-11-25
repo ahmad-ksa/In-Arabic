@@ -348,8 +348,19 @@ class CaptionEngine(
 		}
 	}
 
-	/** Arabic stretches to colour like the English: each coloured phrase translated alone, then found in the line. */
+	/** names of people and places: light burgundy, so you know it is a name */
+	private val nameColor = android.graphics.Color.rgb(232, 145, 160)
+
+	/** Arabic stretches to colour: the game's coloured words, and the names */
 	private suspend fun spans(english: String, arabic: String, colored: List<Colored>): List<ColorSpan>
+	{
+		val game = gameSpans(english, arabic, colored)
+		val names = com.inarabic.translate.Glossary.nameRanges(arabic).map { ColorSpan(it[0], it[1], nameColor) }
+			.filter { n -> game.none { n.start < it.end && n.end > it.start } }
+		return (game + names).sortedBy { it.start }
+	}
+
+	private suspend fun gameSpans(english: String, arabic: String, colored: List<Colored>): List<ColorSpan>
 	{
 		val mine = colored.filter { english.contains(it.english, ignoreCase = true) }
 		if(mine.isEmpty()) return emptyList()

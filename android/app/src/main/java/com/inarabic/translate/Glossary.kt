@@ -73,6 +73,23 @@ object Glossary
 		return out
 	}
 
+	/** where the names sit in an Arabic text: [start, end) pairs, longest names first, no overlaps */
+	fun nameRanges(ar: String): List<IntArray>
+	{
+		val out = ArrayList<IntArray>()
+		for(a in names.values.distinct().sortedByDescending { it.length })
+		{
+			var i = ar.indexOf(a)
+			while(i >= 0)
+			{
+				val e = i + a.length
+				if(out.none { i < it[1] && e > it[0] }) out += intArrayOf(i, e)
+				i = ar.indexOf(a, e)
+			}
+		}
+		return out.sortedBy { it[0] }
+	}
+
 	/** a line made only of names ("JASON & LUCIA") */
 	private fun onlyNames(n: String): String?
 	{
