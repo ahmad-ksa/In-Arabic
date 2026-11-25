@@ -323,7 +323,16 @@ class CaptionEngine(
 			{
 				// the AI only: wait for it; the free translation only if it does not answer
 				val better = translator.better(english)
-				if(currentId != id) { better?.let { SessionLog.add(english, it) }; return@launch }
+				if(currentId != id)
+				{
+					better?.let { SessionLog.add(english, it) }
+					// the dialogue moved on before the answer came: still show it if nothing newer is on screen yet,
+					// so a quick line is not lost (the next translation replaces it)
+					if(better == null || lastShownId > id) return@launch
+					TranslationMemory.put(english, better, TranslationMemory.Source.AI)
+					showLate(id, english, better)
+					return@launch
+				}
 				if(better != null) { TranslationMemory.put(english, better, TranslationMemory.Source.AI); show(id, english, better, true, box); return@launch }
 				// the AI did not answer: say why, and show nothing (you decide whether to turn it off)
 				aiFailed(translator.lastAiError ?: "الذكاء الاصطناعي ما رد")
@@ -346,8 +355,28 @@ class CaptionEngine(
 		}
 	}
 
+	@Volatile private var lastShownId = -1
+
+	/** a translation that came after its line left: shown where the current line is, until the next one */
+	private suspend fun showLate(id: Int, english: String, arabic: String)
+	{
+		val box = current?.box ?: lastBox
+		lastShownId = id
+		val a = com.inarabic.translate.Glossary.arabicNames(arabic)
+		LinkServer.sendSub(id, a, english, true, box, spans(english, a, subColored))
+		post(a)
+		// on screen long enough to read, then gone if nothing newer came
+		scope.launch {
+			delay(3000)
+			if(lastShownId == id && currentId != id) { LinkServer.sendClear(); post(null) }
+		}
+	}
+	@Volatile private var lastBox: FloatArray? = null
+
 	private suspend fun show(id: Int, english: String, arabic0: String, final: Boolean, box: FloatArray?)
 	{
+		if(id > lastShownId) lastShownId = id
+		if(box != null) lastBox = box
 		val arabic = com.inarabic.translate.Glossary.arabicNames(arabic0)
 		current = Current(id, english, arabic, box)
 		LinkServer.sendSub(id, arabic, english, final, box, spans(english, arabic, subColored))

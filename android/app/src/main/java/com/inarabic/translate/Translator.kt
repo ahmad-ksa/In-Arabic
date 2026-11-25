@@ -143,12 +143,16 @@ class Translator(private val prefs: InArabicPrefs)
 	/** why the last AI request failed, in Arabic (null: it worked) */
 	@Volatile var lastAiError: String? = null
 		private set
+	@Volatile private var noReasoningParam = false
 
 	private fun chat(system: String, user: String, readTimeoutMs: Int): String?
 	{
 		val body = JSONObject()
 			.put("model", prefs.aiModel)
 			.put("temperature", 0.2)
+		// Gemini "thinks" before answering unless told not to: that is most of the wait for a short line
+		val gemini = prefs.aiBaseUrl.contains("generativelanguage")
+		if(gemini && !noReasoningParam) body.put("reasoning_effort", "none")
 			.put("messages", JSONArray()
 				.put(JSONObject().put("role", "system").put("content", system))
 				.put(JSONObject().put("role", "user").put("content", user)))
@@ -164,7 +168,14 @@ class Translator(private val prefs: InArabicPrefs)
 			con.outputStream.use { it.write(body.toString().toByteArray()) }
 			if(con.responseCode !in 200..299)
 			{
-				Log.w(TAG, "AI ${con.responseCode}: " + (con.errorStream?.bufferedReader()?.readText()?.take(300) ?: ""))
+				val err = con.errorStream?.bufferedReader()?.readText()?.take(300) ?: ""
+				Log.w(TAG, "AI ${con.responseCode}: $err")
+				// a model that cannot switch thinking off: ask again without that setting, and stop sending it
+				if(con.responseCode == 400 && gemini && !noReasoningParam && err.contains("reasoning", true))
+				{
+					noReasoningParam = true
+					return chat(system, user, readTimeoutMs)
+				}
 				lastAiError = when(con.responseCode)
 				{
 					429 -> "خلص حد الذكاء الاصطناعي لليوم"
