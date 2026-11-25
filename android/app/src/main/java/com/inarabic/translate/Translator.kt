@@ -140,6 +140,10 @@ class Translator(private val prefs: InArabicPrefs)
 		return chat(system, user, 8000)
 	}
 
+	/** why the last AI request failed, in Arabic (null: it worked) */
+	@Volatile var lastAiError: String? = null
+		private set
+
 	private fun chat(system: String, user: String, readTimeoutMs: Int): String?
 	{
 		val body = JSONObject()
@@ -161,15 +165,24 @@ class Translator(private val prefs: InArabicPrefs)
 			if(con.responseCode !in 200..299)
 			{
 				Log.w(TAG, "AI ${con.responseCode}: " + (con.errorStream?.bufferedReader()?.readText()?.take(300) ?: ""))
+				lastAiError = when(con.responseCode)
+				{
+					429 -> "خلص حد الذكاء الاصطناعي لليوم"
+					401, 403 -> "مفتاح الذكاء الاصطناعي غلط أو موقوف"
+					404 -> "اسم النموذج غلط في إعدادات الذكاء الاصطناعي"
+					else -> "الذكاء الاصطناعي ما رد (${con.responseCode})"
+				}
 				return null
 			}
 			val txt = con.inputStream.bufferedReader().readText()
+			lastAiError = null
 			JSONObject(txt).getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
 				.trim().trim('"', '«', '»').ifBlank { null }
 		}
 		catch(e: Exception)
 		{
 			Log.w(TAG, "AI request failed", e)
+			lastAiError = "الذكاء الاصطناعي ما رد. تأكد من الإنترنت"
 			null
 		}
 	}

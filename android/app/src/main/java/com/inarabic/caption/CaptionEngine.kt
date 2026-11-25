@@ -88,6 +88,19 @@ class CaptionEngine(
 	/** the PlayStation's own screens (menus, control centre) are on: translation paused */
 	@Volatile var systemUi = false
 		private set
+	/** called on the main thread with a short notice for you (AI limit reached…) */
+	var onNotice: ((String) -> Unit)? = null
+	private var aiErrorShownAt = 0L
+	private fun aiFailed(why: String)
+	{
+		val t = System.currentTimeMillis()
+		if(t - aiErrorShownAt < 20000) return
+		aiErrorShownAt = t
+		val msg = "$why — الترجمة واقفة. أطفِ «ترجمة بالذكاء الاصطناعي» من الإعدادات عشان ترجع الترجمة المحمّلة"
+		LinkServer.sendNotice(msg)
+		mainHandler.post { onNotice?.invoke(msg) }
+	}
+
 	/** called on the main thread when [systemUi] changes */
 	var onSystemUi: ((Boolean) -> Unit)? = null
 	/** coloured phrases of the subtitle on screen now */
@@ -312,6 +325,9 @@ class CaptionEngine(
 				val better = translator.better(english)
 				if(currentId != id) { better?.let { SessionLog.add(english, it) }; return@launch }
 				if(better != null) { TranslationMemory.put(english, better, TranslationMemory.Source.AI); show(id, english, better, true, box); return@launch }
+				// the AI did not answer: say why, and show nothing (you decide whether to turn it off)
+				aiFailed(translator.lastAiError ?: "الذكاء الاصطناعي ما رد")
+				return@launch
 			}
 			val quick = known?.arabic ?: translator.quick(english)
 			if(currentId != id) return@launch
@@ -359,7 +375,8 @@ class CaptionEngine(
 				val ai = if((known == null || (prefs.aiOnly && known.source == TranslationMemory.Source.QUICK)) && prefs.aiEnabled && (prefs.aiOnly || st.text.split(' ').size > 4) && com.inarabic.translate.Glossary.lookup(st.text) == null) translator.better(st.text) else null
 				val ar = ai?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) }
 					?: known?.arabic
-					?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) } ?: return@mapNotNull null
+					?: (if(prefs.aiOnly && com.inarabic.translate.Glossary.lookup(st.text) == null) { aiFailed(translator.lastAiError ?: "الذكاء الاصطناعي ما رد"); null } else null)
+					?: if(prefs.aiOnly && com.inarabic.translate.Glossary.lookup(st.text) == null) return@mapNotNull null else translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) } ?: return@mapNotNull null
 				val arN = com.inarabic.translate.Glossary.arabicNames(ar)
 				Triple(if(st.button != null) "$arN  ${st.button}" else arN, box, spans(st.text, arN, colored))
 			}

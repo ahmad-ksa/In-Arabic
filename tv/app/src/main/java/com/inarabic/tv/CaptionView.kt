@@ -130,6 +130,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				zoneList = if(a == null) emptyList() else (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { z -> box(z)?.let { it to z.optBoolean("dialog", true) } } }
 				timers.removeCallbacks(hideZone); timers.postDelayed(hideZone, 8000)
 			}
+			"notice" -> banner(o.optString("text"))
 			"sideclear" -> { timers.removeCallbacks(hideSide); sides = emptyList() }
 			"panel" ->
 			{

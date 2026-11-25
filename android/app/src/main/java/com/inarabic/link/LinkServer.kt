@@ -141,6 +141,9 @@ object LinkServer
 		broadcast("{\"t\":\"sideclear\"}")
 	}
 
+	/** a short notice shown on the TVs (top of the screen) */
+	fun sendNotice(text: String) = broadcast(JSONObject().put("t", "notice").put("text", text).toString())
+
 	/** all reading frames while you place them on the phone (empty: hide) */
 	fun sendZones(list: List<com.inarabic.InArabicPrefs.Zone>)
 	{

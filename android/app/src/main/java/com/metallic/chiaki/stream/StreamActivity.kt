@@ -74,6 +74,7 @@ class StreamActivity : AppCompatActivity()
 		captionEngine = com.inarabic.caption.CaptionEngine(binding.surfaceView, iaPrefs) { text ->
 			binding.iaCaption.visibility = if(text.isNullOrEmpty()) View.GONE else View.VISIBLE
 		}.also {
+			it.onNotice = { msg -> notice(msg, 8000) }
 			it.onSystemUi = { on -> if(on) notice("شاشة البلايستيشن ظاهرة، الترجمة متوقفة مؤقتاً", 0) else binding.iaNotice.visibility = View.GONE }
 			it.start()
 		}
