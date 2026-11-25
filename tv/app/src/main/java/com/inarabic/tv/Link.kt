@@ -158,4 +158,9 @@ object Prefs
 	}
 	fun pairUri(c: Context) = "inarabic:pair?t=" + token(c) + "&n=" + android.net.Uri.encode(android.os.Build.MODEL ?: "Android TV")
 	fun setPairCode(c: Context, v: String) = p(c).edit().putString("code", v.trim()).apply()
+	/** the subtitles were on: start them again when the TV starts */
+	fun autoStart(c: Context) = p(c).getBoolean("autostart", false)
+	fun setAutoStart(c: Context, v: Boolean) = p(c).edit().putBoolean("autostart", v).apply()
+	/** forget every phone: a new token, so phones paired before are refused until they scan the new code */
+	fun forgetPhones(c: Context) = p(c).edit().remove("token").putString("phone", "").apply()
 }

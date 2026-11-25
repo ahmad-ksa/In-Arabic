@@ -34,6 +34,11 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	class Side(val text: String, val box: FloatArray, val spans: List<IntArray> = emptyList())
 	var sides: List<Side> = emptyList()
 		set(v) { field = v; invalidate() }
+	/** a short notice at the top (phone lost / back) */
+	private var bannerText: String? = null
+	private val hideBanner = Runnable { bannerText = null; invalidate() }
+	fun banner(t: String) { bannerText = t; invalidate(); timers.removeCallbacks(hideBanner); timers.postDelayed(hideBanner, 6000) }
+
 	/** the reading frame being placed from the phone */
 	var zone: FloatArray? = null
 		set(v) { field = v; invalidate() }
@@ -210,6 +215,17 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			area.bottom = max(area.bottom, area.top + l.height + h * 0.02f)
 			canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, boxPaint)
 			canvas.save(); canvas.translate(area.left + w * 0.008f, area.top + h * 0.01f); drawText(l, canvas); canvas.restore()
+		}
+
+		// notice at the top
+		bannerText?.let { bt ->
+			textPaint.textSize = h * 0.026f; textPaint.color = Color.WHITE
+			val l = layout(bt, (w * 0.5f).toInt())
+			val r = RectF(w * 0.25f, h * 0.06f, w * 0.75f, h * 0.06f + l.height + h * 0.02f)
+			val bp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(235, 23, 44, 36) }
+			canvas.drawRoundRect(r, h * 0.03f, h * 0.03f, bp)
+			canvas.save(); canvas.translate(w * 0.25f, r.top + h * 0.01f); l.draw(canvas); canvas.restore()
+			textPaint.color = color
 		}
 
 		// the reading frame (only on the TV: the phone shows its own handles)

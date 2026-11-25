@@ -45,6 +45,7 @@ class OverlayService : Service()
 	{
 		super.onCreate()
 		running = true
+		Prefs.setAutoStart(this, true)
 		goForeground()
 		val wm = getSystemService(WINDOW_SERVICE) as WindowManager
 		val v = CaptionView(this)
@@ -88,7 +89,16 @@ class OverlayService : Service()
 
 	private fun onMessage(o: JSONObject) { view?.handle(o) }
 
-	private fun setStatus(s: String) { status = s; onStatus?.invoke(s) }
+	private var wasConnected = false
+	private fun setStatus(s: String)
+	{
+		status = s; onStatus?.invoke(s)
+		// a short notice on the game when the phone goes away (and when it is back)
+		val now = s.contains("متصل بالجوال")
+		if(wasConnected && !now && !s.startsWith("متوقف")) view?.banner("انقطع الاتصال بالجوال. افتح «بالعربي» في جوالك")
+		if(!wasConnected && now && status.isNotEmpty()) view?.banner("الجوال متصل ✓")
+		wasConnected = now
+	}
 
 	private fun goForeground()
 	{

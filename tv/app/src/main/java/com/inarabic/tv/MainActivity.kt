@@ -78,7 +78,15 @@ class MainActivity : Activity()
 		val sec = listOf(
 			ui.pill("سطر تجريبي") { if(OverlayService.running) OverlayService.test(this) else toggle(test = true) },
 			ui.pill("مدخل البلايستيشن") { pickHdmi(inside = false) },
-			ui.pill("طريقة بديلة ♿") { accessibilityWay() })
+			ui.pill("طريقة بديلة ♿") { accessibilityWay() },
+			ui.pill("انسَ الجوالات") {
+				AlertDialog.Builder(this).setMessage("التلفزيون بينسى كل الجوالات المربوطة فيه، وبتحتاج تمسح الباركود من جديد.")
+					.setPositiveButton("انسَ") { _, _ ->
+						Prefs.forgetPhones(this)
+						if(OverlayService.running) stopService(Intent(this, OverlayService::class.java))
+						recreate()
+					}.setNegativeButton("إلغاء", null).show()
+			})
 		sec.forEachIndexed { i, v -> more.addView(v, LinearLayout.LayoutParams(0, px(52), 1f).apply { if(i < sec.size - 1) marginEnd = px(10) }) }
 
 		// manual address (optional)
@@ -156,7 +164,7 @@ class MainActivity : Activity()
 
 	private fun toggle(test: Boolean = false)
 	{
-		if(OverlayService.running) { stopService(Intent(this, OverlayService::class.java)); showStatus("متوقف"); return }
+		if(OverlayService.running) { Prefs.setAutoStart(this, false); stopService(Intent(this, OverlayService::class.java)); showStatus("متوقف"); return }
 		// Android 7.0 and older draw with a toast window, which needs no permission
 		if(!canDraw() && Build.VERSION.SDK_INT > 24) { askOverlayPermission(test); return }
 		startOverlay()
