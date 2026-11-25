@@ -48,8 +48,10 @@ class Translator(private val prefs: InArabicPrefs)
 			.addOnFailureListener { Log.w(TAG, "model download failed", it); if(c.isActive) c.resume(false) }
 	}
 
-	suspend fun quick(english: String): String?
+	suspend fun quick(english0: String): String?
 	{
+		Glossary.lookup(english0)?.let { return it }
+		val english = Glossary.sentenceCase(english0)
 		val k = SubtitleTracker.key(english)
 		quickCache.get(k)?.let { return it }
 		if(!modelReady && !prepare()) return null

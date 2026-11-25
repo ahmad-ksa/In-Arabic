@@ -74,6 +74,20 @@ class InArabicSettingsActivity : AppCompatActivity()
 				Toast.makeText(ctx, "أرسلت سطرًا تجريبيًا إلى الشاشات (${LinkServer.screens.size})", Toast.LENGTH_SHORT).show()
 				true
 			}
+			findPreference<Preference>("ia_ai_gemini")?.setOnPreferenceClickListener {
+				PreferenceManager.getDefaultSharedPreferences(ctx).edit()
+					.putBoolean("ia_ai_enabled", true)
+					.putString("ia_ai_base", "https://generativelanguage.googleapis.com/v1beta/openai")
+					.putString("ia_ai_model", "gemini-flash-latest").apply()
+				findPreference<androidx.preference.SwitchPreference>("ia_ai_enabled")?.isChecked = true
+				findPreference<EditTextPreference>("ia_ai_base")?.text = "https://generativelanguage.googleapis.com/v1beta/openai"
+				findPreference<EditTextPreference>("ia_ai_model")?.text = "gemini-flash-latest"
+				AlertDialog.Builder(ctx).setTitle("مفتاح Gemini المجاني")
+					.setMessage("1. افتح الصفحة وسجّل بحساب Google.\n2. اضغط Create API key وانسخه.\n3. ارجع هنا والصقه في «مفتاح API».")
+					.setPositiveButton("افتح الصفحة") { _, _ -> startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://aistudio.google.com/apikey"))) }
+					.setNegativeButton("إغلاق", null).show()
+				true
+			}
 			findPreference<Preference>("ia_summary")?.setOnPreferenceClickListener { SessionsUi.show(ctx, lifecycleScope, prefs); true }
 			findPreference<Preference>("ia_game_pick")?.apply {
 				summary = prefs.gameName.ifBlank { "أي لعبة (تُعرف تلقائيًا إذا كانت شغالة)" }

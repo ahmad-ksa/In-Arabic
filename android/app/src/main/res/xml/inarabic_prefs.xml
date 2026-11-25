@@ -42,6 +42,8 @@
         <SwitchPreference app:key="ia_ai_enabled" app:defaultValue="false"
             app:title="ترجمة أدق بالذكاء الاصطناعي"
             app:summary="تظهر الترجمة المجانية فورًا ثم تُستبدل بترجمة الذكاء الاصطناعي" />
+        <Preference app:key="ia_ai_gemini" app:title="⭐ استخدم Gemini المجاني (أنصح فيه)"
+            app:summary="ترجمة أدق بكثير وتفهم سياق اللعبة. خذ مفتاح مجاني من Google AI Studio والصقه في «مفتاح API»" />
         <EditTextPreference app:key="ia_ai_key" app:title="مفتاح API" app:dependency="ia_ai_enabled" />
         <EditTextPreference app:key="ia_ai_base" app:title="عنوان الخدمة" app:dependency="ia_ai_enabled"
             app:defaultValue="https://api.openai.com/v1" app:useSimpleSummaryProvider="true" />

@@ -271,7 +271,11 @@ class CaptionEngine(
 		currentId = id
 		lastLineAt = System.currentTimeMillis()
 		scope.launch {
-			val known = TranslationMemory.get(english)
+			val known0 = TranslationMemory.get(english)
+			// the fixed game words win over anything the free translator said before (not over your own corrections)
+			val fixed = if(known0?.source == TranslationMemory.Source.USER) null else com.inarabic.translate.Glossary.lookup(english)
+			if(fixed != null) { show(id, english, fixed, true, box); return@launch }
+			val known = known0
 			val wantAi = prefs.aiEnabled
 			// a line seen before: from memory, final at once (unless only the free model had translated it)
 			if(known != null && (known.source != TranslationMemory.Source.QUICK || !wantAi))
@@ -319,7 +323,7 @@ class CaptionEngine(
 		if(items.isEmpty()) return
 		scope.launch {
 			val out = items.mapNotNull { (st, box, colored) ->
-				val known = TranslationMemory.get(st.text)
+				val known = TranslationMemory.get(st.text)?.takeIf { it.source == TranslationMemory.Source.USER || com.inarabic.translate.Glossary.lookup(st.text) == null }
 				// longer help texts are worth the AI (when on); short prompts take the quick model
 				val ai = if(known == null && prefs.aiEnabled && st.text.split(' ').size > 4) translator.better(st.text) else null
 				val ar = known?.arabic ?: ai?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) }
@@ -369,9 +373,10 @@ class CaptionEngine(
 			fun centred(l: Text.Line): Boolean
 			{
 				val b = l.boundingBox ?: return false
-				// centred in its frame (a full-width frame: the middle of the picture)
+				// a sentence is dialogue wherever it sits; only short texts away from the middle are side texts
+				if(l.text.trim().split(Regex("\\s+")).size >= 4) return true
 				val cx = b.exactCenterX() / area.width()
-				return kotlin.math.abs(cx - 0.5f) < 0.15f || b.width() > area.width() * 0.55f
+				return kotlin.math.abs(cx - 0.5f) < 0.25f || b.width() > area.width() * 0.45f
 			}
 			val lines = if(sideOut == null) all else all.filter(::centred)
 			if(sideOut != null)
