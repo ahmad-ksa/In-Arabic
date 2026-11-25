@@ -35,7 +35,14 @@ object ColorText
 			val p = ph.trim { !it.isLetterOrDigit() }
 			if(p.isEmpty()) continue
 			val i = arabic.indexOf(p)
-			if(i >= 0 && free(i, i + p.length)) { out += ColorSpan(i, i + p.length, color); continue }
+			if(i >= 0)
+			{
+				// stretched to whole words: "المطار" inside "بالمطار" colours "بالمطار"
+				var s = i; var e = i + p.length
+				while(s > 0 && arabic[s - 1].isLetter()) s--
+				while(e < arabic.length && arabic[e].isLetter()) e++
+				if(free(s, e)) { out += ColorSpan(s, e, color); continue }
+			}
 			val words = p.split(Regex("\\s+")).map(::bare).filter { it.length >= 3 }.sortedByDescending { it.length }
 			for(w in words)
 			{
