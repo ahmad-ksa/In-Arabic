@@ -34,6 +34,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	class Side(val text: String, val box: FloatArray, val spans: List<IntArray> = emptyList())
 	var sides: List<Side> = emptyList()
 		set(v) { field = v; invalidate() }
+	/** the reading frame being placed from the phone */
+	var zone: FloatArray? = null
+		set(v) { field = v; invalidate() }
 	var panelTitle: String? = null
 	var panelText: String? = null
 		set(v) { field = v; invalidate() }
@@ -71,6 +74,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	private val hide = Runnable { text = null }
 	private val hidePanel = Runnable { panelText = null }
 	private val hideSide = Runnable { sides = emptyList() }
+	private val hideZone = Runnable { zone = null }
 
 	/** A message from the phone (see the phone's LinkServer for the format). */
 	fun handle(o: org.json.JSONObject)
@@ -107,6 +111,11 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 					it.optString("ar").takeIf { a -> a.isNotBlank() }?.let { a -> Side(a, b, spans(it)) }
 				}
 				timers.removeCallbacks(hideSide); timers.postDelayed(hideSide, 15000)
+			}
+			"zone" ->
+			{
+				zone = box(o)
+				timers.removeCallbacks(hideZone); timers.postDelayed(hideZone, 5000)
 			}
 			"sideclear" -> { timers.removeCallbacks(hideSide); sides = emptyList() }
 			"panel" ->
@@ -183,6 +192,22 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			area.bottom = max(area.bottom, area.top + l.height + h * 0.02f)
 			canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, boxPaint)
 			canvas.save(); canvas.translate(area.left + w * 0.008f, area.top + h * 0.01f); l.draw(canvas); canvas.restore()
+		}
+
+		// the reading frame (only on the TV: the phone shows its own handles)
+		val zb = zone?.let(::fit)
+		if(zb != null && fitToTv)
+		{
+			val r = RectF(zb[0] * w, zb[1] * h, (zb[0] + zb[2]) * w, (zb[1] + zb[3]) * h)
+			val zp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+				style = Paint.Style.STROKE; strokeWidth = h * 0.004f; color = Color.rgb(159, 211, 180)
+				pathEffect = android.graphics.DashPathEffect(floatArrayOf(h * 0.02f, h * 0.012f), 0f)
+			}
+			canvas.drawRoundRect(r, h * 0.01f, h * 0.01f, zp)
+			textPaint.textSize = h * 0.028f; textPaint.color = Color.rgb(159, 211, 180)
+			val l = layout("مكان قراءة الترجمة", (w * 0.4f).toInt())
+			canvas.save(); canvas.translate(r.centerX() - w * 0.2f, (r.top - l.height - h * 0.01f).coerceAtLeast(0f)); l.draw(canvas); canvas.restore()
+			textPaint.color = color
 		}
 
 		// side texts: each exactly over its English text (a bit wider if the Arabic needs it), kept on screen

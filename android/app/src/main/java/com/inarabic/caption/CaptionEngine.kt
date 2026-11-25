@@ -113,6 +113,43 @@ class CaptionEngine(
 		paddle?.close()
 	}
 
+	// ---- finding the subtitle area by itself: watch the whole picture for a few seconds ----
+	@Volatile private var autoUntil = 0L
+	private var autoBox: android.graphics.RectF? = null
+	private var autoDone: ((android.graphics.RectF?) -> Unit)? = null
+
+	/** Reads the whole picture for [ms]; centred lines in the lower part are the subtitles. */
+	fun autoZone(ms: Long = 8000, done: (android.graphics.RectF?) -> Unit)
+	{
+		autoBox = null; autoDone = done; autoUntil = System.currentTimeMillis() + ms
+	}
+
+	private suspend fun autoStep(frame: Bitmap)
+	{
+		val items = ArrayList<OcrRead>()
+		readArea(frame, Rect(0, 0, frame.width, frame.height), 0.016f, items, everyLine = true)
+		for(it in items)
+		{
+			val b = it.box ?: continue
+			val cx = b[0] + b[2] / 2
+			if(kotlin.math.abs(cx - 0.5f) > 0.12f || b[1] < 0.45f || it.text.count(Char::isLetter) < 6) continue
+			val r = android.graphics.RectF(b[0], b[1], b[0] + b[2], b[1] + b[3])
+			autoBox = autoBox?.apply { union(r) } ?: r
+		}
+		if(System.currentTimeMillis() >= autoUntil)
+		{
+			autoUntil = 0L
+			val found = autoBox?.let { r ->
+				// room for longer lines and an extra line above
+				val half = maxOf(0.35f, r.width() / 2 + 0.08f)
+				android.graphics.RectF((0.5f - half).coerceAtLeast(0f), (r.top - r.height() - 0.03f).coerceAtLeast(0f),
+					(0.5f + half).coerceAtMost(1f), (r.bottom + 0.03f).coerceAtMost(1f))
+			}
+			val cb = autoDone; autoDone = null
+			surfaceView.post { cb?.invoke(found) }
+		}
+	}
+
 	/** Your own wording for the current line: remembered for good and shown at once. */
 	fun correct(arabic: String)
 	{
@@ -131,8 +168,11 @@ class CaptionEngine(
 			// the subtitle
 			val top = (frame.height * prefs.areaTop).toInt().coerceIn(0, frame.height - 8)
 			val bottom = (frame.height * prefs.areaBottom).toInt().coerceIn(top + 8, frame.height)
+			val left = (frame.width * prefs.areaLeft).toInt().coerceIn(0, frame.width - 16)
+			val right = (frame.width * prefs.areaRight).toInt().coerceIn(left + 16, frame.width)
+			if(autoUntil > 0L) { autoStep(frame); return }
 			val side = ArrayList<OcrRead>()
-			val read = readArea(frame, Rect(0, top, frame.width, bottom), 0.018f, if(prefs.centerOnly) side else null)
+			val read = readArea(frame, Rect(left, top, right, bottom), 0.018f, if(prefs.centerOnly) side else null)
 			val subLines = lastLineCount
 			// the rest of the picture (above the subtitle area): interaction prompts can be anywhere; read less often
 			val t1 = System.currentTimeMillis()

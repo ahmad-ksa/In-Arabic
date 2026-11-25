@@ -20,6 +20,16 @@ class InArabicPrefs(context: Context)
 	/** Subtitle area, as a fraction of the picture height (top and bottom edges). */
 	val areaTop get() = p.getInt("ia_area_top", 62) / 100f
 	val areaBottom get() = p.getInt("ia_area_bottom", 97) / 100f
+	val areaLeft get() = p.getInt("ia_area_left", 0) / 100f
+	val areaRight get() = p.getInt("ia_area_right", 100) / 100f
+	/** where the subtitles are read, 0..1 of the picture (set by dragging the frame on the live picture) */
+	var area: android.graphics.RectF
+		get() = android.graphics.RectF(areaLeft, areaTop, areaRight, areaBottom)
+		set(r)
+		{
+			p.edit().putInt("ia_area_left", (r.left * 100).toInt()).putInt("ia_area_top", (r.top * 100).toInt())
+				.putInt("ia_area_right", Math.round(r.right * 100)).putInt("ia_area_bottom", Math.round(r.bottom * 100)).apply()
+		}
 
 	/** How often the picture is read, in milliseconds. */
 	val readEveryMs get() = p.getInt("ia_read_every", 300).toLong().coerceIn(150, 2000)

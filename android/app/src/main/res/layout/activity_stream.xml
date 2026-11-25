@@ -23,6 +23,11 @@
             android:id="@+id/iaOverlay"
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
+        <com.inarabic.caption.ZoneEditorView
+            android:id="@+id/iaZone"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"/>
     </com.metallic.chiaki.stream.AspectRatioFrameLayout>
 
 
@@ -93,6 +98,19 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:switchPadding="8dp" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/iaZoneButton"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="530dp"
+                android:text="📐 مكان الترجمة"
+                android:textColor="@color/stream_text"
+                app:strokeColor="@color/accent"
+                app:cornerRadius="999dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
             <com.google.android.material.button.MaterialButtonToggleGroup
                 android:id="@+id/displayModeToggle"
                 android:layout_width="wrap_content"
@@ -134,6 +152,55 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- In Arabic: placing the reading frame -->
+    <LinearLayout
+        android:id="@+id/iaZoneBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal"
+        android:background="@drawable/ia_notice_bg"
+        android:padding="6dp"
+        android:visibility="gone">
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/iaZoneSave"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:text="احفظ"
+            android:textColor="@color/on_accent"
+            app:backgroundTint="@color/accent"
+            app:cornerRadius="999dp"/>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/iaZoneAuto"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:text="حدد تلقائياً"
+            android:textColor="#FFFFFF"
+            app:strokeColor="@color/accent"
+            app:cornerRadius="999dp"/>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/iaZoneDefault"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:text="الافتراضي"
+            android:textColor="#FFFFFF"
+            app:strokeColor="@color/accent"
+            app:cornerRadius="999dp"/>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/iaZoneCancel"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="إلغاء"
+            android:textColor="#FFFFFF"/>
+    </LinearLayout>
 
     <!-- In Arabic: short notices (reconnecting, weak network) -->
     <TextView

@@ -170,6 +170,7 @@ class StreamActivity : AppCompatActivity()
 			showOverlay()
 		}
 		watchNetwork()
+		setupZoneEditor(iaPrefs)
 
 		viewModel.session.attachToSurfaceView(binding.surfaceView)
 		viewModel.session.state.observe(this, Observer { this.stateChanged(it) })
@@ -273,6 +274,32 @@ class StreamActivity : AppCompatActivity()
 				finish()
 			}
 		snack.show()
+	}
+
+	/** In Arabic: drag the reading frame on the live picture; the TV shows it while it moves */
+	private fun setupZoneEditor(prefs: com.inarabic.InArabicPrefs)
+	{
+		val z = binding.iaZone
+		fun close() { z.visibility = View.GONE; binding.iaZoneBar.visibility = View.GONE; com.inarabic.link.LinkServer.sendZone(null) }
+		binding.iaZoneButton.setOnClickListener {
+			z.zone = prefs.area
+			z.visibility = View.VISIBLE; binding.iaZoneBar.visibility = View.VISIBLE
+			com.inarabic.link.LinkServer.sendZone(z.zone)
+			hideOverlay()
+		}
+		z.onChange = { com.inarabic.link.LinkServer.sendZone(it) }
+		binding.iaZoneSave.setOnClickListener { prefs.area = z.zone; close(); notice("تم تحديد مكان الترجمة ✓", 2500) }
+		binding.iaZoneCancel.setOnClickListener { close() }
+		binding.iaZoneDefault.setOnClickListener { z.zone = android.graphics.RectF(0f, 0.62f, 1f, 0.97f); com.inarabic.link.LinkServer.sendZone(z.zone) }
+		binding.iaZoneAuto.setOnClickListener {
+			val engine = captionEngine
+			if(engine == null) { notice("ابدأ البث أول", 2500); return@setOnClickListener }
+			notice("أدوّر على الحوار… خلّ مشهد فيه كلام على الشاشة", 0)
+			engine.autoZone { found ->
+				if(found == null) notice("ما لقينا حوار. شغّل مشهد فيه ترجمة وجرّب مرة ثانية", 4000)
+				else { z.zone = found; com.inarabic.link.LinkServer.sendZone(found); notice("لقيناه ✓ اضغط «احفظ»", 3000) }
+			}
+		}
 	}
 
 	private var autoTries = 0

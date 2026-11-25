@@ -141,6 +141,14 @@ object LinkServer
 		broadcast("{\"t\":\"sideclear\"}")
 	}
 
+	/** the reading frame while you drag it on the phone (null: hide) */
+	fun sendZone(r: android.graphics.RectF?)
+	{
+		val o = JSONObject().put("t", "zone")
+		if(r != null) o.put("box", boxJson(floatArrayOf(r.left, r.top, r.width(), r.height())))
+		broadcast(o.toString())
+	}
+
 	fun sendPanel(title: String, text: String, ttlMs: Long = 30000)
 	{
 		broadcast(JSONObject().put("t", "panel").put("title", title).put("text", text).put("ttl", ttlMs).toString())
