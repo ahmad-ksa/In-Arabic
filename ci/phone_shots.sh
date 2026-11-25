@@ -23,4 +23,11 @@ python3 ci/ui.py tap "ربط البلايستيشن"
 sleep 2
 python3 ci/ui.py shot shots/phone-7-regist.png
 adb shell input keyevent KEYCODE_BACK; sleep 1
+# a console added by address, so the main screen shows a console card
+adb shell input tap 960 2220; sleep 2
+python3 ci/ui.py tap "إضافة بالعنوان يدويًا"; sleep 2
+adb shell input text "192.168.0.190"; sleep 1
+python3 ci/ui.py shot shots/phone-8-manual.png
+python3 ci/ui.py tap "حفظ"; sleep 3
+python3 ci/ui.py shot shots/phone-9-card.png
 true
