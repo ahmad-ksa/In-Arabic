@@ -18,10 +18,18 @@ class SideTextTest
 		assertEquals(SideText("Sprint", "L3"), SideText.clean("L3 SPRINT"))
 	}
 
+	@Test fun buttonIconInFrontIsDropped()
+	{
+		assertEquals(SideText("Open", null), SideText.clean("© OPEN"))
+		assertEquals(SideText("Open", null), SideText.clean("A OPEN"))
+		assertEquals(SideText("Open", null), SideText.clean("OPEN"))
+	}
+
 	@Test fun plainTextStays()
 	{
 		assertEquals(SideText("Bachelor party", null), SideText.clean("BACHELOR PARTY"))
 		assertNull(SideText.clean("$8"))
 		assertNull(SideText.clean("R2"))
+		assertNull(SideText.clean("V A D"))
 	}
 }

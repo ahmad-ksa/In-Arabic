@@ -16,6 +16,12 @@ data class SideText(val text: String, val button: String?)
 		{
 			var t = raw.trim()
 			var button: String? = null
+			// a button icon in front of a prompt ("△ OPEN") is read as one odd character: drop it
+			Regex("^(\\S)\\s+(\\S.*)$").find(t)?.let { m ->
+				val c = m.groupValues[1][0]
+				val rest = m.groupValues[2]
+				if(!c.isLetterOrDigit() || (c in "AOXD" && rest.none { it.isLowerCase() } && !rest.contains(' '))) t = rest
+			}
 			LEADING_BUTTON.find(t)?.let { m -> button = m.groupValues[1].uppercase(); t = m.groupValues[2] }
 			if(button == null) BUTTON.find(t)?.let { m ->
 				val before = m.groupValues[1]
@@ -33,6 +39,8 @@ data class SideText(val text: String, val button: String?)
 			}
 			t = t.trim(' ', '(', ')', '[', ']', '|', '-', '.', ':')
 			if(t.count { it.isLetter() } < 2) return null
+			// at least one real word (scattered single letters are paint on a car, not text)
+			if(!Regex("[A-Za-z]{2,}").containsMatchIn(t)) return null
 			// ALL CAPS reads badly to the translator: "BACHELOR PARTY" -> "Bachelor party"
 			if(t.none { it.isLowerCase() }) t = t.lowercase().replaceFirstChar { it.uppercase() }
 			return SideText(t, button)

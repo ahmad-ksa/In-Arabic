@@ -33,6 +33,8 @@ class InArabicPrefs(context: Context)
 	/** Second box: side texts such as objectives or messages, in its own area of the picture (percent). */
 	/** subtitles are centred: text off to the side of the subtitle area is treated (and drawn) apart */
 	val centerOnly get() = p.getBoolean("ia_center_only", true)
+	/** also read the rest of the picture for short prompts (OPEN, ENTER…) and translate them in place */
+	val scanScreen get() = p.getBoolean("ia_scan_screen", true)
 	val box2Enabled get() = p.getBoolean("ia_box2", false)
 	val box2 get() = floatArrayOf(p.getInt("ia_box2_x", 2) / 100f, p.getInt("ia_box2_y", 3) / 100f,
 		p.getInt("ia_box2_w", 40) / 100f, p.getInt("ia_box2_h", 22) / 100f)

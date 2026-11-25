@@ -53,6 +53,9 @@ class CaptionEngine(
 	@Volatile private var currentId = -1
 	private var loop: Job? = null
 	private var lastBox2Read = 0L
+	private var lastScreenRead = 0L
+	/** prompts found in the rest of the picture ("OPEN" next to a car), from the last whole-screen read */
+	private var screenItems: List<OcrRead> = emptyList()
 	@Volatile private var lastLineAt = 0L
 
 	fun start()
@@ -120,6 +123,16 @@ class CaptionEngine(
 			val bottom = (frame.height * prefs.areaBottom).toInt().coerceIn(top + 8, frame.height)
 			val side = ArrayList<OcrRead>()
 			val read = readArea(frame, Rect(0, top, frame.width, bottom), 0.018f, if(prefs.centerOnly) side else null)
+			// the rest of the picture (above the subtitle area): interaction prompts can be anywhere; read less often
+			val t1 = System.currentTimeMillis()
+			if(prefs.scanScreen && top > 16 && t1 - lastScreenRead > 700)
+			{
+				lastScreenRead = t1
+				val all = ArrayList<OcrRead>()
+				readArea(frame, Rect(0, 0, frame.width, top), 0.014f, all, everyLine = true)
+				screenItems = all.filter { (it.text.split(' ').size) <= 5 } // short prompts, not signs full of text
+			}
+			side.addAll(screenItems)
 			val items = side.mapNotNull { r -> SideText.clean(r.text)?.let { it to r.box!! } }
 			when(sideTracker.feed(OcrRead(items.joinToString(" | ") { it.first.text })))
 			{
@@ -244,7 +257,7 @@ class CaptionEngine(
 	 * With [sideOut]: only lines centred on the picture are the subtitle; the others (a mission title or a button
 	 * prompt in a corner) are put in [sideOut], one read per line, so they neither mix into the subtitle nor move it.
 	 */
-	private suspend fun readArea(frame: Bitmap, area: Rect, minLineH: Float, sideOut: MutableList<OcrRead>? = null): OcrRead
+	private suspend fun readArea(frame: Bitmap, area: Rect, minLineH: Float, sideOut: MutableList<OcrRead>? = null, everyLine: Boolean = false): OcrRead
 	{
 		val crop = Bitmap.createBitmap(frame, area.left, area.top, area.width(), area.height())
 		try
@@ -267,7 +280,7 @@ class CaptionEngine(
 			if(sideOut != null)
 			{
 				// every off-centre line on its own (button prompts are stacked lines that must not be glued)
-				for(l in all.filterNot(::centred)) if(l.boundingBox != null) sideOut.add(join(crop, listOf(l), area, frame))
+				for(l in all.filter { everyLine || !centred(it) }) if(l.boundingBox != null) sideOut.add(join(crop, listOf(l), area, frame))
 			}
 			if(lines.isEmpty()) return OcrRead("")
 			return join(crop, lines, area, frame)

@@ -61,6 +61,9 @@
         <SwitchPreference app:key="ia_center_only" app:defaultValue="true"
             app:title="افصل النصوص الجانبية عن الحوار"
             app:summary="الحوار في الوسط؛ أي نص على الجانب (اسم مهمة، زر) يُترجم مكانه ولا يختلط بالحوار" />
+        <SwitchPreference app:key="ia_scan_screen" app:defaultValue="true"
+            app:title="ترجم الأزرار في كل الشاشة"
+            app:summary="كلمات قصيرة مثل OPEN أو ENTER في أي مكان من الصورة تُترجم فوقها" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="الصندوق الثاني (المهام والرسائل)">
