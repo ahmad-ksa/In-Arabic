@@ -37,6 +37,17 @@ object Glossary
 		"heal" to "عالج", "rest" to "استرح", "sleep" to "نَم", "wait" to "انتظر", "follow" to "اتبع", "help" to "ساعد",
 		"call" to "اتصل", "answer" to "رد", "hang up" to "أنهِ المكالمة", "listen" to "استمع", "hide" to "اختبئ", "stealth" to "تسلل",
 		"hold" to "اضغط مطولاً", "press" to "اضغط", "tap" to "اضغط", "toggle" to "بدّل", "zoom" to "تقريب", "scan" to "امسح",
+		// map and menus
+		"recenter" to "توسيط", "2d view" to "عرض ثنائي الأبعاد", "3d view" to "عرض ثلاثي الأبعاد", "add marker" to "أضف علامة",
+		"remove marker" to "احذف العلامة", "set destination" to "حدد الوجهة", "set waypoint" to "حدد نقطة", "remove waypoint" to "احذف النقطة",
+		"waypoint" to "نقطة الطريق", "legend" to "دليل الخريطة", "zoom in" to "تقريب", "zoom out" to "تبعيد", "brief" to "الموجز",
+		"briefing" to "الموجز", "progress" to "التقدم", "stats" to "الإحصائيات", "statistics" to "الإحصائيات", "missions" to "المهام",
+		"mission" to "المهمة", "contacts" to "جهات الاتصال", "messages" to "الرسائل", "gallery" to "المعرض", "help" to "مساعدة",
+		"journal" to "السجل", "collectibles" to "المقتنيات", "challenges" to "التحديات", "skills" to "المهارات", "character" to "الشخصية",
+		"customize" to "تخصيص", "online" to "أونلاين", "story" to "القصة", "chapter" to "الفصل", "objectives" to "الأهداف",
+		"tutorials" to "الدروس", "controls" to "التحكم", "display" to "العرض", "audio" to "الصوت", "language" to "اللغة",
+		"store" to "المتجر", "phone" to "الجوال", "camera" to "الكاميرا", "track" to "تتبّع", "untrack" to "إلغاء التتبع",
+		"filter" to "تصفية", "details" to "التفاصيل", "info" to "معلومات", "change" to "تغيير", "view" to "عرض",
 		"bachelor party" to "حفلة توديع العزوبية", "fast travel" to "انتقال سريع", "photo mode" to "وضع التصوير"
 	)
 

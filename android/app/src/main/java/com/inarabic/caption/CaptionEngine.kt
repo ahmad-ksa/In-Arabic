@@ -242,7 +242,8 @@ class CaptionEngine(
 						// not the world (restaurant boards, shop signs, posters)
 						all += if(!prefs.scanOnlyPrompts) found else found.filter { r ->
 							val st = SideText.clean(r.text)
-							st != null && (st.button != null || com.inarabic.translate.Glossary.lookup(st.text) != null)
+							st != null && (st.button != null || com.inarabic.translate.Glossary.lookup(st.text) != null ||
+								st.text.split(Regex("\\s+")).size >= 8) // a help box or a description, not a sign
 						}
 					}
 				}
@@ -400,7 +401,7 @@ class CaptionEngine(
 						.sortedBy { it.boundingBox!!.top }
 					if(bl.isEmpty()) continue
 					val prompts = bl.size == 1 || bl.any { SideText.clean(it.text)?.button != null }
-					if(prompts) for(l in bl) sideOut.add(join(crop, listOf(l), area, frame))
+					if(prompts) for(l in bl) for(seg in segments(l)) sideOut.add(seg.let { (txt, r) -> one(crop, txt, r, l, area, frame) })
 					else sideOut.add(join(crop, bl, area, frame))
 				}
 			}
@@ -408,6 +409,37 @@ class CaptionEngine(
 			return join(crop, lines, area, frame)
 		}
 		finally { crop.recycle() }
+	}
+
+	/**
+	 * A line cut where the words are far apart: a menu bar ("MAP   BRIEF   PROGRESS") is several items, each
+	 * translated over its own word. Normal word spacing never cuts.
+	 */
+	private fun segments(l: Text.Line): List<Pair<String, Rect>>
+	{
+		val els = l.elements.filter { it.boundingBox != null }.sortedBy { it.boundingBox!!.left }
+		val lb = l.boundingBox ?: return emptyList()
+		if(els.size < 2) return listOf(l.text to lb)
+		val h = lb.height().toFloat()
+		val out = ArrayList<Pair<String, Rect>>()
+		var words = arrayListOf(els[0].text); var r = Rect(els[0].boundingBox)
+		for(i in 1 until els.size)
+		{
+			val b = els[i].boundingBox!!
+			if(b.left - r.right > h * 1.3f) { out += words.joinToString(" ") to r; words = arrayListOf(); r = Rect(b) } else r.union(b)
+			words += els[i].text
+		}
+		out += words.joinToString(" ") to r
+		return if(out.size == 1) listOf(l.text to lb) else out
+	}
+
+	/** one piece of a line as its own read */
+	private fun one(crop: Bitmap, text: String, r: Rect, line: Text.Line, area: Rect, frame: Bitmap): OcrRead
+	{
+		if(r == line.boundingBox) return join(crop, listOf(line), area, frame)
+		val box = floatArrayOf((r.left + area.left) / frame.width.toFloat(), (r.top + area.top) / frame.height.toFloat(),
+			r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat(), r.height() / frame.height.toFloat())
+		return OcrRead(text, box)
 	}
 
 	private fun join(crop: Bitmap, lines: List<Text.Line>, area: Rect, frame: Bitmap): OcrRead
@@ -426,7 +458,15 @@ class CaptionEngine(
 				val c = texts[i].trimStart().firstOrNull()
 				c != null && (c.isUpperCase() || c.isDigit()) && !texts[i - 1].trimEnd().endsWith(",")
 			}
-		return OcrRead(texts.joinToString(if(list) "\n" else " "), box, coloredPhrases(crop, lines))
+		// a heading over a paragraph ("KENTON" / "Kenton runs diving tours…"): the heading on its own line
+		val heading = !list && texts.size >= 3 && texts[0].trim().split(Regex("\\s+")).size <= 3 && texts.drop(1).count { it.trim().split(Regex("\\s+")).size >= 4 } >= 1
+		val joined = when
+		{
+			list -> texts.joinToString("\n")
+			heading -> texts[0] + "\n" + texts.drop(1).joinToString(" ")
+			else -> texts.joinToString(" ")
+		}
+		return OcrRead(joined, box, coloredPhrases(crop, lines))
 	}
 
 	/** Runs of words drawn in the same (non-white) colour. */
