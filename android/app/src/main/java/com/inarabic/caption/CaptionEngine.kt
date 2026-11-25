@@ -256,7 +256,8 @@ class CaptionEngine(
 						screenLineCount = lastLineCount
 						// "menus": only what the game draws for you (OPEN, Hold to skip, a button next to a word),
 						// not the world (restaurant boards, shop signs, posters)
-						all += if(!prefs.scanOnlyPrompts) found else found.filter { r ->
+						all += if(prefs.mode == "popups") found.filter { it.white || SideText.clean(it.text)?.button != null }
+						else if(!prefs.scanOnlyPrompts) found else found.filter { r ->
 							val st = SideText.clean(r.text)
 							st != null && (st.button != null || com.inarabic.translate.Glossary.lookup(st.text) != null ||
 								st.text.split(Regex("\\s+")).size >= 8) // a help box or a description, not a sign
@@ -400,7 +401,7 @@ class CaptionEngine(
 	{
 		scope.launch {
 			val known = TranslationMemory.get(english)
-			val ar = known?.arabic ?: translator.better(english) ?: translator.quick(english) ?: return@launch
+			val ar = known?.arabic ?: translator.better(english) ?: (if(prefs.aiOnly) null else translator.quick(english)) ?: return@launch
 			if(known == null) TranslationMemory.put(english, ar, if(prefs.aiEnabled) TranslationMemory.Source.AI else TranslationMemory.Source.QUICK)
 			LinkServer.sendBox2(ar, box)
 		}
@@ -544,7 +545,7 @@ class CaptionEngine(
 		if(r == line.boundingBox) return join(crop, listOf(line), area, frame)
 		val box = floatArrayOf((r.left + area.left) / frame.width.toFloat(), (r.top + area.top) / frame.height.toFloat(),
 			r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat(), r.height() / frame.height.toFloat())
-		return OcrRead(text, box)
+		return OcrRead(text, box, white = isWhite(crop, r))
 	}
 
 	private fun join(crop: Bitmap, lines: List<Text.Line>, area: Rect, frame: Bitmap): OcrRead
@@ -571,7 +572,7 @@ class CaptionEngine(
 			heading -> texts[0] + "\n" + texts.drop(1).joinToString(" ")
 			else -> texts.joinToString(" ")
 		}
-		return OcrRead(joined, box, coloredPhrases(crop, lines))
+		return OcrRead(joined, box, coloredPhrases(crop, lines), isWhite(crop, r))
 	}
 
 	/** Runs of words drawn in the same (non-white) colour. */
@@ -609,6 +610,26 @@ class CaptionEngine(
 	 * The colour of a word: the brightest pixels in its box are the letters (text is drawn bright over the
 	 * game); white or grey letters -> null, clearly coloured ones -> that colour, made bright enough to read.
 	 */
+	/**
+	 * Text the game draws over the picture (instructions, pop-ups) is clean white; text in the world (a
+	 * restaurant sign, a poster) is lit, shaded and coloured. The brightest pixels of the box tell which.
+	 */
+	private fun isWhite(bmp: Bitmap, r: Rect): Boolean
+	{
+		val box = Rect(r); if(!box.intersect(0, 0, bmp.width, bmp.height) || box.width() < 3 || box.height() < 3) return false
+		val sx = maxOf(1, box.width() / 32); val sy = maxOf(1, box.height() / 10)
+		val px = ArrayList<Int>(400)
+		var y = box.top
+		while(y < box.bottom) { var x = box.left; while(x < box.right) { px += bmp.getPixel(x, y); x += sx }; y += sy }
+		if(px.size < 8) return false
+		fun lum(c: Int) = 0.299 * ((c shr 16) and 255) + 0.587 * ((c shr 8) and 255) + 0.114 * (c and 255)
+		val top = px.sortedByDescending(::lum).take(maxOf(4, px.size / 6))
+		val rr = top.sumOf { (it shr 16) and 255 } / top.size
+		val gg = top.sumOf { (it shr 8) and 255 } / top.size
+		val bb = top.sumOf { it and 255 } / top.size
+		return minOf(rr, gg, bb) >= 205 && maxOf(rr, gg, bb) - minOf(rr, gg, bb) <= 28
+	}
+
 	private fun colorOf(bmp: Bitmap, r: Rect): Int?
 	{
 		val box = Rect(r); if(!box.intersect(0, 0, bmp.width, bmp.height) || box.width() < 3 || box.height() < 3) return null

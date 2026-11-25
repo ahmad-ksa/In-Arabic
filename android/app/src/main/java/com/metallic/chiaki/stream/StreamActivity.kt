@@ -287,8 +287,8 @@ class StreamActivity : AppCompatActivity()
 		val z = binding.iaZone
 		fun close() { z.visibility = View.GONE; binding.iaZoneBar.visibility = View.GONE; com.inarabic.link.LinkServer.sendZones(emptyList()) }
 		binding.iaModeButton.setOnClickListener {
-			val values = arrayOf("dialog", "menus", "all")
-			val names = arrayOf("الحوارات فقط", "الحوارات + الأزرار والقوائم والمهام", "كل شي على الشاشة (حتى اللوحات)")
+			val values = arrayOf("dialog", "popups", "menus", "all")
+			val names = arrayOf("الحوارات فقط", "الحوارات + التعليمات (النص الأبيض)", "الحوارات + الأزرار والقوائم والمهام", "كل شي على الشاشة (حتى اللوحات)")
 			MaterialAlertDialogBuilder(this).setTitle("وش أترجم؟")
 				.setSingleChoiceItems(names, values.indexOf(prefs.mode).coerceAtLeast(0)) { d, i ->
 					prefs.mode = values[i]; d.dismiss(); notice("الترجمة: " + names[i], 2500)
@@ -335,7 +335,7 @@ class StreamActivity : AppCompatActivity()
 	/** In Arabic: everything for the translation in one list */
 	private fun showIaMenu(prefs: com.inarabic.InArabicPrefs)
 	{
-		val modeNames = mapOf("dialog" to "الحوارات فقط", "menus" to "الحوارات + الأزرار والقوائم", "all" to "كل شي")
+		val modeNames = mapOf("dialog" to "الحوارات فقط", "popups" to "الحوارات + التعليمات", "menus" to "الحوارات + الأزرار والقوائم", "all" to "كل شي")
 		val items = arrayOf(
 			"📐  مربعات القراءة (وين أقرأ الترجمة)",
 			"🔤  وش أترجم: " + (modeNames[prefs.mode] ?: ""),

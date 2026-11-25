@@ -8,7 +8,7 @@ package com.inarabic.caption
 import kotlin.math.max
 import kotlin.math.min
 
-data class OcrRead(val text: String, val box: FloatArray? = null, val colored: List<Colored> = emptyList())
+data class OcrRead(val text: String, val box: FloatArray? = null, val colored: List<Colored> = emptyList(), val white: Boolean = false)
 
 sealed class TrackerEvent
 {
