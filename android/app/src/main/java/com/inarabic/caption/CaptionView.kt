@@ -163,16 +163,22 @@ class CaptionView(context: Context) : View(context)
 			val sb = fit(sd.box)
 			textPaint.textSize = sizeFor(sb, h, 0.03f, 0.02f, 0.045f)
 			val area = RectF(sb[0] * w - w * 0.004f, sb[1] * h - h * 0.004f, (sb[0] + sb[2]) * w + w * 0.004f, (sb[1] + sb[3]) * h + h * 0.004f)
-			val tw = textPaint.measureText(sd.text) + w * 0.012f
+			// a paragraph (help box) keeps the English box's width and wraps; a short prompt may widen
+			val para = sb.size > 4 && sb[4] > 0f && sb[3] > sb[4] * 1.6f
+			val tw = if(para) area.width() else min(textPaint.measureText(sd.text) + w * 0.012f, w * 0.6f)
 			if(area.width() < tw)
 			{
 				// grow toward the middle of the screen: right-side prompts grow left, left-side ones grow right
 				if(area.centerX() > w / 2) area.left = max(0f, area.right - tw) else area.right = min(w, area.left + tw)
 			}
 			val inner = (area.width() - w * 0.008f).toInt().coerceAtLeast(30)
-			val l = layout(sd.text, inner)
+			val l = layout(sd.text, inner, if(para) Layout.Alignment.ALIGN_NORMAL else Layout.Alignment.ALIGN_CENTER)
 			val need = l.height + h * 0.008f
-			if(area.height() < need) { val cy = area.centerY(); area.top = cy - need / 2; area.bottom = cy + need / 2 }
+			if(area.height() < need)
+			{
+				if(para) area.bottom = area.top + need // paragraphs grow down from the box's top, like the English
+				else { val cy = area.centerY(); area.top = cy - need / 2; area.bottom = cy + need / 2 }
+			}
 			if(area.bottom > h) area.offset(0f, h - area.bottom)
 			if(area.top < 0) area.offset(0f, -area.top)
 			canvas.drawRoundRect(area, h * 0.006f, h * 0.006f, boxPaint)

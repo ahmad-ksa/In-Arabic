@@ -173,14 +173,17 @@
       d.style.fontSize = sizeFor(bx, 0.03, 0.02, 0.045) + 'px';
       d.style.background = 'rgba(0,0,0,' + style.opacity + ')';
       d.style.color = style.color;
-      d.style.minWidth = bx[2] * 1920 + 16 + 'px';
+      var para = bx.length > 4 && bx[4] > 0 && bx[3] > bx[4] * 1.6;
+      if (para) { d.style.width = bx[2] * 1920 + 16 + 'px'; d.style.whiteSpace = 'normal'; d.style.textAlign = 'right'; }
+      else d.style.minWidth = bx[2] * 1920 + 16 + 'px';
       host.appendChild(d);
       var w = d.offsetWidth, hgt = d.offsetHeight;
       var left = bx[0] * 1920 - 8, right = (bx[0] + bx[2]) * 1920 + 8;
       // grow toward the middle: right-side prompts grow left
       var x = (left + right) / 2 > 960 ? right - w : left;
       x = Math.min(Math.max(0, x), 1920 - w);
-      var y = Math.min(Math.max(0, (bx[1] + bx[3] / 2) * 1080 - hgt / 2), 1080 - hgt);
+      var y = para ? bx[1] * 1080 - 8 : (bx[1] + bx[3] / 2) * 1080 - hgt / 2;
+      y = Math.min(Math.max(0, y), 1080 - hgt);
       d.style.left = x + 'px'; d.style.top = y + 'px';
     });
     sideTimer = setTimeout(function () { host.style.display = 'none'; }, 15000);

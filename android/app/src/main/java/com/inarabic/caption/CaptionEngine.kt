@@ -130,7 +130,7 @@ class CaptionEngine(
 				lastScreenRead = t1
 				val all = ArrayList<OcrRead>()
 				readArea(frame, Rect(0, 0, frame.width, top), 0.014f, all, everyLine = true)
-				screenItems = all.filter { (it.text.split(' ').size) <= 5 } // short prompts, not signs full of text
+				screenItems = all.filter { it.text.split(' ').size <= 40 } // prompts and help boxes, not pages of text
 			}
 			side.addAll(screenItems)
 			val items = side.mapNotNull { r -> SideText.clean(r.text)?.let { it to r.box!! } }
@@ -225,7 +225,10 @@ class CaptionEngine(
 		scope.launch {
 			val out = items.mapNotNull { (st, box) ->
 				val known = TranslationMemory.get(st.text)
-				val ar = known?.arabic ?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) } ?: return@mapNotNull null
+				// longer help texts are worth the AI (when on); short prompts take the quick model
+				val ai = if(known == null && prefs.aiEnabled && st.text.split(' ').size > 4) translator.better(st.text) else null
+				val ar = known?.arabic ?: ai?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) }
+					?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) } ?: return@mapNotNull null
 				(if(st.button != null) "$ar  ${st.button}" else ar) to box
 			}
 			if(out.isNotEmpty()) LinkServer.sendSide(out)
@@ -267,9 +270,8 @@ class CaptionEngine(
 					.addOnSuccessListener { if(c.isActive) c.resume(it) }
 					.addOnFailureListener { if(c.isActive) c.resume(null) }
 			} ?: return OcrRead("")
-			val all = result.textBlocks.flatMap { it.lines }
-				.filter { (it.boundingBox?.height() ?: 0) >= frame.height * minLineH } // skip tiny HUD text
-				.sortedBy { it.boundingBox?.top ?: 0 }
+			val ok = { l: Text.Line -> (l.boundingBox?.height() ?: 0) >= frame.height * minLineH } // skip tiny HUD text
+			val all = result.textBlocks.flatMap { it.lines }.filter(ok).sortedBy { it.boundingBox?.top ?: 0 }
 			fun centred(l: Text.Line): Boolean
 			{
 				val b = l.boundingBox ?: return false
@@ -279,8 +281,17 @@ class CaptionEngine(
 			val lines = if(sideOut == null) all else all.filter(::centred)
 			if(sideOut != null)
 			{
-				// every off-centre line on its own (button prompts are stacked lines that must not be glued)
-				for(l in all.filter { everyLine || !centred(it) }) if(l.boundingBox != null) sideOut.add(join(crop, listOf(l), area, frame))
+				// side texts by block: a help box ("Ammu-Nations will expand / their stock…") is one paragraph,
+				// but stacked button prompts ("SHOOT R2 / AIM L2") stay one item per line
+				for(block in result.textBlocks)
+				{
+					val bl = block.lines.filter(ok).filter { it.boundingBox != null && (everyLine || !centred(it)) }
+						.sortedBy { it.boundingBox!!.top }
+					if(bl.isEmpty()) continue
+					val prompts = bl.size == 1 || bl.any { SideText.clean(it.text)?.button != null }
+					if(prompts) for(l in bl) sideOut.add(join(crop, listOf(l), area, frame))
+					else sideOut.add(join(crop, bl, area, frame))
+				}
 			}
 			if(lines.isEmpty()) return OcrRead("")
 			return join(crop, lines, area, frame)
