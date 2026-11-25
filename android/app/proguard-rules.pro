@@ -94,3 +94,5 @@
 -dontwarn org.slf4j.**
 -keep class org.java_websocket.** { *; }
 -keep class ai.onnxruntime.** { *; }
+# layout behaviours are created by name from XML
+-keep class com.metallic.chiaki.main.FloatingActionButton*Behavior { <init>(...); }

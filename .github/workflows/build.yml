@@ -125,13 +125,12 @@ jobs:
             adb logcat -c
             adb shell monkey -p com.inarabic.phone -c android.intent.category.LAUNCHER 1
             sleep 15
-            adb shell am start -n com.inarabic.phone/com.inarabic.InArabicSettingsActivity || true
-            sleep 8
             adb logcat -d -b crash > crash.txt || true
             adb logcat -d | grep -E "AndroidRuntime|FATAL|InArabic|chiaki" > app.txt || true
             adb shell pidof com.inarabic.phone && echo "APP STILL RUNNING" || echo "APP NOT RUNNING"
             adb exec-out screencap -p > screen.png
             echo "===== crash buffer"; cat crash.txt | head -80
+            if [ -s crash.txt ]; then echo "::error::the app crashed"; exit 1; fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
