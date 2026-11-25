@@ -12,4 +12,16 @@
     <string-array name="ia_pos_values" translatable="false">
         <item>auto</item><item>bottom</item><item>top</item>
     </string-array>
+    <string-array name="ia_preset_names">
+        <item>عادي</item><item>سينما (أصفر بدون خلفية)</item><item>الصالة (كبير وواضح للبعيد)</item><item>شفاف (حد أسود فقط)</item><item>مخصص</item>
+    </string-array>
+    <string-array name="ia_preset_values" translatable="false">
+        <item>normal</item><item>cinema</item><item>lounge</item><item>clear</item><item>custom</item>
+    </string-array>
+    <string-array name="ia_box_color_names">
+        <item>أسود</item><item>كحلي</item><item>أخضر غامق</item><item>رمادي</item>
+    </string-array>
+    <string-array name="ia_box_color_values" translatable="false">
+        <item>#000000</item><item>#0B1A33</item><item>#0F2A20</item><item>#2B2B2B</item>
+    </string-array>
 </resources>

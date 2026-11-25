@@ -71,6 +71,26 @@ class InArabicPrefs(context: Context)
 	/** TV picture fit: the TV may enlarge the HDMI picture (overscan) or move it */
 	val tvZoom get() = p.getInt("ia_tv_zoom", 0) / 100f
 	val tvShift get() = p.getInt("ia_tv_shift", 0) / 100f
+	val outline get() = p.getBoolean("ia_outline", false)
+	val boxColor get() = p.getString("ia_box_color", "#000000") ?: "#000000"
+
+	/** a ready look: writes the single settings it is made of */
+	fun applyPreset(name: String)
+	{
+		val e = p.edit()
+		when(name)
+		{
+			"normal" -> e.putInt("ia_text_scale", 100).putString("ia_color", "#FFFFFF").putBoolean("ia_bold", true).putBoolean("ia_outline", false).putInt("ia_box_opacity", 85).putString("ia_box_color", "#000000")
+			"cinema" -> e.putInt("ia_text_scale", 105).putString("ia_color", "#FFE066").putBoolean("ia_bold", true).putBoolean("ia_outline", true).putInt("ia_box_opacity", 0)
+			"lounge" -> e.putInt("ia_text_scale", 135).putString("ia_color", "#FFFFFF").putBoolean("ia_bold", true).putBoolean("ia_outline", false).putInt("ia_box_opacity", 92).putString("ia_box_color", "#0F2A20")
+			"clear" -> e.putInt("ia_text_scale", 100).putString("ia_color", "#FFFFFF").putBoolean("ia_bold", true).putBoolean("ia_outline", true).putInt("ia_box_opacity", 0)
+			else -> {}
+		}
+		e.apply()
+	}
+
+	/** hard to read: no box and no outline */
+	val lowContrast get() = boxOpacity < 0.3f && !outline
 	val bold get() = p.getBoolean("ia_bold", true)
 
 	/** The game being played (filled from the PS5 when it says, or typed): helps the AI keep names right. */

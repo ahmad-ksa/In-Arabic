@@ -36,6 +36,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	class Side(val text: String, val box: FloatArray, val spans: List<IntArray> = emptyList())
 	var sides: List<Side> = emptyList()
 		set(v) { field = v; invalidate() }
+	/** the reading frame being placed from the phone */
+	var zone: FloatArray? = null
+		set(v) { field = v; invalidate() }
 	var panelTitle: String? = null
 	var panelText: String? = null
 		set(v) { field = v; invalidate() }
@@ -46,6 +49,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	var color = Color.WHITE
 	var position = "auto"
 	var bold = true
+	var outline = false
+	var boxColor = Color.BLACK
 	/** TV picture fit (from the phone): the TV enlarges the HDMI picture by [zoom] and moves it by [dy] */
 	var zoom = 0f
 	var dy = 0f
@@ -73,6 +78,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	private val hide = Runnable { text = null }
 	private val hidePanel = Runnable { panelText = null }
 	private val hideSide = Runnable { sides = emptyList() }
+	private val hideZone = Runnable { zone = null }
 
 	/** A message from the phone (see the phone's LinkServer for the format). */
 	fun handle(o: org.json.JSONObject)
@@ -110,6 +116,11 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				}
 				timers.removeCallbacks(hideSide); timers.postDelayed(hideSide, 15000)
 			}
+			"zone" ->
+			{
+				zone = box(o)
+				timers.removeCallbacks(hideZone); timers.postDelayed(hideZone, 5000)
+			}
 			"sideclear" -> { timers.removeCallbacks(hideSide); sides = emptyList() }
 			"panel" ->
 			{
@@ -125,6 +136,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				color = try { Color.parseColor(o.optString("color", "#FFFFFF")) } catch(e: Exception) { Color.WHITE }
 				position = o.optString("pos", "auto")
 				bold = o.optBoolean("bold", true)
+				outline = o.optBoolean("outline", false)
+				boxColor = try { Color.parseColor(o.optString("boxColor", "#000000")) } catch(e: Exception) { Color.BLACK }
 				zoom = o.optDouble("zoom", 0.0).toFloat()
 				dy = o.optDouble("dy", 0.0).toFloat()
 				invalidate()
@@ -161,6 +174,20 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		return s
 	}
 
+	/** with the outline on: a black stroke under the letters, then the letters */
+	private fun drawText(l: StaticLayout, canvas: Canvas)
+	{
+		if(outline)
+		{
+			val st = textPaint.style; val sw = textPaint.strokeWidth; val c = textPaint.color
+			textPaint.style = Paint.Style.STROKE; textPaint.strokeWidth = textPaint.textSize * 0.12f; textPaint.color = Color.BLACK
+			textPaint.strokeJoin = Paint.Join.ROUND
+			l.draw(canvas)
+			textPaint.style = st; textPaint.strokeWidth = sw; textPaint.color = c
+		}
+		l.draw(canvas)
+	}
+
 	private fun layout(t: CharSequence, width: Int, align: Layout.Alignment = Layout.Alignment.ALIGN_CENTER) =
 		StaticLayout.Builder.obtain(t, 0, t.length, textPaint, width)
 			.setAlignment(align).setTextDirection(TextDirectionHeuristics.RTL).setLineSpacing(0f, 1.1f).build()
@@ -171,7 +198,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		val h = height.toFloat()
 		textPaint.color = color
 		textPaint.typeface = if(bold) fontBold else fontRegular
-		boxPaint.color = Color.argb((opacity * 255).toInt(), 0, 0, 0)
+		boxPaint.color = Color.argb((opacity * 255).toInt(), Color.red(boxColor), Color.green(boxColor), Color.blue(boxColor))
 
 		// second box: in its own area of the picture, smaller text, top aligned
 		val b2t = box2Text
@@ -184,7 +211,23 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			val l = layout(b2t, inner, Layout.Alignment.ALIGN_NORMAL)
 			area.bottom = max(area.bottom, area.top + l.height + h * 0.02f)
 			canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, boxPaint)
-			canvas.save(); canvas.translate(area.left + w * 0.008f, area.top + h * 0.01f); l.draw(canvas); canvas.restore()
+			canvas.save(); canvas.translate(area.left + w * 0.008f, area.top + h * 0.01f); drawText(l, canvas); canvas.restore()
+		}
+
+		// the reading frame (only on the TV: the phone shows its own handles)
+		val zb = zone?.let(::fit)
+		if(zb != null && fitToTv)
+		{
+			val r = RectF(zb[0] * w, zb[1] * h, (zb[0] + zb[2]) * w, (zb[1] + zb[3]) * h)
+			val zp = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+				style = Paint.Style.STROKE; strokeWidth = h * 0.004f; color = Color.rgb(159, 211, 180)
+				pathEffect = android.graphics.DashPathEffect(floatArrayOf(h * 0.02f, h * 0.012f), 0f)
+			}
+			canvas.drawRoundRect(r, h * 0.01f, h * 0.01f, zp)
+			textPaint.textSize = h * 0.028f; textPaint.color = Color.rgb(159, 211, 180)
+			val l = layout("مكان قراءة الترجمة", (w * 0.4f).toInt())
+			canvas.save(); canvas.translate(r.centerX() - w * 0.2f, (r.top - l.height - h * 0.01f).coerceAtLeast(0f)); drawText(l, canvas); canvas.restore()
+			textPaint.color = color
 		}
 
 		// side texts: each exactly over its English text (a bit wider if the Arabic needs it), kept on screen
@@ -212,7 +255,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			if(area.bottom > h) area.offset(0f, h - area.bottom)
 			if(area.top < 0) area.offset(0f, -area.top)
 			canvas.drawRoundRect(area, h * 0.006f, h * 0.006f, boxPaint)
-			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); l.draw(canvas); canvas.restore()
+			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas); canvas.restore()
 		}
 
 		// subtitle
@@ -249,7 +292,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				}
 			}
 			canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, boxPaint)
-			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); l.draw(canvas); canvas.restore()
+			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas); canvas.restore()
 		}
 
 		// panel (story summary): centred card

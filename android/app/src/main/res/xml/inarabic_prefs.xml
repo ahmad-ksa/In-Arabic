@@ -9,11 +9,17 @@
             app:summary=" " />
         <Preference app:key="ia_test" app:title="اعرض سطرًا تجريبيًا على الشاشة"
             app:summary="جرّب الحجم والمكان واللون وأنت تنظر إلى الشاشة" />
-        <SeekBarPreference app:key="ia_text_scale" app:title="حجم الخط (%)"
+        <ListPreference app:key="ia_preset" app:title="شكل جاهز" app:defaultValue="normal"
+            app:entries="@array/ia_preset_names" app:entryValues="@array/ia_preset_values" app:useSimpleSummaryProvider="true" />
+        <SeekBarPreference app:key="ia_text_scale" app:title="حجم الخط (%) — 100 = نفس حجم الإنجليزي"
             app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
         <ListPreference app:key="ia_color" app:title="لون الخط" app:defaultValue="#FFFFFF"
             app:entries="@array/ia_color_names" app:entryValues="@array/ia_color_values" app:useSimpleSummaryProvider="true" />
         <SwitchPreference app:key="ia_bold" app:defaultValue="true" app:title="خط عريض" />
+        <SwitchPreference app:key="ia_outline" app:defaultValue="false" app:title="حدّ أسود حول الحروف"
+            app:summary="يخلي النص واضح حتى بدون خلفية" />
+        <ListPreference app:key="ia_box_color" app:title="لون خلفية الترجمة" app:defaultValue="#000000"
+            app:entries="@array/ia_box_color_names" app:entryValues="@array/ia_box_color_values" app:useSimpleSummaryProvider="true" />
         <SeekBarPreference app:key="ia_tv_zoom" app:title="مطابقة التلفزيون: تكبير المكان (%)"
             app:summary="إذا الترجمة على التلفزيون أقرب للوسط من الكلام الإنجليزي، زِد هذا وأنت تنظر للشاشة"
             app:defaultValue="0" android:max="15" app:min="0" app:showSeekBarValue="true" />

@@ -125,6 +125,13 @@
   // ---------- caption
   var hideTimer = 0;
   // the TV may enlarge the HDMI picture (overscan): the phone sends zoom / dy to match
+  function bg() {
+    var h = (style.boxColor || '#000000').replace('#', ''), r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), b = parseInt(h.substr(4, 2), 16);
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + style.opacity + ')';
+  }
+  function outline(el) {
+    el.style.textShadow = style.outline ? '-3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 3px 0 #000, 0 -3px 0 #000, 3px 0 0 #000, -3px 0 0 #000' : '0 2px 4px #000';
+  }
   function fit(b) {
     if (!b) return b;
     var k = 1 + (style.zoom || 0), o = b.slice();
@@ -168,13 +175,13 @@
     var minW = W * 0.2;
     if (area.w < minW) { var cx = Math.min(Math.max(area.x + area.w / 2, minW / 2), W - minW / 2); area.x = cx - minW / 2; area.w = minW; }
     c.style.fontSize = sizeFor(box, 0.042, 0.026, 0.055) + 'px';
-    c.style.background = 'rgba(0,0,0,' + style.opacity + ')';
+    c.style.background = bg();
     c.style.color = style.color;
     c.style.fontWeight = style.bold ? '700' : '400';
     c.style.left = area.x + 'px';
     c.style.width = area.w + 'px';
     c.style.minHeight = area.h + 'px';
-    paint(c, text, spans);
+    paint(c, text, spans); outline(c);
     c.style.display = 'block';
     // keep the bottom edge where the English line was; grow upward if the Arabic needs more lines
     var bottom = area.y + area.h;
@@ -189,7 +196,7 @@
     b.style.left = box[0] * 1920 + 'px'; b.style.top = box[1] * 1080 + 'px';
     b.style.width = box[2] * 1920 + 'px'; b.style.minHeight = box[3] * 1080 + 'px';
     b.style.fontSize = Math.round(1080 * 0.028 * style.scale) + 'px';
-    b.style.background = 'rgba(0,0,0,' + style.opacity + ')';
+    b.style.background = bg();
     b.style.color = style.color;
     b.textContent = text; b.style.display = 'block';
   }
@@ -205,9 +212,9 @@
       var bx = fit(it.box); if (!it.ar || !bx) return;
       var d = document.createElement('div');
       d.className = 'side-item';
-      paint(d, it.ar, it.spans);
+      paint(d, it.ar, it.spans); outline(d);
       d.style.fontSize = sizeFor(bx, 0.03, 0.02, 0.045) + 'px';
-      d.style.background = 'rgba(0,0,0,' + style.opacity + ')';
+      d.style.background = bg();
       d.style.color = style.color;
       var para = bx.length > 4 && bx[4] > 0 && bx[3] > bx[4] * 1.6;
       if (para) { d.style.width = bx[2] * 1920 + 16 + 'px'; d.style.whiteSpace = 'normal'; d.style.textAlign = 'right'; }
@@ -277,6 +284,7 @@
         style.scale = +o.scale || 1; style.cover = o.cover !== false; style.opacity = o.opacity == null ? 0.85 : +o.opacity;
         style.color = o.color || '#FFFFFF'; style.pos = o.pos || 'auto'; style.bold = o.bold !== false;
         style.zoom = +o.zoom || 0; style.dy = +o.dy || 0;
+        style.outline = !!o.outline; style.boxColor = o.boxColor || '#000000';
       }
     };
     ws.onclose = function (e) {
