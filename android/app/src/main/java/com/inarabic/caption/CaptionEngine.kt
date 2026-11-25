@@ -48,6 +48,7 @@ class CaptionEngine(
 	private var paddle: PaddleReader? = null
 	private val subTracker = SubtitleTracker()
 	private val box2Tracker = SubtitleTracker(emptyReadsToClear = 2)
+	private val sideTracker = SubtitleTracker(emptyReadsToClear = 2)
 	private var nextId = 0
 	@Volatile private var currentId = -1
 	private var loop: Job? = null
@@ -90,6 +91,7 @@ class CaptionEngine(
 		loop = null
 		LinkServer.sendClear()
 		LinkServer.sendBox2Clear()
+		LinkServer.sendSideClear()
 		scope.cancel()
 		copyThread.quitSafely()
 		recognizer.close()
@@ -115,7 +117,15 @@ class CaptionEngine(
 			// the subtitle
 			val top = (frame.height * prefs.areaTop).toInt().coerceIn(0, frame.height - 8)
 			val bottom = (frame.height * prefs.areaBottom).toInt().coerceIn(top + 8, frame.height)
-			val read = readArea(frame, Rect(0, top, frame.width, bottom), 0.018f)
+			val side = ArrayList<OcrRead>(1)
+			val read = readArea(frame, Rect(0, top, frame.width, bottom), 0.018f, if(prefs.centerOnly) side else null)
+			when(val ev = sideTracker.feed(side.firstOrNull() ?: OcrRead("")))
+			{
+				is TrackerEvent.NewLine -> translateSide(ev.text, ev.box)
+				is TrackerEvent.Update -> translateSide(ev.text, ev.box)
+				TrackerEvent.Clear -> LinkServer.sendSideClear()
+				null -> {}
+			}
 			when(val ev = subTracker.feed(read))
 			{
 				is TrackerEvent.NewLine -> translate(++nextId, ev.text, ev.box)
@@ -195,6 +205,17 @@ class CaptionEngine(
 		}
 	}
 
+	private fun translateSide(english: String, box: FloatArray?)
+	{
+		box ?: return
+		scope.launch {
+			val known = TranslationMemory.get(english)
+			val ar = known?.arabic ?: translator.quick(english) ?: return@launch
+			if(known == null) TranslationMemory.put(english, ar, TranslationMemory.Source.QUICK)
+			LinkServer.sendSide(ar, box)
+		}
+	}
+
 	private fun post(text: String?) { surfaceView.post { if(prefs.showOnPhone) onCaption(text) else onCaption(null) } }
 
 	/** A copy of the stream picture, at most 1280 px wide (enough for subtitles, cheap to read). */
@@ -215,8 +236,12 @@ class CaptionEngine(
 		}
 	}
 
-	/** OCR of one area of the picture; lines joined top to bottom; box is in 0..1 of the whole picture. */
-	private suspend fun readArea(frame: Bitmap, area: Rect, minLineH: Float): OcrRead
+	/**
+	 * OCR of one area of the picture; lines joined top to bottom; box is in 0..1 of the whole picture.
+	 * With [sideOut]: only lines centred on the picture are the subtitle; the others (a mission title or a button
+	 * prompt in a corner) are put in [sideOut] as one read, so they neither mix into the subtitle nor move it.
+	 */
+	private suspend fun readArea(frame: Bitmap, area: Rect, minLineH: Float, sideOut: MutableList<OcrRead>? = null): OcrRead
 	{
 		val crop = Bitmap.createBitmap(frame, area.left, area.top, area.width(), area.height())
 		try
@@ -226,18 +251,42 @@ class CaptionEngine(
 					.addOnSuccessListener { if(c.isActive) c.resume(it) }
 					.addOnFailureListener { if(c.isActive) c.resume(null) }
 			} ?: return OcrRead("")
-			val lines = result.textBlocks.flatMap { it.lines }
+			val all = result.textBlocks.flatMap { it.lines }
 				.filter { (it.boundingBox?.height() ?: 0) >= frame.height * minLineH } // skip tiny HUD text
 				.sortedBy { it.boundingBox?.top ?: 0 }
+			fun centred(l: Text.Line): Boolean
+			{
+				val b = l.boundingBox ?: return false
+				val cx = (b.exactCenterX() + area.left) / frame.width
+				return kotlin.math.abs(cx - 0.5f) < 0.12f || b.width() > frame.width * 0.55f
+			}
+			val lines = if(sideOut == null) all else all.filter(::centred)
+			if(sideOut != null)
+			{
+				// one side item: the biggest off-centre line and the lines stacked with it
+				val off = all.filterNot(::centred)
+				val main = off.maxByOrNull { it.boundingBox?.height() ?: 0 }
+				if(main != null)
+				{
+					val mb = main.boundingBox!!
+					val group = off.filter { val b = it.boundingBox ?: return@filter false; b.right > mb.left && b.left < mb.right }
+					sideOut.add(join(crop, group, area, frame))
+				}
+			}
 			if(lines.isEmpty()) return OcrRead("")
-			val texts = lines.map { line -> reread(crop, line) }
-			val r = Rect(lines[0].boundingBox ?: Rect())
-			for(l in lines) l.boundingBox?.let { r.union(it) }
-			val box = floatArrayOf((r.left + area.left) / frame.width.toFloat(), (r.top + area.top) / frame.height.toFloat(),
-				r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat())
-			return OcrRead(texts.joinToString(" "), box)
+			return join(crop, lines, area, frame)
 		}
 		finally { crop.recycle() }
+	}
+
+	private fun join(crop: Bitmap, lines: List<Text.Line>, area: Rect, frame: Bitmap): OcrRead
+	{
+		val texts = lines.map { line -> reread(crop, line) }
+		val r = Rect(lines[0].boundingBox ?: Rect())
+		for(l in lines) l.boundingBox?.let { r.union(it) }
+		val box = floatArrayOf((r.left + area.left) / frame.width.toFloat(), (r.top + area.top) / frame.height.toFloat(),
+			r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat())
+		return OcrRead(texts.joinToString(" "), box)
 	}
 
 	/** ML Kit's text, or PaddleOCR's when ML Kit is unsure and Paddle is surer. */

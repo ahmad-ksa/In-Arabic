@@ -11,6 +11,8 @@
   #game { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: contain; background: #000; }
   #cap { position: absolute; display: none; text-align: center; direction: rtl; font-weight: 700;
     line-height: 1.25; padding: 10px 26px; border-radius: 12px; text-shadow: 0 2px 4px #000; box-sizing: border-box; }
+  #side { position: absolute; display: none; direction: rtl; text-align: center; font-weight: 700; line-height: 1.3;
+          padding: 6px 12px; border-radius: 8px; box-sizing: border-box; }
   #box2 { position: absolute; display: none; direction: rtl; text-align: right; font-weight: 700; line-height: 1.3;
     padding: 10px 16px; border-radius: 10px; box-sizing: border-box; text-shadow: 0 2px 4px #000; }
   #panel { position: absolute; left: 345px; top: 130px; width: 1230px; max-height: 820px; overflow: hidden; display: none;
@@ -39,6 +41,7 @@
 <video id="game" autoplay></video>
 <div id="cap"></div>
 <div id="box2"></div>
+<div id="side"></div>
 <div id="panel"><h2 id="panel-t"></h2><div id="panel-b"></div></div>
 <div id="status"></div>
 
@@ -137,6 +140,22 @@
     b.style.color = style.color;
     b.textContent = text; b.style.display = 'block';
   }
+  var sideTimer = 0;
+  function side(text, box) {
+    var b = $('side');
+    clearTimeout(sideTimer);
+    if (!text || !box) { b.style.display = 'none'; return; }
+    var w = Math.max(box[2] * 1920 + 40, 1920 * 0.16), cx = (box[0] + box[2] / 2) * 1920;
+    cx = Math.min(Math.max(cx, w / 2), 1920 - w / 2);
+    b.style.left = (cx - w / 2) + 'px'; b.style.width = w + 'px';
+    b.style.fontSize = Math.round(Math.min(1080 * 0.045, Math.max(1080 * 0.026, box[3] * 1080 * 0.75)) * style.scale) + 'px';
+    b.style.background = 'rgba(0,0,0,' + style.opacity + ')';
+    b.style.color = style.color;
+    b.textContent = text; b.style.display = 'block';
+    var cy = (box[1] + box[3] / 2) * 1080, hgt = b.offsetHeight;
+    b.style.top = Math.min(Math.max(0, cy - hgt / 2), 1080 - hgt) + 'px';
+    sideTimer = setTimeout(function () { b.style.display = 'none'; }, 15000);
+  }
   var panelTimer = 0;
   function panel(title, text, ttl) {
     $('panel-t').textContent = title || ''; $('panel-b').textContent = text || '';
@@ -172,6 +191,8 @@
       else if (o.t === 'clear') caption(null);
       else if (o.t === 'box2') box2(o.ar, o.box);
       else if (o.t === 'box2clear') box2(null);
+      else if (o.t === 'side') side(o.ar, o.box);
+      else if (o.t === 'sideclear') side(null);
       else if (o.t === 'panel') panel(o.title, o.text, o.ttl);
       else if (o.t === 'style') {
         style.scale = +o.scale || 1; style.cover = o.cover !== false; style.opacity = o.opacity == null ? 0.85 : +o.opacity;

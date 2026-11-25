@@ -41,6 +41,7 @@ object LinkServer
 
 	@Volatile private var lastSub: String? = null
 	@Volatile private var lastBox2: String? = null
+	@Volatile private var lastSide: String? = null
 	@Volatile var pairCode: String = ""
 	@Volatile private var lastStyle: String? = null
 
@@ -122,6 +123,21 @@ object LinkServer
 		broadcast("{\"t\":\"box2clear\"}")
 	}
 
+	/** text off to the side of the subtitle area (mission titles, prompts): drawn where it is in the picture */
+	fun sendSide(arabic: String, box: FloatArray)
+	{
+		val msg = JSONObject().put("t", "side").put("ar", arabic)
+			.put("box", org.json.JSONArray().put(box[0].toDouble()).put(box[1].toDouble()).put(box[2].toDouble()).put(box[3].toDouble())).toString()
+		lastSide = msg
+		broadcast(msg)
+	}
+
+	fun sendSideClear()
+	{
+		lastSide = null
+		broadcast("{\"t\":\"sideclear\"}")
+	}
+
 	fun sendPanel(title: String, text: String, ttlMs: Long = 30000)
 	{
 		broadcast(JSONObject().put("t", "panel").put("title", title).put("text", text).put("ttl", ttlMs).toString())
@@ -171,6 +187,7 @@ object LinkServer
 			lastStyle?.let { conn.send(it) }
 			lastSub?.let { conn.send(it) }
 			lastBox2?.let { conn.send(it) }
+			lastSide?.let { conn.send(it) }
 		}
 
 		override fun onClose(conn: WebSocket, code: Int, reason: String?, remote: Boolean)

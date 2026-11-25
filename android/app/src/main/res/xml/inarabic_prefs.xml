@@ -57,6 +57,12 @@
             app:title="اعرض الترجمة على الجوال أيضًا" app:summary="اضغط على الترجمة في الجوال لتصحيحها" />
     </PreferenceCategory>
 
+    <PreferenceCategory app:title="النصوص الجانبية">
+        <SwitchPreference app:key="ia_center_only" app:defaultValue="true"
+            app:title="افصل النصوص الجانبية عن الحوار"
+            app:summary="الحوار في الوسط؛ أي نص على الجانب (اسم مهمة، زر) يُترجم مكانه ولا يختلط بالحوار" />
+    </PreferenceCategory>
+
     <PreferenceCategory app:title="الصندوق الثاني (المهام والرسائل)">
         <SwitchPreference app:key="ia_box2" app:defaultValue="false"
             app:title="ترجم نصوصًا جانبية أيضًا" app:summary="منطقة ثانية من الصورة مثل الأهداف والرسائل" />

@@ -28,6 +28,10 @@ class CaptionView(context: Context) : View(context)
 		set(v) { field = v; invalidate() }
 	var box2: FloatArray? = null
 		set(v) { field = v; invalidate() }
+	/** text found off to the side (mission title, prompt): drawn over it, where it is */
+	var sideText: String? = null
+		set(v) { field = v; invalidate() }
+	var side: FloatArray? = null
 	var panelTitle: String? = null
 	var panelText: String? = null
 		set(v) { field = v; invalidate() }
@@ -43,6 +47,7 @@ class CaptionView(context: Context) : View(context)
 	private val timers = android.os.Handler(android.os.Looper.getMainLooper())
 	private val hide = Runnable { text = null }
 	private val hidePanel = Runnable { panelText = null }
+	private val hideSide = Runnable { sideText = null }
 
 	/** A message from the phone (see the phone's LinkServer for the format). */
 	fun handle(o: org.json.JSONObject)
@@ -60,6 +65,12 @@ class CaptionView(context: Context) : View(context)
 			"clear" -> { timers.removeCallbacks(hide); text = null }
 			"box2" -> { box2 = box(o); box2Text = o.optString("ar") }
 			"box2clear" -> box2Text = null
+			"side" ->
+			{
+				side = box(o); sideText = o.optString("ar")
+				timers.removeCallbacks(hideSide); timers.postDelayed(hideSide, 15000)
+			}
+			"sideclear" -> { timers.removeCallbacks(hideSide); sideText = null }
 			"panel" ->
 			{
 				panelTitle = o.optString("title")
@@ -114,6 +125,29 @@ class CaptionView(context: Context) : View(context)
 			area.bottom = max(area.bottom, area.top + l.height + h * 0.02f)
 			canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, boxPaint)
 			canvas.save(); canvas.translate(area.left + w * 0.008f, area.top + h * 0.01f); l.draw(canvas); canvas.restore()
+		}
+
+		// side text: over the English one, at least 16 % wide, kept on screen
+		val st = sideText
+		val sb = side
+		if(!st.isNullOrBlank() && sb != null)
+		{
+			textPaint.textSize = max(h * 0.026f * scale, sb[3] * h * 0.75f).coerceAtMost(h * 0.045f * scale)
+			val area = RectF(sb[0] * w - w * 0.01f, sb[1] * h - h * 0.008f, (sb[0] + sb[2]) * w + w * 0.01f, (sb[1] + sb[3]) * h + h * 0.008f)
+			val minW = w * 0.16f
+			if(area.width() < minW)
+			{
+				val cx = area.centerX().coerceIn(minW / 2, w - minW / 2)
+				area.left = cx - minW / 2; area.right = cx + minW / 2
+			}
+			val inner = (area.width() - w * 0.012f).toInt().coerceAtLeast(50)
+			val l = layout(st, inner)
+			val need = l.height + h * 0.016f
+			if(area.height() < need) { val cy = area.centerY(); area.top = cy - need / 2; area.bottom = cy + need / 2 }
+			if(area.bottom > h) area.offset(0f, h - area.bottom)
+			if(area.top < 0) area.offset(0f, -area.top)
+			canvas.drawRoundRect(area, h * 0.008f, h * 0.008f, boxPaint)
+			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); l.draw(canvas); canvas.restore()
 		}
 
 		// subtitle
