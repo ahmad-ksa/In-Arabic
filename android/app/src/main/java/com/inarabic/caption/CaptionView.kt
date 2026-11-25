@@ -75,8 +75,24 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	}
 
 	/** text size: the English line's own height when known, else a default share of the screen */
-	private fun sizeFor(b: FloatArray?, h: Float, def: Float, lo: Float, hi: Float) =
-		(if(b != null && b.size > 4 && b[4] > 0f) (b[4] * h * 0.95f).coerceIn(h * lo, h * hi) else h * def) * scale
+	/**
+	 * Text size from the English line's height, steady: the reading of that height wobbles a little from one
+	 * picture to the next, so it is rounded to steps and the subtitle keeps its size unless it changes by 25 %+.
+	 */
+	private fun sizeFor(b: FloatArray?, h: Float, def: Float, lo: Float, hi: Float, keep: FloatArray? = null): Float
+	{
+		var v = if(b != null && b.size > 4 && b[4] > 0f) (b[4] * h * 0.95f).coerceIn(h * lo, h * hi) else h * def
+		val step = h * 0.004f
+		v = Math.round(v / step) * step
+		if(keep != null)
+		{
+			if(keep[0] > 0f && kotlin.math.abs(v - keep[0]) < keep[0] * 0.25f) v = keep[0] else keep[0] = v
+		}
+		return v * scale
+	}
+	private val subSize = FloatArray(1)
+	/** each side text keeps its size while it stays on screen */
+	private val sideSizes = HashMap<String, FloatArray>()
 	fun styleChanged() = invalidate()
 
 	private val timers = android.os.Handler(android.os.Looper.getMainLooper())
@@ -257,7 +273,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		for(sd in sides)
 		{
 			val sb = fit(sd.box)
-			textPaint.textSize = sizeFor(sb, h, 0.03f, 0.02f, 0.045f)
+			if(sideSizes.size > 200) sideSizes.clear()
+			textPaint.textSize = sizeFor(sb, h, 0.03f, 0.02f, 0.045f, sideSizes.getOrPut(sd.text) { FloatArray(1) })
 			val area = RectF(sb[0] * w - w * 0.004f, sb[1] * h - h * 0.004f, (sb[0] + sb[2]) * w + w * 0.004f, (sb[1] + sb[3]) * h + h * 0.004f)
 			// a paragraph (help box) keeps the English box's width and wraps; a short prompt may widen
 			// a paragraph (help box, description) keeps the English box's width and wraps; a list or a prompt does not
@@ -287,7 +304,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		if(!t.isNullOrBlank())
 		{
 			val b = box?.let(::fit)
-			textPaint.textSize = sizeFor(b, h, 0.042f, 0.026f, 0.055f)
+			textPaint.textSize = sizeFor(b, h, 0.042f, 0.026f, 0.055f, subSize)
 			val area = when
 			{
 				position == "top" -> RectF(w * 0.1f, h * 0.05f, w * 0.9f, h * 0.17f)

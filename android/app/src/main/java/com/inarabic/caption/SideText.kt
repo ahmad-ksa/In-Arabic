@@ -46,6 +46,15 @@ data class SideText(val text: String, val button: String?)
 				}
 			}
 			t = t.trim(' ', '(', ')', '[', ']', '|', '-', '.', ':')
+			// button icons read as a lone character at either end ("Back O", "X Confirm", "Skip ©"): dropped,
+			// so the same prompt is always the same text (and the same translation)
+			run {
+				val w = t.split(Regex("\\s+")).toMutableList()
+				fun glyph(s: String) = s.trim('(', ')', '[', ']').let { it.length <= 1 && it != "I" && it.none(Char::isDigit) }
+				while(w.size > 1 && glyph(w.last())) w.removeAt(w.size - 1)
+				while(w.size > 1 && glyph(w.first())) w.removeAt(0)
+				t = w.joinToString(" ")
+			}
 			if(t.count { it.isLetter() } < 2) return null
 			// at least one real word (scattered single letters are paint on a car, not text)
 			if(!Regex("[A-Za-z]{2,}").containsMatchIn(t)) return null

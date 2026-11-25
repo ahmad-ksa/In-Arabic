@@ -30,6 +30,13 @@ class SideTextTest
 		assertEquals(SideText("Map\nInventory  R1\nSettings", null), SideText.clean("MAP\nINVENTORY R1\nSETTINGS"))
 	}
 
+	@Test fun loneGlyphsDropped()
+	{
+		assertEquals(SideText("Back", null), SideText.clean("BACK O"))
+		assertEquals(SideText("Back", null), SideText.clean("Back ©"))
+		assertEquals(SideText("Confirm", null), SideText.clean("X CONFIRM"))
+	}
+
 	@Test fun plainTextStays()
 	{
 		assertEquals(SideText("Bachelor party", null), SideText.clean("BACHELOR PARTY"))

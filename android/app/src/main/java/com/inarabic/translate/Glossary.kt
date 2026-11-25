@@ -102,7 +102,14 @@ object Glossary
 		return parts.joinToString(" و") { names.getValue(it) }
 	}
 
-	private fun norm(s: String) = s.lowercase().trim { !it.isLetterOrDigit() }.replace(Regex("\\s+"), " ")
+	private fun norm(s: String): String
+	{
+		val w = s.lowercase().trim { !it.isLetterOrDigit() }.split(Regex("\\s+")).toMutableList()
+		// a lone character at either end is a button icon read as a letter ("back o")
+		while(w.size > 1 && w.last().trim { !it.isLetterOrDigit() }.length <= 1) w.removeAt(w.size - 1)
+		while(w.size > 1 && w.first().trim { !it.isLetterOrDigit() }.length <= 1) w.removeAt(0)
+		return w.joinToString(" ").trim { !it.isLetterOrDigit() }
+	}
 
 	/** the fixed translation of a whole short text, or null */
 	fun lookup(english: String): String?
