@@ -15,7 +15,7 @@ def nodes():
 def tap(text, contains=True, tries=6):
     for _ in range(tries):
         for n in nodes():
-            t = (n.get('text') or '') + '|' + (n.get('content-desc') or '')
+            t = (n.get('text') or '') + '|' + (n.get('content-desc') or '') + '|' + (n.get('resource-id') or '')
             if (text in t) if contains else (n.get('text') == text):
                 b = list(map(int, re.findall(r'\d+', n.get('bounds'))))
                 sh('shell', 'input', 'tap', str((b[0] + b[2]) // 2), str((b[1] + b[3]) // 2))
