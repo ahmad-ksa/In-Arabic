@@ -148,6 +148,12 @@ class MainActivity : AppCompatActivity()
 			true
 		}
 
+		R.id.action_pair ->
+		{
+			com.inarabic.link.Pairing.scan(this)
+			true
+		}
+
 		R.id.action_inarabic ->
 		{
 			startActivity(Intent(this, com.inarabic.InArabicSettingsActivity::class.java))

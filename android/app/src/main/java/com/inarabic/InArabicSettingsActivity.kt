@@ -74,6 +74,16 @@ class InArabicSettingsActivity : AppCompatActivity()
 				true
 			}
 			findPreference<Preference>("ia_summary")?.setOnPreferenceClickListener { summary(prefs); true }
+			findPreference<Preference>("ia_pair_scan")?.apply {
+				summary = pairedText()
+				setOnPreferenceClickListener { com.inarabic.link.Pairing.scan(requireActivity()) { summary = pairedText() }; true }
+			}
+			findPreference<Preference>("ia_pair_forget")?.setOnPreferenceClickListener {
+				com.inarabic.link.Pairing.forgetAll(ctx)
+				findPreference<Preference>("ia_pair_scan")?.summary = pairedText()
+				Toast.makeText(ctx, "أُلغي ربط كل الشاشات", Toast.LENGTH_SHORT).show()
+				true
+			}
 			findPreference<Preference>("ia_review")?.setOnPreferenceClickListener { reviewAll(prefs); true }
 			findPreference<Preference>("ia_memory")?.apply {
 				summary = memoryText()
@@ -139,6 +149,12 @@ class InArabicSettingsActivity : AppCompatActivity()
 				findPreference<Preference>("ia_memory")?.summary = memoryText()
 				Toast.makeText(ctx, "روجع $done سطر ✓", Toast.LENGTH_LONG).show()
 			}
+		}
+
+		private fun pairedText(): String
+		{
+			val s = com.inarabic.link.Pairing.screens(requireContext()).values
+			return if(s.isEmpty()) "افتح تطبيق الشاشة وامسح الباركود الظاهر عليها" else "مربوطة: " + s.joinToString("، ")
 		}
 
 		private fun memoryText() =

@@ -14,6 +14,18 @@
         <item name="android:windowActivityTransitions">true</item>
     </style>
 
+    <!-- In Arabic screens (settings, PSN sign-in): same colours, with a fixed title bar -->
+    <style name="AppTheme.WithBar" parent="Theme.MaterialComponents">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryDark">@color/primary_dark</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="colorOnPrimary">#ffffff</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="android:statusBarColor">@color/primary_dark</item>
+        <item name="materialAlertDialogTheme">@style/AppTheme.AlertDialog</item>
+        <item name="alertDialogTheme">@style/AppTheme.AlertDialog.NonMaterial</item>
+    </style>
+
     <style name="AppTheme.Toolbar" parent="AppTheme">
         <item name="android:textColorSecondary">#fff</item>
     </style>

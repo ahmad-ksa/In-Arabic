@@ -58,7 +58,7 @@ class Link(private val context: Context, private val onMessage: (JSONObject) -> 
 		val h = host ?: return
 		if(!running) return
 		onStatus("جارٍ الاتصال بالجوال $h…")
-		val req = Request.Builder().url("ws://$h:$PORT/?code=" + Prefs.pairCode(context)).build()
+		val req = Request.Builder().url("ws://$h:$PORT/?token=" + Prefs.token(context) + "&code=" + Prefs.pairCode(context)).build()
 		ws = http.newWebSocket(req, object : WebSocketListener() {
 			override fun onOpen(webSocket: WebSocket, response: Response)
 			{
@@ -76,7 +76,7 @@ class Link(private val context: Context, private val onMessage: (JSONObject) -> 
 			override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { webSocket.close(code, null) }
 			override fun onClosed(webSocket: WebSocket, code: Int, reason: String)
 			{
-				retry(if(code == 4001) "رمز الاقتران غير صحيح — اكتبه كما في إعدادات الترجمة بالجوال" else "انقطع الاتصال")
+				retry(if(code == 4001) "وُجد الجوال لكنه لم يُربط بعد — امسح الباركود من تطبيق الجوال" else "انقطع الاتصال")
 			}
 		})
 	}
@@ -146,5 +146,14 @@ object Prefs
 	fun phoneAddress(c: Context) = p(c).getString("phone", "") ?: ""
 	fun setPhoneAddress(c: Context, v: String) = p(c).edit().putString("phone", v.trim()).apply()
 	fun pairCode(c: Context) = p(c).getString("code", "") ?: ""
+	/** this screen's own token: shown as a QR code, the phone scans it once and then accepts this screen */
+	fun token(c: Context): String
+	{
+		p(c).getString("token", null)?.let { return it }
+		val t = java.util.UUID.randomUUID().toString().replace("-", "").take(16)
+		p(c).edit().putString("token", t).apply()
+		return t
+	}
+	fun pairUri(c: Context) = "inarabic:pair?t=" + token(c) + "&n=" + android.net.Uri.encode(android.os.Build.MODEL ?: "Android TV")
 	fun setPairCode(c: Context, v: String) = p(c).edit().putString("code", v.trim()).apply()
 }

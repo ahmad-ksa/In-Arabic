@@ -3,7 +3,9 @@
     xmlns:android="http://schemas.android.com/apk/res/android">
 
     <PreferenceCategory app:title="الشاشة">
-        <Preference app:key="ia_address" app:title="عنوان الجوال ورمز الاقتران"
+        <Preference app:key="ia_pair_scan" app:title="📷 اربط شاشة بالباركود" />
+        <Preference app:key="ia_pair_forget" app:title="ألغِ ربط كل الشاشات" />
+        <Preference app:key="ia_address" app:title="بدون باركود: عنوان الجوال ورمز الاقتران"
             app:summary=" " />
         <Preference app:key="ia_test" app:title="اعرض سطرًا تجريبيًا على الشاشة"
             app:summary="جرّب الحجم والمكان واللون وأنت تنظر إلى الشاشة" />

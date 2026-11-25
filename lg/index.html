@@ -28,6 +28,11 @@
   .btn { padding: 14px 34px; border-radius: 12px; background: #13283f; border: 3px solid transparent; font-size: 30px; }
   .focus { border-color: var(--accent) !important; background: #18405a; }
   .hint { font-size: 22px; opacity: .65; }
+  #qrbox { position: absolute; left: 110px; top: 150px; width: 470px; text-align: center; }
+  #qr { background: #fff; padding: 18px; border-radius: 18px; display: inline-block; line-height: 0; }
+  #qr svg { width: 400px; height: 400px; }
+  #qrbox p { font-size: 26px; opacity: .9; margin-top: 18px; }
+  #setup .main { margin-left: 560px; }
 </style>
 </head>
 <body>
@@ -38,15 +43,19 @@
 <div id="status"></div>
 
 <div id="setup">
+  <div id="qrbox"><div id="qr"></div><p>امسح الباركود من تطبيق الجوال<br>إعدادات الترجمة ← 📷 اربط شاشة بالباركود</p></div>
+  <div class="main">
   <h1>بالعربي — ترجمة الألعاب</h1>
-  <p>اكتب عنوان الجوال كما يظهر في تطبيق الجوال (إعدادات الترجمة ← عنوان الجوال)، واختر مدخل البلايستيشن.</p>
+  <p>امسح الباركود بالجوال، والشاشة تلقى الجوال في الشبكة بنفسها. العنوان والرمز اختياريان (إذا ما اشتغل البحث التلقائي).</p>
   <div class="row"><span>عنوان الجوال:</span><div class="field" id="f-ip" data-k="ip"></div></div>
   <div class="row"><span>رمز الاقتران:</span><div class="field" id="f-code" data-k="code"></div></div>
   <div class="row"><span>مدخل البلايستيشن:</span><div class="btn" id="f-hdmi" data-k="hdmi"></div></div>
   <div class="row"><div class="btn" id="f-test" data-k="test">اعرض سطرًا تجريبيًا</div><div class="btn" id="f-go" data-k="go">ابدأ ▶</div></div>
   <p class="hint">الأسهم للتنقل • الأرقام لكتابة العنوان • زر ⏪ أو الأحمر لمسح رقم • النقطة: زر ⏩ أو الأخضر • OK للاختيار<br>
   أثناء اللعب: زر OK يفتح هذه الصفحة، والرجوع يغلق التطبيق.</p>
+  </div>
 </div>
+<script src="qrcode.js"></script>
 
 <script>
 (function () {
@@ -57,7 +66,21 @@
     get: function (k, d) { try { var v = localStorage.getItem('ia.' + k); return v == null ? d : v; } catch (e) { return d; } },
     set: function (k, v) { try { localStorage.setItem('ia.' + k, v); } catch (e) {} }
   };
-  var cfg = { ip: store.get('ip', ''), code: store.get('code', ''), hdmi: +store.get('hdmi', '1') };
+  var cfg = { ip: store.get('ip', ''), code: store.get('code', ''), hdmi: +store.get('hdmi', '1'), token: store.get('token', '') };
+  if (!cfg.token) {
+    for (var i = 0; i < 16; i++) cfg.token += '0123456789abcdef'.charAt(Math.floor(Math.random() * 16));
+    store.set('token', cfg.token);
+  }
+  // this screen's QR code: the phone scans it once and from then on accepts this screen
+  (function () {
+    try {
+      var q = qrcode(0, 'M');
+      q.addData('inarabic:pair?t=' + cfg.token + '&n=' + encodeURIComponent('LG TV'));
+      q.make();
+      $('qr').innerHTML = q.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+    } catch (e) { $('qr').textContent = 'QR'; }
+  })();
+  function wsUrl(ip) { return 'ws://' + ip + ':' + PORT + '/?token=' + cfg.token + '&code=' + encodeURIComponent(cfg.code); }
   var style = { scale: 1, cover: true, opacity: 0.85, color: '#FFFFFF', pos: 'auto', bold: true };
 
   // ---------- the HDMI input inside the app (webOS external input source)
@@ -133,10 +156,13 @@
   function connect() {
     clearTimeout(retry);
     if (ws) { try { ws.onclose = null; ws.close(); } catch (e) {} ws = null; }
-    if (!cfg.ip) { status('اضغط OK واكتب عنوان الجوال', true); return; }
+    if (!cfg.ip) { discover(); return; }
     status('جارٍ الاتصال بالجوال ' + cfg.ip + '…', true);
-    try { ws = new WebSocket('ws://' + cfg.ip + ':' + PORT + '/?code=' + encodeURIComponent(cfg.code)); } catch (e) { return later(); }
+    var opened = false;
+    try { ws = new WebSocket(wsUrl(cfg.ip)); } catch (e) { return later(); }
     ws.onopen = function () {
+      opened = true; fails = 0;
+      if (open) openSetup(false); // paired and connected: back to the game
       ws.send(JSON.stringify({ t: 'hello', kind: 'lg', name: 'LG TV' }));
       status('متصل بالجوال ✓');
     };
@@ -154,12 +180,82 @@
     };
     ws.onclose = function (e) {
       ws = null;
-      if (e && e.code === 4001) { status('رمز الاقتران غير صحيح — اضغط OK واكتبه كما في إعدادات الترجمة بالجوال', true); return; }
+      if (e && e.code === 4001) {
+        // the phone is there but has not paired this screen yet: show the QR and keep trying
+        status('وجدت الجوال — امسح الباركود من تطبيق الجوال', true);
+        if (!open) openSetup(true);
+        return later();
+      }
+      // the phone may have a new address: after a few failures, look for it again
+      if (!opened && ++fails >= 3) { fails = 0; cfg.ip = ''; return discover(); }
       status('انقطع الاتصال بالجوال — إعادة المحاولة…', true); later();
     };
     ws.onerror = function () {};
   }
   function later() { clearTimeout(retry); retry = setTimeout(connect, 3000); }
+  var fails = 0;
+
+  // ---------- find the phone on the home network (it listens on port 8765)
+  function myIp(cb) {
+    var done = false;
+    var finish = function (ip) { if (!done) { done = true; cb(ip); } };
+    setTimeout(function () { finish(null); }, 2000);
+    try {
+      var b = new PalmServiceBridge();
+      b.onservicecallback = function (m) {
+        try {
+          var r = JSON.parse(m);
+          var ip = (r.wired && r.wired.state === 'connected' && r.wired.ipAddress) || (r.wifi && r.wifi.state === 'connected' && r.wifi.ipAddress);
+          finish(ip || null);
+        } catch (e) { finish(null); }
+      };
+      b.call('luna://com.webos.service.connectionmanager/getStatus', '{}');
+    } catch (e) { finish(null); }
+  }
+  var searching = false;
+  function discover() {
+    if (searching) return;
+    searching = true;
+    status('أبحث عن الجوال في الشبكة… (افتح تطبيق الجوال)', true);
+    myIp(function (ip) {
+      var nets = [];
+      if (ip) nets.push(ip.split('.').slice(0, 3).join('.'));
+      ['192.168.1', '192.168.0', '192.168.100', '192.168.8', '10.0.0', '192.168.68', '192.168.31', '192.168.43'].forEach(function (n) { if (nets.indexOf(n) < 0) nets.push(n); });
+      var hosts = [];
+      nets.forEach(function (n) { for (var h = 1; h < 255; h++) hosts.push(n + '.' + h); });
+      if (ip) hosts.splice(hosts.indexOf(ip), 1);
+      var next = 0, active = 0, found = false;
+      var probe = function (host) {
+        active++;
+        var w, end = function (res) {
+          if (!w) return;
+          var x = w; w = null;
+          try { x.onopen = x.onclose = x.onerror = null; x.close(); } catch (e) {}
+          active--;
+          if (res && !found) {
+            found = true; searching = false;
+            cfg.ip = host; store.set('ip', host);
+            connect();
+          } else pump();
+        };
+        try { w = new WebSocket(wsUrl(host)); } catch (e) { active--; return pump(); }
+        w.onopen = function () { end(true); };
+        w.onclose = function (e) { end(e && e.code === 4001); }; // 4001: it is the phone, not paired yet
+        w.onerror = function () {};
+        setTimeout(function () { end(false); }, 1500);
+      };
+      var pump = function () {
+        if (found) return;
+        while (active < 40 && next < hosts.length) probe(hosts[next++]);
+        if (active === 0 && next >= hosts.length) {
+          searching = false;
+          status('لم أجد الجوال — تأكد أن تطبيق الجوال مفتوح وعلى نفس الشبكة. أعيد البحث…', true);
+          clearTimeout(retry); retry = setTimeout(discover, 5000);
+        }
+      };
+      pump();
+    });
+  }
 
   // ---------- setup screen (remote control only)
   var items = ['f-ip', 'f-code', 'f-hdmi', 'f-test', 'f-go'], at = 0, open = false;
@@ -194,14 +290,14 @@
     else if (id === 'f-code' && (k === 412 || k === 403)) { cfg.code = cfg.code.slice(0, -1); }
     else if (id === 'f-hdmi' && (k === 13 || k === 37 || k === 39)) { cfg.hdmi = cfg.hdmi % 4 + 1; save(); showGame(); }
     else if (id === 'f-test' && k === 13) { openSetup(false); caption('هذا سطر تجريبي للترجمة العربية فوق اللعبة', [0.25, 0.84, 0.5, 0.06]); }
-    else if (id === 'f-go' && k === 13) { save(); openSetup(false); connect(); }
+    else if (id === 'f-go' && k === 13) { save(); openSetup(false); if (!ws) connect(); }
     else return;
     e.preventDefault();
     draw();
   });
 
   showGame();
-  if (cfg.ip) connect(); else openSetup(true);
+  if (cfg.ip) connect(); else { openSetup(true); discover(); }
 })();
 </script>
 </body>

@@ -48,8 +48,11 @@ object LinkServer
 	val screens = mutableMapOf<WebSocket, String>()
 	var onScreensChanged: (() -> Unit)? = null
 
+	private var appContext: Context? = null
+
 	@Synchronized fun start(context: Context)
 	{
+		appContext = context.applicationContext
 		val prefs = com.inarabic.InArabicPrefs(context)
 		pairCode = prefs.pairCode
 		if(lastStyle == null) sendStyle(prefs)
@@ -154,8 +157,11 @@ object LinkServer
 	{
 		override fun onOpen(conn: WebSocket, handshake: ClientHandshake)
 		{
-			val code = android.net.Uri.parse("http://x" + (handshake.resourceDescriptor ?: "/")).getQueryParameter("code")
-			if(code != pairCode)
+			val q = android.net.Uri.parse("http://x" + (handshake.resourceDescriptor ?: "/"))
+			val code = q.getQueryParameter("code")
+			val token = q.getQueryParameter("token")
+			// a screen paired by QR (its token), or one that typed the 4-digit code
+			if(!Pairing.isPaired(appContext ?: return, token) && code != pairCode)
 			{
 				conn.close(4001, "wrong pairing code")
 				return
