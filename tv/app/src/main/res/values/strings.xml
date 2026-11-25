@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a11y_label">بالعربي — الترجمة فوق الشاشة</string>
+    <string name="a11y_desc">يعرض الترجمة العربية لألعاب البلايستيشن فوق الصورة. لا يقرأ أي شيء من الشاشة.</string>
+</resources>

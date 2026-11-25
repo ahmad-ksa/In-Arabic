@@ -41,6 +41,9 @@ class MainActivity : Activity()
 		super.onCreate(savedInstanceState)
 		val dp = resources.displayMetrics.density
 		val pad = (24 * dp).toInt()
+		// TVs crop the picture edges (overscan): keep everything inside a 5 % safe margin
+		val safeX = (resources.displayMetrics.widthPixels * 0.05f).toInt()
+		val safeY = (resources.displayMetrics.heightPixels * 0.05f).toInt()
 		fun label(t: String, size: Float, alpha: Float = 1f) = TextView(this).apply {
 			text = t; textSize = size; setTextColor(Color.WHITE); this.alpha = alpha; setPadding(0, pad / 4, 0, pad / 4)
 		}
@@ -63,11 +66,13 @@ class MainActivity : Activity()
 		col.addView(label("بالعربي — ترجمة الألعاب على الشاشة", 28f))
 		col.addView(label("افتح تطبيق «بالعربي» في الجوال وابدأ البث من البلايستيشن، وستظهر الترجمة العربية هنا فوق اللعبة.", 16f, 0.75f))
 		statusView = label("", 18f)
+		col.addView(label("أندرويد ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) • ${Build.MANUFACTURER} ${Build.MODEL}", 13f, 0.5f))
 		col.addView(statusView)
 		col.addView(button("🎮 العب داخل التطبيق (بدون أي صلاحيات)") { pickHdmi(inside = true) }.apply { requestFocus() })
 		col.addView(label("أو: الترجمة فوق مدخل الـHDMI نفسه (تحتاج صلاحية العرض فوق التطبيقات)", 14f, 0.6f))
 		startBtn = button("") { toggle() }
 		col.addView(startBtn)
+		col.addView(button("♿ طريقة بديلة: التفعيل من «إمكانية الوصول»") { accessibilityWay() })
 		col.addView(button("افتح مدخل البلايستيشن (HDMI)") { pickHdmi(inside = false) })
 		col.addView(button("اعرض سطرًا تجريبيًا") { if(OverlayService.running) OverlayService.test(this) else toggle(test = true) })
 		col.addView(label("بدون باركود (اختياري): عنوان الجوال ورمز الاقتران من إعدادات الترجمة بالجوال", 15f, 0.6f))
@@ -94,7 +99,7 @@ class MainActivity : Activity()
 			orientation = LinearLayout.HORIZONTAL
 			setBackgroundColor(Color.rgb(10, 25, 41))
 			layoutDirection = View.LAYOUT_DIRECTION_RTL
-			setPadding(pad, pad, pad, pad)
+			setPadding(safeX, safeY, safeX, safeY)
 		}
 		root.addView(ScrollView(this).apply { addView(col); layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1.6f) })
 		root.addView(qrCol, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
@@ -126,7 +131,8 @@ class MainActivity : Activity()
 	private fun toggle(test: Boolean = false)
 	{
 		if(OverlayService.running) { stopService(Intent(this, OverlayService::class.java)); showStatus("متوقف"); return }
-		if(!canDraw()) { askOverlayPermission(test); return }
+		// Android 7.0 and older draw with a toast window, which needs no permission
+		if(!canDraw() && Build.VERSION.SDK_INT > 24) { askOverlayPermission(test); return }
 		startOverlay()
 		if(test) OverlayService.test(this)
 	}
@@ -177,8 +183,9 @@ class MainActivity : Activity()
 							"٢) ارجع ← «خيارات المطوّر» ← فعّل «تصحيح أخطاء USB» و«تصحيح الأخطاء عبر الشبكة» إن وُجد.\n" +
 							"٣) ارجع هنا واضغط «حاول الآن»، ووافق على رسالة السماح.")
 						.setPositiveButton("حاول الآن") { _, _ -> selfGrant(test) }
-						.setNeutralButton("افتح الإعدادات") { _, _ -> try { startActivity(Intent(Settings.ACTION_SETTINGS)) } catch(e: Exception) { } }
-						.setNegativeButton("لاحقًا", null).show()
+						.setNeutralButton("١) افتح «حول»") { _, _ -> openSettings(Settings.ACTION_DEVICE_INFO_SETTINGS, Settings.ACTION_SETTINGS) }
+						.setNegativeButton("٢) افتح «خيارات المطوّر»") { _, _ -> openSettings(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS, Settings.ACTION_SETTINGS) }
+						.show()
 					r is SelfGrant.Result.Failed -> AlertDialog.Builder(this)
 						.setTitle("لم تكتمل")
 						.setMessage("السبب: ${r.why}\n\nتأكد أنك وافقت على رسالة «السماح بتصحيح الأخطاء» ثم حاول مرة ثانية.")
@@ -187,6 +194,27 @@ class MainActivity : Activity()
 				}
 			}
 		}.start()
+	}
+
+	/** Accessibility overlay: no overlay permission and no developer options needed. */
+	private fun accessibilityWay()
+	{
+		if(CaptionAccessibilityService.running)
+		{
+			AlertDialog.Builder(this).setMessage("الطريقة البديلة مفعّلة ✓ — افتح مدخل البلايستيشن والترجمة تظهر فوقه.").setPositiveButton("حسنًا", null).show()
+			return
+		}
+		AlertDialog.Builder(this)
+			.setTitle("التفعيل من «إمكانية الوصول»")
+			.setMessage("بفتح لك صفحة «إمكانية الوصول». اختر منها «بالعربي — الترجمة فوق الشاشة» وفعّله ووافق.\n\nبعدها يظهر سطر تجريبي فوق الشاشة، وتشتغل الترجمة فوق أي مدخل بدون أي صلاحية ثانية.")
+			.setPositiveButton("افتح إمكانية الوصول") { _, _ -> openSettings(Settings.ACTION_ACCESSIBILITY_SETTINGS) }
+			.setNegativeButton("إلغاء", null).show()
+	}
+
+	private fun openSettings(vararg actions: String)
+	{
+		for(a in actions) try { startActivity(Intent(a).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return } catch(e: Exception) { }
+		AlertDialog.Builder(this).setMessage("شاشتك لا تسمح بفتح هذه الصفحة من التطبيقات.").setPositiveButton("حسنًا", null).show()
 	}
 
 	/** Opens the HDMI input (the PS5) like the TV's own input menu; our window stays above it. */
