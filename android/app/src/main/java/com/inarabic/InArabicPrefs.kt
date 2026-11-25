@@ -93,7 +93,7 @@ class InArabicPrefs(context: Context)
 	/** reconnect by itself when the stream drops */
 	val autoReconnect get() = p.getBoolean("ia_auto_reconnect", true)
 	/** translations from the AI only: the free on-device one is used only if the AI does not answer */
-	val aiOnly get() = aiEnabled && p.getBoolean("ia_ai_only", false)
+	val aiOnly get() = aiEnabled
 	val box2Enabled get() = p.getBoolean("ia_box2", false)
 	val box2 get() = floatArrayOf(p.getInt("ia_box2_x", 2) / 100f, p.getInt("ia_box2_y", 3) / 100f,
 		p.getInt("ia_box2_w", 40) / 100f, p.getInt("ia_box2_h", 22) / 100f)
