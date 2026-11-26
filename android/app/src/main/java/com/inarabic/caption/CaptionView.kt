@@ -65,6 +65,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	/** TV picture fit (from the phone): the TV enlarges the HDMI picture by [zoom] and moves it by [dy] */
 	var zoom = 0f
 	var dy = 0f
+	/** the menus' own size and height (apart from the dialogue's) */
+	var menuScale = 1f
+	var menuDy = 0f
 	/** false on the phone: its picture is the stream itself */
 	var fitToTv = true
 
@@ -89,7 +92,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	 * Text size from the English line's height, steady: the reading of that height wobbles a little from one
 	 * picture to the next, so it is rounded to steps and the subtitle keeps its size unless it changes by 25 %+.
 	 */
-	private fun sizeFor(b: FloatArray?, h: Float, def: Float, lo: Float, hi: Float, keep: FloatArray? = null): Float
+	private fun sizeFor(b: FloatArray?, h: Float, def: Float, lo: Float, hi: Float, keep: FloatArray? = null, k: Float = scale): Float
 	{
 		var v = if(b != null && b.size > 4 && b[4] > 0f) (b[4] * h * 0.82f).coerceIn(h * lo, h * hi) else h * def
 		val step = h * 0.004f
@@ -98,7 +101,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		{
 			if(keep[0] > 0f && kotlin.math.abs(v - keep[0]) < keep[0] * 0.25f) v = keep[0] else keep[0] = v
 		}
-		return v * scale
+		return v * k
 	}
 	private val subSize = FloatArray(1)
 	/** each side text keeps its size while it stays on screen */
@@ -199,6 +202,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				boxColor = try { Color.parseColor(o.optString("boxColor", "#000000")) } catch(e: Exception) { Color.BLACK }
 				zoom = o.optDouble("zoom", 0.0).toFloat()
 				dy = o.optDouble("dy", 0.0).toFloat()
+				menuScale = o.optDouble("mscale", 1.0).toFloat()
+				menuDy = o.optDouble("mdy", 0.0).toFloat()
 				invalidate()
 			}
 		}
@@ -398,7 +403,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			}
 			canvas.drawRoundRect(r, h * 0.01f, h * 0.01f, zp)
 			textPaint.textSize = h * 0.024f; textPaint.color = c
-			val l = layout((if(dialog) "حوار" else "نص جانبي") + " ${i + 1}", (w * 0.3f).toInt())
+			val l = layout((if(dialog) "حوار" else "قوائم") + " ${i + 1}", (w * 0.3f).toInt())
 			canvas.save(); canvas.translate(r.centerX() - w * 0.15f, (r.top - l.height - h * 0.005f).coerceAtLeast(0f)); l.draw(canvas); canvas.restore()
 			textPaint.color = color
 		}
@@ -471,14 +476,16 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		// side texts: each over its English text, kept inside it. One size for all of them (the English of a menu
 		// or a stats panel is one size; the reading of each line's height is not exact): the middle size, kept
 		// while it stays close
-		val rawSizes = sides.map { sizeFor(fit(it.box), h, 0.03f, 0.02f, 0.045f) }
+		// the menus: their own size and height (set apart from the dialogue's, from «خط القوائم»)
+		fun menuBox(b: FloatArray) = fit(b).copyOf().also { it[1] += menuDy }
+		val rawSizes = sides.map { sizeFor(menuBox(it.box), h, 0.03f, 0.02f, 0.045f, k = menuScale) }
 		val mid = rawSizes.sorted().getOrNull(rawSizes.size / 2)
 		if(mid != null) { if(sideUniform <= 0f || kotlin.math.abs(mid - sideUniform) > sideUniform * 0.25f) sideUniform = mid }
 		for((si, sd) in sides.withIndex())
 		{
 			val raw = rawSizes[si]
 			val size = if(raw in sideUniform * 0.65f..sideUniform * 1.5f) sideUniform else raw
-			drawItem(canvas, sd.text, sd.spans, fit(sd.box), size, color, boxPaint, outline)
+			drawItem(canvas, sd.text, sd.spans, menuBox(sd.box), size, color, boxPaint, outline)
 		}
 
 		// panel (story summary): centred card

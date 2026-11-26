@@ -41,7 +41,7 @@ class InArabicSettingsActivity : AppCompatActivity()
 	class Fragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedPreferenceChangeListener
 	{
 		private var applying = false
-		private val styleKeys = setOf("ia_text_scale", "ia_cover", "ia_box_opacity", "ia_color", "ia_position", "ia_bold", "ia_tv_zoom", "ia_tv_shift", "ia_outline", "ia_box_color")
+		private val styleKeys = setOf("ia_text_scale", "ia_cover", "ia_box_opacity", "ia_color", "ia_position", "ia_bold", "ia_tv_zoom", "ia_tv_shift", "ia_outline", "ia_box_color", "ia_menu_scale", "ia_menu_shift")
 
 		override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?)
 		{

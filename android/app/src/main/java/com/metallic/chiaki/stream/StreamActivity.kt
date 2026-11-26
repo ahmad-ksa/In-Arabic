@@ -347,6 +347,42 @@ class StreamActivity : AppCompatActivity()
 	}
 
 	/** In Arabic: the reading frames on the live picture (dialogue / side text); the TVs show them while they move */
+	/** the menus' text: its size and its height, apart from the dialogue's; every change shown at once on the TV and here */
+	private fun menuLookDialog(prefs: com.inarabic.InArabicPrefs)
+	{
+		val d = resources.displayMetrics.density
+		val box = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding((24 * d).toInt(), (12 * d).toInt(), (24 * d).toInt(), 0) }
+		var scale = (prefs.menuScale * 100).toInt(); var shift = (prefs.menuShift * 100).toInt()
+		fun row(title: () -> String, max: Int, value: Int, set: (Int) -> Unit)
+		{
+			val label = android.widget.TextView(this).apply { text = title(); textSize = 16f; setPadding(0, (10 * d).toInt(), 0, 0) }
+			val bar = android.widget.SeekBar(this).apply {
+				this.max = max; progress = value
+				setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+					override fun onProgressChanged(sb: android.widget.SeekBar, p: Int, fromUser: Boolean)
+					{
+						set(p); label.text = title()
+						prefs.setMenuLook(scale, shift)
+						com.inarabic.link.LinkServer.sendStyle(prefs)
+					}
+					override fun onStartTrackingTouch(sb: android.widget.SeekBar) {}
+					override fun onStopTrackingTouch(sb: android.widget.SeekBar) {}
+				})
+			}
+			box.addView(label); box.addView(bar)
+		}
+		// size 50..200 %, height -10..+10 % (up is minus)
+		row({ "حجم خط القوائم: $scale٪" }, 150, scale - 50) { scale = it + 50 }
+		row({ "ارتفاع القوائم: " + when { shift < 0 -> "أعلى ${-shift}٪"; shift > 0 -> "أنزل ${shift}٪"; else -> "مكانها" } }, 20, shift + 10) { shift = it - 10 }
+		MaterialAlertDialogBuilder(this)
+			.setTitle("خط القوائم")
+			.setMessage("للقوائم والنصوص الجانبية بس، الحوار له إعداده الخاص")
+			.setView(box)
+			.setPositiveButton("تم", null)
+			.setNeutralButton("الأصل") { _, _ -> prefs.setMenuLook(100, 0); com.inarabic.link.LinkServer.sendStyle(prefs) }
+			.show()
+	}
+
 	private fun setupZoneEditor(prefs: com.inarabic.InArabicPrefs)
 	{
 		val z = binding.iaZone
@@ -367,7 +403,8 @@ class StreamActivity : AppCompatActivity()
 			hideOverlay()
 		}
 		z.onChange = { com.inarabic.link.LinkServer.sendZones(it) }
-		binding.iaZoneAddDialog.setOnClickListener { z.add(true) }
+		// one dialogue frame only; the menus' text has its own size and height, set here and seen at once
+		binding.iaZoneMenuFont.setOnClickListener { menuLookDialog(prefs) }
 		binding.iaZoneAddSide.setOnClickListener { z.add(false); prefs.dialogOnly = false }
 		binding.iaZoneDelete.setOnClickListener { z.removeSelected() }
 		binding.iaZoneReset.setOnClickListener { z.reset(); prefs.dialogOnly = true; notice("الحوار اللي في النص تحت بس. اضغط «احفظ»", 3000) }

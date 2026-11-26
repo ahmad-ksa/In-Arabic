@@ -79,7 +79,7 @@ class ZoneEditorView @JvmOverloads constructor(context: Context, attrs: Attribut
 			stroke.color = c; stroke.strokeWidth = (if(sel) 3f else 1.5f) * dp
 			canvas.drawRoundRect(r, 8 * dp, 8 * dp, stroke)
 			label.color = c
-			canvas.drawText((if(z.dialog) "حوار" else "نص جانبي") + " ${i + 1}", r.centerX(), r.top + 16 * dp, label)
+			canvas.drawText((if(z.dialog) "حوار" else "قوائم") + " ${i + 1}", r.centerX(), r.top + 16 * dp, label)
 			if(sel) for(p in corners(r)) { fill.color = c; canvas.drawCircle(p[0], p[1], 9 * dp, fill) }
 		}
 	}

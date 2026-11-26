@@ -162,10 +162,12 @@
     return o;
   }
   // text size: the English line's own height when known
-  function sizeFor(b, def, lo, hi) {
+  function sizeFor(b, def, lo, hi, k) {
     var H = 1080, v = (b && b.length > 4 && b[4] > 0) ? Math.min(Math.max(b[4] * H * 0.82, H * lo), H * hi) : H * def;
-    return Math.round(v * style.scale);
+    return Math.round(v * (k == null ? style.scale : k));
   }
+  // a menu text's box: moved up or down by the menus' own height setting
+  function menuBox(b) { var o = fit(b); if (o) { o = o.slice(); o[1] += style.mdy || 0; } return o; }
   // the text with the game's coloured words: spans = [[start, end, "#RRGGBB"], …]
   function paint(el, text, spans) {
     el.textContent = '';
@@ -269,19 +271,22 @@
     return d;
   }
   // texts off to the side (mission titles, button prompts, menus): each over its English text
+  var lastSide = null;
   function side(items) {
+    lastSide = items && items.length ? items : null;
     var host = $('side');
     clearTimeout(sideTimer);
     host.innerHTML = '';
     if (!items || !items.length) { host.style.display = 'none'; relayout(); return; }
     host.style.display = 'block';
     // one size for all of them: the middle size, kept while it stays close (no size jumping)
-    var raw = items.map(function (it) { return it.box ? sizeFor(fit(it.box), 0.03, 0.02, 0.045) : 0; }).filter(function (v) { return v > 0; });
+    var mk = style.mscale == null ? 1 : style.mscale;
+    var raw = items.map(function (it) { return it.box ? sizeFor(menuBox(it.box), 0.03, 0.02, 0.045, mk) : 0; }).filter(function (v) { return v > 0; });
     var mid = raw.slice().sort(function (a, b) { return a - b; })[Math.floor(raw.length / 2)];
     if (mid && (!sideUniform || Math.abs(mid - sideUniform) > sideUniform * 0.25)) sideUniform = mid;
     items.forEach(function (it) {
-      var bx = fit(it.box); if (!it.ar || !bx) return;
-      var sz = sizeFor(bx, 0.03, 0.02, 0.045);
+      var bx = menuBox(it.box); if (!it.ar || !bx) return;
+      var sz = sizeFor(bx, 0.03, 0.02, 0.045, mk);
       placeItem(host, it.ar, it.spans, bx, sz >= sideUniform * 0.65 && sz <= sideUniform * 1.5 ? sideUniform : sz, style.color, bg(), true);
     });
     relayout();
@@ -350,7 +355,7 @@
       var b = fit(z.box); if (!b) return;
       var d = document.createElement('div'); d.className = 'zone' + (z.dialog === false ? ' side' : '');
       d.style.left = b[0] * 1920 + 'px'; d.style.top = b[1] * 1080 + 'px'; d.style.width = b[2] * 1920 + 'px'; d.style.height = b[3] * 1080 + 'px';
-      var s = document.createElement('span'); s.textContent = (z.dialog === false ? 'نص جانبي ' : 'حوار ') + (i + 1); d.appendChild(s);
+      var s = document.createElement('span'); s.textContent = (z.dialog === false ? 'قوائم ' : 'حوار ') + (i + 1); d.appendChild(s);
       host.appendChild(d);
     });
     zoneTimer = setTimeout(function () { host.innerHTML = ''; }, 8000);
@@ -404,6 +409,8 @@
         style.scale = +o.scale || 1; style.cover = o.cover !== false; style.opacity = o.opacity == null ? 0.85 : +o.opacity;
         style.color = o.color || '#FFFFFF'; style.pos = o.pos || 'auto'; style.bold = o.bold !== false;
         style.zoom = +o.zoom || 0; style.dy = +o.dy || 0;
+        style.mscale = o.mscale == null ? 1 : +o.mscale; style.mdy = +o.mdy || 0; // the menus' own size and height
+        if (lastSide) side(lastSide); // drawn again at once: you see the size and height change as you set them
         style.outline = !!o.outline; style.boxColor = o.boxColor || '#000000';
       }
     };

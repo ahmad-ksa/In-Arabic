@@ -215,12 +215,12 @@
             app:strokeColor="@color/accent"
             app:cornerRadius="999dp"/>
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/iaZoneAddDialog"
+            android:id="@+id/iaZoneMenuFont"
             style="@style/Widget.MaterialComponents.Button.OutlinedButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="6dp"
-            android:text="+ حوار"
+            android:text="خط القوائم"
             android:textColor="@color/accent"
             app:strokeColor="@color/accent"
             app:cornerRadius="999dp"/>
@@ -230,7 +230,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="6dp"
-            android:text="+ نص جانبي"
+            android:text="+ قوائم"
             android:textColor="@color/ia_warn"
             app:strokeColor="@color/ia_warn"
             app:cornerRadius="999dp"/>

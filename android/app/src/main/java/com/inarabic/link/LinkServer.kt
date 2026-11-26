@@ -214,7 +214,8 @@ object LinkServer
 		val msg = JSONObject().put("t", "style").put("scale", p.textScale.toDouble()).put("cover", p.coverOriginal)
 			.put("opacity", p.boxOpacity.toDouble()).put("color", p.textColor).put("pos", p.position).put("bold", p.bold)
 			.put("outline", p.outline).put("boxColor", p.boxColor)
-			.put("zoom", p.tvZoom.toDouble()).put("dy", p.tvShift.toDouble()).toString()
+			.put("zoom", p.tvZoom.toDouble()).put("dy", p.tvShift.toDouble())
+			.put("mscale", p.menuScale.toDouble()).put("mdy", p.menuShift.toDouble()).toString()
 		lastStyle = msg
 		broadcast(msg)
 	}

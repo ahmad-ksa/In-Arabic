@@ -33,9 +33,13 @@ class InArabicPrefs(context: Context)
 			if(s != null) try
 			{
 				val a = org.json.JSONArray(s)
+				// one dialogue frame only: any other one saved earlier is a menus frame now
+				var seenDialog = false
 				return (0 until a.length()).map { i ->
 					val o = a.getJSONObject(i)
-					Zone(android.graphics.RectF(o.getDouble("l").toFloat(), o.getDouble("t").toFloat(), o.getDouble("r").toFloat(), o.getDouble("b").toFloat()), o.optBoolean("dialog", true))
+					val dialog = o.optBoolean("dialog", true) && !seenDialog
+					if(dialog) seenDialog = true
+					Zone(android.graphics.RectF(o.getDouble("l").toFloat(), o.getDouble("t").toFloat(), o.getDouble("r").toFloat(), o.getDouble("b").toFloat()), dialog)
 				}
 			}
 			catch(e: Exception) { }
@@ -113,6 +117,10 @@ class InArabicPrefs(context: Context)
 	/** TV picture fit: the TV may enlarge the HDMI picture (overscan) or move it */
 	val tvZoom get() = p.getInt("ia_tv_zoom", 0) / 100f
 	val tvShift get() = p.getInt("ia_tv_shift", 0) / 100f
+	/** the menus (side texts) have their own look, apart from the dialogue: size (1 = the English size) and height */
+	val menuScale get() = p.getInt("ia_menu_scale", 100) / 100f
+	val menuShift get() = p.getInt("ia_menu_shift", 0) / 100f
+	fun setMenuLook(scalePct: Int, shiftPct: Int) = p.edit().putInt("ia_menu_scale", scalePct).putInt("ia_menu_shift", shiftPct).apply()
 	val outline get() = p.getBoolean("ia_outline", false)
 	val boxColor get() = p.getString("ia_box_color", "#000000") ?: "#000000"
 

@@ -20,11 +20,15 @@
             app:title="اعرض الترجمة على الجوال بعد" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="٣. شكل الترجمة" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="3">
+    <PreferenceCategory app:title="٣. شكل الترجمة" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="4">
         <ListPreference app:key="ia_preset" app:title="شكل جاهز" app:defaultValue="normal" app:iconSpaceReserved="false"
             app:entries="@array/ia_preset_names" app:entryValues="@array/ia_preset_values" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference app:key="ia_text_scale" app:title="حجم الخط (100 = نفس حجم الإنجليزي)" app:iconSpaceReserved="false"
+        <SeekBarPreference app:key="ia_text_scale" app:title="حجم خط الحوار (100 = نفس حجم الإنجليزي)" app:iconSpaceReserved="false"
             app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
+        <SeekBarPreference app:key="ia_menu_scale" app:title="حجم خط القوائم (100 = نفس حجم الإنجليزي)" app:iconSpaceReserved="false"
+            app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
+        <SeekBarPreference app:key="ia_menu_shift" app:title="ارفع أو نزّل القوائم (%)" app:iconSpaceReserved="false"
+            app:defaultValue="0" android:max="10" app:min="-10" app:showSeekBarValue="true" />
         <ListPreference app:key="ia_color" app:title="لون الخط" app:defaultValue="#FFFFFF" app:iconSpaceReserved="false"
             app:entries="@array/ia_color_names" app:entryValues="@array/ia_color_values" app:useSimpleSummaryProvider="true" />
         <SwitchPreference app:key="ia_bold" app:defaultValue="true" app:title="خط عريض" app:iconSpaceReserved="false" />
@@ -45,7 +49,7 @@
         <SeekBarPreference app:key="ia_tv_zoom" app:title="مطابقة التلفزيون: تكبير (%)" app:iconSpaceReserved="false"
             app:summary="إذا الترجمة على التلفزيون أقرب للوسط من الإنجليزي، زِده"
             app:defaultValue="0" android:max="15" app:min="0" app:showSeekBarValue="true" />
-        <SeekBarPreference app:key="ia_tv_shift" app:title="ارفع أو نزّل الترجمة (%) — على التلفزيون والجوال" app:iconSpaceReserved="false"
+        <SeekBarPreference app:key="ia_tv_shift" app:title="ارفع أو نزّل الحوار (%) — على التلفزيون والجوال" app:iconSpaceReserved="false"
             app:defaultValue="0" android:max="10" app:min="-10" app:showSeekBarValue="true" />
     </PreferenceCategory>
 
