@@ -38,13 +38,20 @@ object OnlineEngines
 	private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
 	/** Google Translate's free web endpoint (no key; unofficial, may stop working or be limited at any time) */
-	fun google(text: String): String?
+	fun google(text: String): String? = try
 	{
-		val r = http("https://translate.googleapis.com/translate_a/single", "POST", "client=gtx&sl=en&tl=ar&dt=t&q=" + enc(text),
-			type = "application/x-www-form-urlencoded") ?: return null
-		val parts = JSONArray(r).optJSONArray(0) ?: return null
-		return buildString { for(i in 0 until parts.length()) append(parts.optJSONArray(i)?.optString(0) ?: "") }.trim().ifBlank { null }
+		// the plain GET form that the web uses; a browser user agent, or Google may refuse it
+		val r = http("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ar&dt=t&ie=UTF-8&oe=UTF-8&q=" + enc(text),
+			headers = mapOf("User-Agent" to "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36"))
+		if(r == null) null
+		else
+		{
+			val parts = JSONArray(r).optJSONArray(0)
+			parts?.let { buildString { for(i in 0 until it.length()) append(it.optJSONArray(i)?.optString(0) ?: "") }.trim().ifBlank { null } }
+				.also { if(it == null) lastError = "Google ما رجّع ترجمة" }
+		}
 	}
+	catch(e: Exception) { lastError = "Google ما رجّع ترجمة"; null }
 
 	/** MyMemory: free, no key (a daily limit; an e-mail in the settings raises it) */
 	fun myMemory(text: String, email: String): String?

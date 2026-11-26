@@ -71,7 +71,7 @@ class CaptionEngine(
 
 	private val context = appContext.applicationContext
 	private val mainHandler = Handler(android.os.Looper.getMainLooper())
-	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+	private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + kotlinx.coroutines.CoroutineExceptionHandler { _, e -> Log.w("InArabic", "caption job", e); Diag.add("error: " + e) })
 	private val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
 	private val translator = Translator(prefs)
 	private var paddle: PaddleReader? = null

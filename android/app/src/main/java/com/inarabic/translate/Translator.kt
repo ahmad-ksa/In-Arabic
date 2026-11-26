@@ -80,7 +80,7 @@ class Translator(private val prefs: InArabicPrefs)
 		val k = prefs.engine + ":" + SubtitleTracker.key(english)
 		aiCache.get(k)?.let { return it }
 		val ar0 = withTimeoutOrNull(9000) { withContext(Dispatchers.IO) {
-			when(prefs.engine)
+			runCatching { when(prefs.engine)
 			{
 				"ai", "groq" -> askAi(english)
 				"google" -> OnlineEngines.google(english)
@@ -89,7 +89,7 @@ class Translator(private val prefs: InArabicPrefs)
 				"microsoft" -> OnlineEngines.microsoft(english, prefs.msKey, prefs.msRegion)
 				"libre" -> OnlineEngines.libre(english, prefs.libreUrl, prefs.libreKey)
 				else -> null
-			}.also { if(prefs.engine != "ai" && prefs.engine != "groq") lastAiError = if(it == null) OnlineEngines.lastError else null }
+			} }.getOrElse { OnlineEngines.lastError = "المصدر رجّع رد غريب"; null }.also { if(prefs.engine != "ai" && prefs.engine != "groq") lastAiError = if(it == null) OnlineEngines.lastError else null }
 		} }
 		val ar = ar0?.let { Glossary.arabicNames(it) }
 		if(ar != null)
