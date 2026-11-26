@@ -80,6 +80,28 @@ jobs:
           npm install -g @webos-tools/cli@3.2.1 > /dev/null
           ares-package -n lg -o .
           mv com.inarabic.lg_*.ipk InArabic-lg.ipk
+      - name: Homebrew Channel repository (so the TV's developer apps list it and update it)
+        run: |
+          v=0.1.${{ github.run_number }}
+          raw=https://raw.githubusercontent.com/${{ github.repository }}/repo
+          sha=$(sha256sum InArabic-lg.ipk | cut -d' ' -f1)
+          mkdir -p lgrepo && cp lg/largeIcon.png lgrepo/icon.png
+          python3 - "$v" "$raw" "$sha" <<'PY'
+          import json, sys
+          v, raw, sha = sys.argv[1:]
+          m = {"id": "com.inarabic.lg", "version": v, "type": "web", "title": "بالعربي",
+               "appDescription": "ترجمة ألعاب البلايستيشن للعربي على الشاشة", "iconUri": raw + "/icon.png",
+               "sourceUrl": "https://github.com/ahmad-ksa/In-Arabic", "rootRequired": False,
+               "ipkUrl": "https://github.com/ahmad-ksa/In-Arabic/releases/download/latest/InArabic-lg.ipk",
+               "ipkHash": {"sha256": sha}}
+          json.dump(m, open("lgrepo/com.inarabic.lg.manifest.json", "w"), ensure_ascii=False, indent=2)
+          json.dump({"paging": {"page": 1, "count": 1, "maxPage": 1, "itemsTotal": 1},
+                     "packages": [{"id": m["id"], "title": m["title"], "iconUri": m["iconUri"],
+                                   "manifestUrl": raw + "/com.inarabic.lg.manifest.json", "manifest": m,
+                                   "category": "multimedia", "shortDescription": m["appDescription"], "version": v}]},
+                    open("lgrepo/apps.json", "w"), ensure_ascii=False, indent=2)
+          PY
+          cat lgrepo/apps.json
       - name: Package Samsung WGT (same page, Tizen config)
         run: |
           mkdir -p wgt && cp -r lg/index.html lg/qrcode.js lg/fonts lg/pattern.png lg/largeIcon.png samsung/config.xml wgt/
@@ -91,6 +113,7 @@ jobs:
           path: |
             InArabic-lg.ipk
             InArabic-samsung.wgt
+            lgrepo
 
   release:
     needs: [phone, tv, lg]
@@ -119,6 +142,14 @@ jobs:
           else
             gh release create latest $files --title "$title" --notes "$notes"
           fi
+      - name: Publish the Homebrew Channel repository (branch "repo")
+        run: |
+          cd lgrepo
+          git init -q -b repo
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add -A && git commit -qm "repo ${{ github.run_number }}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" repo
 
   smoke:
     needs: [phone]
