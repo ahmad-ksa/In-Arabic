@@ -10,6 +10,7 @@
 //   {"t":"sub","id":7,"ar":"…","en":"…","final":false,"box":[x,y,w,h]}   box: original subtitle, 0..1 of the picture
 //   {"t":"clear"}
 //   {"t":"box2","ar":"…","box":[x,y,w,h]} / {"t":"box2clear"}           side texts (objectives, messages)
+//   {"t":"lensmove","dx":0.004,"dy":-0.002,"a":1.5,"cx":0.5,"cy":0.5}   the lens's text moved (shaking): follow it
 //   {"t":"lens","items":[{"ar":"…","box":[x,y,w,h,lineH],"color":"#RRGGBB","bg":"#RRGGBB","spans":[…]}]} / {"t":"lensclear"}
 //   {"t":"panel","title":"…","text":"…","ttl":30000}                     e.g. the story summary
 //   {"t":"style","scale":1.0,"cover":true,"opacity":0.85,"color":"#FFFFFF","pos":"auto|bottom|top","bold":true}
@@ -161,6 +162,13 @@ object LinkServer
 		val msg = JSONObject().put("t", "lens").put("items", arr).toString()
 		lastLens = msg
 		broadcast(msg)
+	}
+
+	/** the lens's text moved since the last "lens": shift (0..1 of the picture) and turn (degrees) around cx, cy */
+	fun sendLensMove(dx: Float, dy: Float, turn: Float, cx: Float, cy: Float)
+	{
+		fun r(v: Float) = Math.round(v * 10000) / 10000.0
+		broadcast(JSONObject().put("t", "lensmove").put("dx", r(dx)).put("dy", r(dy)).put("a", Math.round(turn * 10) / 10.0).put("cx", r(cx)).put("cy", r(cy)).toString())
 	}
 
 	fun sendLensClear()

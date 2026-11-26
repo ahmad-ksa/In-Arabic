@@ -39,7 +39,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	/** the lens's translations: each over its English, with the English's own letter and background colours */
 	class Lens(val text: String, val box: FloatArray, val color: Int, val bg: Int, val spans: List<IntArray>)
 	var lens: List<Lens> = emptyList()
-		set(v) { field = v; invalidate() }
+		set(v) { field = v; lensMove = null; invalidate() }
+	/** how far the lens's text moved since its last read (shaking): dx, dy (0..1), turn (degrees), centre x, y */
+	private var lensMove: FloatArray? = null
 	/** a short notice at the top (phone lost / back) */
 	private var bannerText: String? = null
 	private val hideBanner = Runnable { bannerText = null; invalidate() }
@@ -171,6 +173,12 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				timers.removeCallbacks(hideLens); timers.postDelayed(hideLens, 15000)
 			}
 			"lensclear" -> { timers.removeCallbacks(hideLens); lens = emptyList() }
+			"lensmove" ->
+			{
+				lensMove = floatArrayOf(o.optDouble("dx").toFloat(), o.optDouble("dy").toFloat(), o.optDouble("a", 0.0).toFloat(),
+					o.optDouble("cx", 0.5).toFloat(), o.optDouble("cy", 0.5).toFloat())
+				invalidate()
+			}
 			"notice" -> banner(o.optString("text"))
 			"sideclear" -> { timers.removeCallbacks(hideSide); sides = emptyList() }
 			"panel" ->
@@ -425,7 +433,16 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			placed += RectF(area)
 		}
 
-		// the lens: over each English text, its own size and colours (letters and background), its own tilt
+		// the lens: over each English text, its own size and colours (letters and background), its own tilt;
+		// all of it moved and turned the way the text moved since it was read (it follows the shaking)
+		val mv = lensMove?.let { m -> fit(floatArrayOf(m[3], m[4], 0f, 0f)).let { c -> floatArrayOf(m[0], m[1], m[2], c[0], c[1]) } }
+		canvas.save()
+		if(mv != null && lens.isNotEmpty())
+		{
+			val k = if(fitToTv) 1f + zoom else 1f
+			canvas.translate(mv[0] * w * k, mv[1] * h * k)
+			if(mv[2] != 0f) canvas.rotate(mv[2], mv[3] * w, mv[4] * h)
+		}
 		for(ln in lens)
 		{
 			val bp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ln.bg }
@@ -435,6 +452,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			textPaint.setShadowLayer(4f, 0f, 2f, Color.BLACK)
 			textPaint.typeface = tf
 		}
+		canvas.restore()
 		textPaint.color = color
 
 		// side texts: each over its English text, kept inside it. One size for all of them (the English of a menu

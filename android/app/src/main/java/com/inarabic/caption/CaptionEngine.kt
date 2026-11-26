@@ -33,11 +33,13 @@ class CaptionEngine(
 	private val source: suspend () -> Bitmap?,
 	/** called on the main thread with the Arabic line (null = clear), for the caption on the phone */
 	private val onCaption: (String?) -> Unit,
+	/** a small copy of the same picture, at most this wide, quick enough to follow movement (null: not offered) */
+	private val small: (suspend (Int) -> Bitmap?)? = null,
 )
 {
 	/** reading the Remote Play stream */
 	constructor(surfaceView: SurfaceView, prefs: InArabicPrefs, onCaption: (String?) -> Unit) :
-		this(surfaceView.context, prefs, { grabSurface(surfaceView) }, onCaption)
+		this(surfaceView.context, prefs, { grabSurface(surfaceView) }, onCaption, { w -> grabSurface(surfaceView, w) })
 
 	companion object
 	{
@@ -46,11 +48,11 @@ class CaptionEngine(
 		private val copyHandler = Handler(copyThread.looper)
 
 		/** A copy of the stream picture, at most 1280 px wide (enough for subtitles, cheap to read). */
-		suspend fun grabSurface(surfaceView: SurfaceView): Bitmap? = withContext(Dispatchers.Main) {
+		suspend fun grabSurface(surfaceView: SurfaceView, maxWidth: Int = 1280): Bitmap? = withContext(Dispatchers.Main) {
 			val w = surfaceView.width
 			val h = surfaceView.height
 			if(w < 16 || h < 16 || !surfaceView.holder.surface.isValid) return@withContext null
-			val scale = minOf(1f, 1280f / w)
+			val scale = minOf(1f, maxWidth.toFloat() / w)
 			val bmp = Bitmap.createBitmap((w * scale).toInt(), (h * scale).toInt(), Bitmap.Config.ARGB_8888)
 			suspendCancellableCoroutine { c ->
 				try
@@ -542,8 +544,20 @@ class CaptionEngine(
 		lensFull = r != null && full
 		lensRect = r?.let { android.graphics.RectF(it) }
 		lensJob?.cancel(); lensJob = null
+		trackJob?.cancel(); trackJob = null
 		lensSent = ""
+		synchronized(lensItems) { lensItems.clear() }
+		synchronized(trackLock) { trackRef = null }
 		if(r == null) { LinkServer.sendLensClear(); return }
+		// the box follows the text when the game's phone shakes (not the whole screen: there the world moves, the HUD does not)
+		if(!full && small != null) trackJob = scope.launch {
+			while(isActive)
+			{
+				val t0 = System.currentTimeMillis()
+				try { trackStep() } catch(e: CancellationException) { throw e } catch(e: Exception) { Log.w(TAG, "track", e) }
+				delay((66 - (System.currentTimeMillis() - t0)).coerceAtLeast(15))
+			}
+		}
 		lensJob = scope.launch {
 			while(isActive)
 			{
@@ -565,6 +579,8 @@ class CaptionEngine(
 	{
 		val lr = lensRect ?: return
 		val frame = source() ?: return
+		// the follower's reference: the same moment as the picture read here
+		val ref = if(trackJob != null) small?.invoke(TRACK_W)?.let { gray(it).also { _ -> it.recycle() } } else null
 		try
 		{
 			val area = Rect((lr.left * frame.width).toInt(), (lr.top * frame.height).toInt(), (lr.right * frame.width).toInt(), (lr.bottom * frame.height).toInt())
@@ -585,19 +601,146 @@ class CaptionEngine(
 				val (fg, bg) = lineColors(frame, px)
 				LensItem(rd.text.trim(), b, fg, bg, rd.colored)
 			}
-			// each text translated once (in parallel), then remembered while the box is open
-			val done = coroutineScope { found.map { async { it to lensTranslate(it.english) } }.awaitAll() }
+			// steady: a text read again a little differently (the picture shook: a letter lost, a line cut) is the
+			// same message, its translation and colours kept; it only moves to where it is now
+			val prev = synchronized(lensItems) { lensItems.toList() }
+			val used = HashSet<LensState>()
+			val keep = ArrayList<LensState>()
+			val fresh = ArrayList<LensItem>()
+			for(f in found)
+			{
+				val m = prev.filter { it !in used && near(it.box, f.box) && similar(it.english, f.english) >= 0.8f }
+					.maxByOrNull { similar(it.english, f.english) }
+				if(m != null) { used += m; m.box = f.box; m.missed = 0; keep += m } else fresh += f
+			}
+			// a message missing from one or two reads (shaking) stays; after that it is gone
+			for(p in prev) if(p !in used && ++p.missed <= 2 && keep.none { overlap(it.box, p.box) > 0.3f }) keep += p
+			val done = coroutineScope { fresh.map { async { it to lensTranslate(it.english) } }.awaitAll() }
 			if(lensRect == null) return
-			val ready = done.mapNotNull { (item, ar) -> ar?.let { a -> LinkServer.LensOut(a, item.box, item.fg, item.bg, spans(item.english, a, item.colored)) } }
-			val sig = ready.joinToString("|") { it.arabic + "@" + (it.box[0] * 200).toInt() + "," + (it.box[1] * 200).toInt() }
+			for((item, ar) in done) if(ar != null && keep.none { overlap(it.box, item.box) > 0.3f })
+				keep += LensState(item.english, item.box, ar, item.fg, item.bg, spans(item.english, ar, item.colored))
+			synchronized(lensItems) { lensItems.clear(); lensItems.addAll(keep) }
+			val ready = keep.map { LinkServer.LensOut(it.arabic, it.box, it.fg, it.bg, it.spans) }
+			val sig = ready.joinToString("|") { it.arabic + "@" + (it.box[0] * 400).toInt() + "," + (it.box[1] * 400).toInt() }
 			if(sig == lensSent) return
 			lensSent = sig
-			if(ready.isEmpty()) LinkServer.sendLensClear() else LinkServer.sendLens(ready)
+			// the new places and the new reference go together: the follower measures from this picture on
+			synchronized(trackLock) {
+				trackRef = ref; trackGen++
+				lastMove = floatArrayOf(0f, 0f, 0f)
+				if(ready.isEmpty()) LinkServer.sendLensClear() else LinkServer.sendLens(ready)
+			}
 		}
 		finally { frame.recycle() }
 	}
 
 	private class LensItem(val english: String, val box: FloatArray, val fg: Int, val bg: Int, val colored: List<Colored>)
+	/** a message in the lens: its translation and colours fixed once, its place updated at each read */
+	private class LensState(val english: String, var box: FloatArray, val arabic: String, val fg: Int, val bg: Int, val spans: List<ColorSpan>, var missed: Int = 0)
+	private val lensItems = ArrayList<LensState>()
+
+	private fun near(a: FloatArray, b: FloatArray): Boolean
+	{
+		val dx = (a[0] + a[2] / 2) - (b[0] + b[2] / 2); val dy = (a[1] + a[3] / 2) - (b[1] + b[3] / 2)
+		return kotlin.math.abs(dx) < 0.08f && kotlin.math.abs(dy) < 0.06f
+	}
+
+	/** how alike two readings are, 0..1 (letters and digits only, ignoring case) */
+	private fun similar(a0: String, b0: String): Float
+	{
+		val a = a0.lowercase().filter(Char::isLetterOrDigit); val b = b0.lowercase().filter(Char::isLetterOrDigit)
+		if(a == b) return 1f
+		if(a.isEmpty() || b.isEmpty()) return 0f
+		var prevRow = IntArray(b.length + 1) { it }
+		for(i in 1..a.length)
+		{
+			val row = IntArray(b.length + 1); row[0] = i
+			for(j in 1..b.length) row[j] = minOf(prevRow[j] + 1, row[j - 1] + 1, prevRow[j - 1] + if(a[i - 1] == b[j - 1]) 0 else 1)
+			prevRow = row
+		}
+		return 1f - prevRow[b.length].toFloat() / maxOf(a.length, b.length)
+	}
+
+	// ---- following the movement: between two reads (once a second) the picture inside the box is compared,
+	// about 15 times a second, with the one read last; the shift (and a small turn) moves the translations ----
+	private val TRACK_W = 320
+	private class Gray(val w: Int, val h: Int, val px: IntArray)
+	private val trackLock = Any()
+	private var trackRef: Gray? = null
+	private var trackGen = 0
+	private var trackJob: Job? = null
+	/** last sent: dx, dy (0..1 of the picture), turn in degrees */
+	private var lastMove = floatArrayOf(0f, 0f, 0f)
+
+	private fun gray(b: Bitmap): Gray
+	{
+		val w = b.width; val h = b.height
+		val c = IntArray(w * h); b.getPixels(c, 0, w, 0, 0, w, h)
+		for(i in c.indices) { val v = c[i]; c[i] = (((v shr 16) and 255) * 3 + ((v shr 8) and 255) * 6 + (v and 255)) / 10 }
+		return Gray(w, h, c)
+	}
+
+	/** the best shift (dx, dy in pixels) of the patch [x0,y0,x1,y1) of [ref] in [cur]; null if nothing matches */
+	private fun shift(ref: Gray, cur: Gray, x0: Int, y0: Int, x1: Int, y1: Int, r: Int): IntArray?
+	{
+		var best = Long.MAX_VALUE; var bx = 0; var by = 0; var n = 0
+		fun sad(dx: Int, dy: Int, step: Int, limit: Long): Long
+		{
+			var sum = 0L; var cnt = 0
+			var y = y0
+			while(y < y1)
+			{
+				val ry = y * ref.w; val cy = (y + dy) * cur.w
+				var x = x0
+				while(x < x1) { sum += kotlin.math.abs(ref.px[ry + x] - cur.px[cy + x + dx]); cnt++; x += step }
+				if(sum > limit) return Long.MAX_VALUE
+				y += step
+			}
+			n = cnt
+			return sum
+		}
+		// coarse (every 2nd shift, every 3rd pixel), then the pixels around the best
+		var dy = -r
+		while(dy <= r) { var dx = -r; while(dx <= r) { val v = sad(dx, dy, 3, best); if(v < best) { best = v; bx = dx; by = dy }; dx += 2 }; dy += 2 }
+		val cx = bx; val cy = by; best = Long.MAX_VALUE
+		for(ddy in -1..1) for(ddx in -1..1)
+		{
+			val dx2 = cx + ddx; val dy2 = cy + ddy
+			if(kotlin.math.abs(dx2) > r || kotlin.math.abs(dy2) > r) continue
+			val v = sad(dx2, dy2, 2, best); if(v < best) { best = v; bx = dx2; by = dy2 }
+		}
+		// a poor match (the scene changed, not shaken): no answer
+		if(n == 0 || best / n > 28) return null
+		return intArrayOf(bx, by)
+	}
+
+	private suspend fun trackStep()
+	{
+		val lr = lensRect ?: return
+		val (ref, gen) = synchronized(trackLock) { (trackRef ?: return) to trackGen }
+		val bmp = small?.invoke(TRACK_W) ?: return
+		val cur = try { gray(bmp) } finally { bmp.recycle() }
+		if(cur.w != ref.w || cur.h != ref.h) return
+		val r = (cur.w * 0.05f).toInt().coerceAtLeast(4) // up to 5 % of the picture each way
+		val x0 = (lr.left * cur.w).toInt() + r; val x1 = (lr.right * cur.w).toInt() - r
+		val y0 = (lr.top * cur.h).toInt() + r; val y1 = (lr.bottom * cur.h).toInt() - r
+		if(x1 - x0 < 16 || y1 - y0 < 8) return
+		val mid = (x0 + x1) / 2
+		val left = shift(ref, cur, x0, y0, mid, y1, r) ?: return
+		val right = shift(ref, cur, mid, y0, x1, y1, r) ?: return
+		val dx = (left[0] + right[0]) / 2f; val dy = (left[1] + right[1]) / 2f
+		// a small turn: the right half moved up or down more than the left one
+		var turn = Math.toDegrees(kotlin.math.atan2((right[1] - left[1]).toDouble(), ((x1 - x0) / 2).toDouble())).toFloat()
+		if(kotlin.math.abs(turn) < 0.6f) turn = 0f
+		val move = floatArrayOf(dx / cur.w, dy / cur.h, turn.coerceIn(-8f, 8f))
+		synchronized(trackLock) {
+			if(gen != trackGen || lensRect == null) return // a newer read came meanwhile: measured from the old picture
+			val l = lastMove
+			if(kotlin.math.abs(move[0] - l[0]) * cur.w < 0.6f && kotlin.math.abs(move[1] - l[1]) * cur.h < 0.6f && kotlin.math.abs(move[2] - l[2]) < 0.4f) return
+			lastMove = move
+			LinkServer.sendLensMove(move[0], move[1], move[2], (lr.left + lr.right) / 2, (lr.top + lr.bottom) / 2)
+		}
+	}
 
 	/** the same choice as for side texts: your correction, the fixed game word, the AI (when on) or the on-device model */
 	private suspend fun lensTranslate(english: String): String?
