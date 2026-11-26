@@ -76,7 +76,7 @@ class CaptionEngine(
 	private val translator = Translator(prefs)
 	private var paddle: PaddleReader? = null
 	// a subtitle stays until it is really gone (several empty reads), not at the first missed read
-	private val subTracker = SubtitleTracker(emptyReadsToClear = 5)
+	private val subTracker = SubtitleTracker(emptyReadsToClear = 4)
 	/**
 	 * One text beside the dialogue (a menu entry, a prompt, a help box) while it is on screen. It is the same
 	 * item as long as it stays in the same place, even if one read spells it a little differently; it is
@@ -252,7 +252,7 @@ class CaptionEngine(
 			}
 			// side frames (tasks, prompts, messages) and, if on, the whole picture: read less often
 			val t1 = System.currentTimeMillis()
-			if(t1 - lastScreenRead > 700)
+			if(t1 - lastScreenRead > 400)
 			{
 				lastScreenRead = t1
 				val all = ArrayList<OcrRead>()
@@ -440,8 +440,8 @@ class CaptionEngine(
 				}
 				sideItems += SideItem(st, box, r.colored, now)
 			}
-			// gone only when it has not been seen for a while
-			sideItems.removeAll { now - it.seen > 1800 }
+			// gone once it has been missing from two readings in a row (one missed reading is not enough: no flicker)
+			sideItems.removeAll { now - it.seen > 900 }
 			for(it in sideItems) if(!it.asked && now >= it.retryAt) { it.asked = true; translateItem(it) }
 		}
 		sendSideIfChanged()

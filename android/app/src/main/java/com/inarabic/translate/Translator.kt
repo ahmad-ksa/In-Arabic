@@ -13,6 +13,8 @@ import com.google.mlkit.nl.translate.TranslatorOptions
 import com.inarabic.InArabicPrefs
 import com.inarabic.caption.SubtitleTracker
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -74,7 +76,19 @@ class Translator(private val prefs: InArabicPrefs)
 		if('\n' in english)
 		{
 			// a list: each line by the AI; if one line fails the whole list waits (never mixed with the on-device one)
-			val parts = english.split('\n').filter { it.isNotBlank() }.map { Glossary.lookup(it) ?: better(it) ?: return null }
+			val lines = english.split('\n').filter { it.isNotBlank() }
+			// Google keeps the lines of one request: the whole list in one go
+			if(prefs.engine == "google" && lines.none { Glossary.lookup(it) != null })
+			{
+				val all = withTimeoutOrNull(9000) { withContext(Dispatchers.IO) { OnlineEngines.google(lines.joinToString("\n")) } }
+				val got = all?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() }
+				if(got != null && got.size == lines.size) return got.joinToString("\n") { Glossary.arabicNames(it) }
+			}
+			// every line at the same time, not one after the other
+			val parts = kotlinx.coroutines.coroutineScope {
+				lines.map { l -> async { Glossary.lookup(l) ?: better(l) } }.awaitAll()
+			}
+			if(parts.any { it == null }) return null
 			return parts.joinToString("\n")
 		}
 		val k = prefs.engine + ":" + SubtitleTracker.key(english)
