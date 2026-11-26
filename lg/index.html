@@ -18,6 +18,8 @@
   #game { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: contain; background: #000; }
   #cap { position: absolute; display: none; text-align: center; direction: rtl; font-weight: 700; white-space: pre-line;
     line-height: 1.25; padding: 10px 26px; border-radius: 12px; text-shadow: 0 2px 4px #000; box-sizing: border-box; }
+  #lens { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; }
+  .lens-item { position: absolute; direction: rtl; font-weight: 700; line-height: 1.25; box-sizing: border-box; border-radius: 6px; }
   #side { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; display: none; pointer-events: none; }
   .side-item { position: absolute; direction: rtl; text-align: center; font-weight: 700; line-height: 1.25; white-space: pre;
           padding: 2px 8px; border-radius: 6px; box-sizing: border-box; }
@@ -66,6 +68,7 @@
 <div id="cap"></div>
 <div id="box2"></div>
 <div id="side"></div>
+<div id="lens"></div>
 <div id="zones"></div>
 <div id="panel"><h2 id="panel-t"></h2><div id="panel-b"></div></div>
 <div id="status"></div>
@@ -253,6 +256,39 @@
     });
     sideTimer = setTimeout(function () { host.style.display = 'none'; }, 15000);
   }
+  var lensTimer = 0;
+  // the lens (a box placed on the phone): each text drawn over its English, same size, same letter and background colours
+  function lens(items) {
+    var host = $('lens');
+    clearTimeout(lensTimer);
+    host.innerHTML = '';
+    (items || []).forEach(function (it) {
+      var b = fit(it.box); if (!it.ar || !b) return;
+      var lineH = (b.length > 4 && b[4] > 0 ? b[4] : b[3]) * 1080;
+      var para = b.length > 4 && b[4] > 0 && b[3] > b[4] * 1.6 && it.ar.indexOf('\n') < 0;
+      var d = document.createElement('div');
+      d.className = 'lens-item';
+      paint(d, it.ar, it.spans);
+      var size = lineH * 0.95 * style.scale;
+      d.style.fontSize = size + 'px';
+      d.style.color = it.color || '#FFFFFF';
+      d.style.background = it.bg || '#000000';
+      d.style.padding = (lineH * 0.1) + 'px ' + (lineH * 0.15) + 'px';
+      var left = b[0] * 1920 - lineH * 0.15, top = b[1] * 1080 - lineH * 0.1, w = b[2] * 1920 + lineH * 0.3;
+      d.style.left = left + 'px'; d.style.top = top + 'px';
+      d.style.minHeight = (b[3] * 1080 + lineH * 0.2) + 'px';
+      if (para) { d.style.width = w + 'px'; d.style.whiteSpace = 'pre-line'; d.style.textAlign = 'right'; }
+      else { d.style.whiteSpace = 'pre'; d.style.textAlign = 'center'; d.style.minWidth = w + 'px'; }
+      host.appendChild(d);
+      if (!para) {
+        // one line: shrink a little to keep the English width, then widen around its centre if still needed
+        if (d.offsetWidth > w) { size *= Math.max(0.75, w / d.offsetWidth); d.style.fontSize = size + 'px'; }
+        var dw = d.offsetWidth;
+        if (dw > w) d.style.left = Math.min(Math.max(0, left + w / 2 - dw / 2), 1920 - dw) + 'px';
+      }
+    });
+    lensTimer = setTimeout(function () { host.innerHTML = ''; }, 15000);
+  }
   var zoneTimer = 0;
   // the reading frames while they are placed from the phone: [{box, dialog}]
   function zones(list) {
@@ -303,6 +339,8 @@
       else if (o.t === 'box2clear') box2(null);
       else if (o.t === 'side') side(o.items);
       else if (o.t === 'sideclear') side(null);
+      else if (o.t === 'lens') lens(o.items);
+      else if (o.t === 'lensclear') lens(null);
       else if (o.t === 'zone') zones(o.box ? [{ box: o.box, dialog: true }] : []);
       else if (o.t === 'zones') zones(o.zones);
       else if (o.t === 'panel') panel(o.title, o.text, o.ttl);

@@ -174,6 +174,8 @@ class CaptionEngine(
 	{
 		loop?.cancel()
 		loop = null
+		lensJob?.cancel(); lensRect = null
+		LinkServer.sendLensClear()
 		LinkServer.sendClear()
 		LinkServer.sendBox2Clear()
 		LinkServer.sendSideClear()
@@ -303,7 +305,8 @@ class CaptionEngine(
 			}
 			val seen = HashSet<String>()
 			val now = System.currentTimeMillis()
-			updateSide(side.filter { r -> r.box != null && !onSubtitle(r.box) && seen.add(SubtitleTracker.key(r.text)) }, now)
+			// texts inside the lens are the lens's (drawn with their own colours): not twice
+			updateSide(side.filter { r -> r.box != null && !onSubtitle(r.box) && !inLens(r.box) && seen.add(SubtitleTracker.key(r.text)) }, now)
 			if(read.text.isNotBlank()) subColored = read.colored
 			// what is on screen is sent again every few seconds: the TVs keep it as long as the English is there
 			if(now - refreshedAt > 4000) { refreshedAt = now; LinkServer.refresh() }
@@ -483,17 +486,121 @@ class CaptionEngine(
 		}
 	}
 
-	/** names of people and places: light burgundy, so you know it is a name */
-	private val nameColor = android.graphics.Color.rgb(232, 145, 160)
+	/** Arabic stretches to colour: only the game's own coloured words (the Arabic keeps the English colours) */
+	private suspend fun spans(english: String, arabic: String, colored: List<Colored>): List<ColorSpan> =
+		gameSpans(english, arabic, colored).sortedBy { it.start }
 
-	/** Arabic stretches to colour: the game's coloured words, and the names */
-	private suspend fun spans(english: String, arabic: String, colored: List<Colored>): List<ColorSpan>
+	// ---- the lens: a box you place on the phone with two fingers; whatever English is inside is translated
+	// at once and drawn over it, same size and same colours (letters and background), on the phone and the TVs ----
+	@Volatile private var lensRect: android.graphics.RectF? = null
+	private var lensJob: Job? = null
+	private val lensCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+	@Volatile private var lensSent = ""
+
+	/** the box in 0..1 of the picture; null: closed */
+	fun setLens(r: android.graphics.RectF?)
 	{
-		val game = gameSpans(english, arabic, colored)
-		val names = com.inarabic.translate.Glossary.nameRanges(arabic).map { ColorSpan(it[0], it[1], nameColor) }
-			.filter { n -> game.none { n.start < it.end && n.end > it.start } }
-		return (game + names).sortedBy { it.start }
+		lensRect = r?.let { android.graphics.RectF(it) }
+		lensJob?.cancel(); lensJob = null
+		lensSent = ""
+		if(r == null) { LinkServer.sendLensClear(); return }
+		lensJob = scope.launch {
+			while(isActive)
+			{
+				val t0 = System.currentTimeMillis()
+				try { lensStep() } catch(e: CancellationException) { throw e } catch(e: Exception) { Log.w(TAG, "lens", e) }
+				delay((1000 - (System.currentTimeMillis() - t0)).coerceAtLeast(200))
+			}
+		}
 	}
+
+	private fun inLens(b: FloatArray): Boolean
+	{
+		val l = lensRect ?: return false
+		val cx = b[0] + b[2] / 2; val cy = b[1] + b[3] / 2
+		return cx >= l.left && cx <= l.right && cy >= l.top && cy <= l.bottom
+	}
+
+	private suspend fun lensStep()
+	{
+		val lr = lensRect ?: return
+		val frame = source() ?: return
+		try
+		{
+			val area = Rect((lr.left * frame.width).toInt(), (lr.top * frame.height).toInt(), (lr.right * frame.width).toInt(), (lr.bottom * frame.height).toInt())
+			if(!area.intersect(0, 0, frame.width, frame.height) || area.width() < 16 || area.height() < 8) return
+			val reads = ArrayList<OcrRead>()
+			readArea(frame, area, 0.008f, reads, everyLine = true, countLines = false)
+			val found = reads.filter { it.box != null && it.text.any(Char::isLetter) }.map { rd ->
+				val b = rd.box!!
+				val px = Rect((b[0] * frame.width).toInt(), (b[1] * frame.height).toInt(), ((b[0] + b[2]) * frame.width).toInt(), ((b[1] + b[3]) * frame.height).toInt())
+				val (fg, bg) = lineColors(frame, px)
+				LensItem(rd.text.trim(), b, fg, bg, rd.colored)
+			}
+			// each text translated once (in parallel), then remembered while the box is open
+			val done = coroutineScope { found.map { async { it to lensTranslate(it.english) } }.awaitAll() }
+			if(lensRect == null) return
+			val ready = done.mapNotNull { (item, ar) -> ar?.let { a -> LinkServer.LensOut(a, item.box, item.fg, item.bg, spans(item.english, a, item.colored)) } }
+			val sig = ready.joinToString("|") { it.arabic + "@" + (it.box[0] * 200).toInt() + "," + (it.box[1] * 200).toInt() }
+			if(sig == lensSent) return
+			lensSent = sig
+			if(ready.isEmpty()) LinkServer.sendLensClear() else LinkServer.sendLens(ready)
+		}
+		finally { frame.recycle() }
+	}
+
+	private class LensItem(val english: String, val box: FloatArray, val fg: Int, val bg: Int, val colored: List<Colored>)
+
+	/** the same choice as for side texts: your correction, the fixed game word, the AI (when on) or the on-device model */
+	private suspend fun lensTranslate(english: String): String?
+	{
+		lensCache[english]?.let { return it }
+		val st = SideText.clean(english) ?: return null
+		val g = com.inarabic.translate.Glossary.lookup(st.text)
+		val known = TranslationMemory.get(st.text)
+		val ar: String = when
+		{
+			known?.source == TranslationMemory.Source.USER -> known.arabic
+			g != null -> g
+			prefs.aiOnly ->
+				known?.takeIf { it.source == TranslationMemory.Source.AI && it.engine == prefs.engine }?.arabic
+					?: translator.better(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) }
+			else -> known?.arabic ?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) }
+		} ?: return null
+		val arN = com.inarabic.translate.Glossary.arabicNames(ar)
+		val out = if(st.button != null) "$arN  ${st.button}" else arN
+		lensCache[english] = out
+		return out
+	}
+
+	/**
+	 * The colours of one line of text: the background is what lies around the letters (the edge of the box),
+	 * the letters are the pixels farthest from it.
+	 */
+	private fun lineColors(bmp: Bitmap, r: Rect): Pair<Int, Int>
+	{
+		val box = Rect(r); box.inset(-2, -2)
+		if(!box.intersect(0, 0, bmp.width, bmp.height) || box.width() < 3 || box.height() < 3)
+			return android.graphics.Color.WHITE to android.graphics.Color.BLACK
+		val edge = ArrayList<Int>()
+		val sx = maxOf(1, box.width() / 40); val sy = maxOf(1, box.height() / 8)
+		var x = box.left
+		while(x < box.right) { edge += bmp.getPixel(x, box.top); edge += bmp.getPixel(x, box.bottom - 1); x += sx }
+		var y = box.top
+		while(y < box.bottom) { edge += bmp.getPixel(box.left, y); edge += bmp.getPixel(box.right - 1, y); y += sy }
+		fun ch(c: Int, s: Int) = (c shr s) and 255
+		fun med(s: Int) = edge.map { ch(it, s) }.sorted()[edge.size / 2]
+		val bg = android.graphics.Color.rgb(med(16), med(8), med(0))
+		val inner = ArrayList<Int>()
+		y = box.top + 1
+		while(y < box.bottom - 1) { x = box.left + 1; while(x < box.right - 1) { inner += bmp.getPixel(x, y); x += sx }; y += maxOf(1, sy / 2) }
+		fun dist(c: Int) = kotlin.math.abs(ch(c, 16) - ch(bg, 16)) + kotlin.math.abs(ch(c, 8) - ch(bg, 8)) + kotlin.math.abs(ch(c, 0) - ch(bg, 0))
+		val far = inner.sortedByDescending(::dist).take(maxOf(3, inner.size / 8))
+		if(far.isEmpty() || dist(far[0]) < 60) return (if(lum(bg) > 128) android.graphics.Color.BLACK else android.graphics.Color.WHITE) to bg
+		val fg = android.graphics.Color.rgb(far.sumOf { ch(it, 16) } / far.size, far.sumOf { ch(it, 8) } / far.size, far.sumOf { ch(it, 0) } / far.size)
+		return fg to bg
+	}
+	private fun lum(c: Int) = 0.299 * ((c shr 16) and 255) + 0.587 * ((c shr 8) and 255) + 0.114 * (c and 255)
 
 	private suspend fun gameSpans(english: String, arabic: String, colored: List<Colored>): List<ColorSpan>
 	{
@@ -516,9 +623,9 @@ class CaptionEngine(
 	 * With [sideOut]: only lines centred on the picture are the subtitle; the others (a mission title or a button
 	 * prompt in a corner) are put in [sideOut], one read per line, so they neither mix into the subtitle nor move it.
 	 */
-	private suspend fun readArea(frame: Bitmap, area: Rect, minLineH: Float, sideOut: MutableList<OcrRead>? = null, everyLine: Boolean = false): OcrRead
+	private suspend fun readArea(frame: Bitmap, area: Rect, minLineH: Float, sideOut: MutableList<OcrRead>? = null, everyLine: Boolean = false, countLines: Boolean = true): OcrRead
 	{
-		lastLineCount = 0
+		if(countLines) lastLineCount = 0
 		val crop = Bitmap.createBitmap(frame, area.left, area.top, area.width(), area.height())
 		try
 		{
@@ -529,7 +636,7 @@ class CaptionEngine(
 			} ?: return OcrRead("")
 			val ok = { l: Text.Line -> (l.boundingBox?.height() ?: 0) >= frame.height * minLineH } // skip tiny HUD text
 			val all = result.textBlocks.flatMap { it.lines }.filter(ok).sortedBy { it.boundingBox?.top ?: 0 }
-			lastLineCount = all.size
+			if(countLines) lastLineCount = all.size
 			fun centred(l: Text.Line): Boolean
 			{
 				val b = l.boundingBox ?: return false

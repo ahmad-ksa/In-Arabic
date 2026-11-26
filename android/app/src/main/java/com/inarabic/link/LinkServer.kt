@@ -10,6 +10,7 @@
 //   {"t":"sub","id":7,"ar":"…","en":"…","final":false,"box":[x,y,w,h]}   box: original subtitle, 0..1 of the picture
 //   {"t":"clear"}
 //   {"t":"box2","ar":"…","box":[x,y,w,h]} / {"t":"box2clear"}           side texts (objectives, messages)
+//   {"t":"lens","items":[{"ar":"…","box":[x,y,w,h,lineH],"color":"#RRGGBB","bg":"#RRGGBB","spans":[…]}]} / {"t":"lensclear"}
 //   {"t":"panel","title":"…","text":"…","ttl":30000}                     e.g. the story summary
 //   {"t":"style","scale":1.0,"cover":true,"opacity":0.85,"color":"#FFFFFF","pos":"auto|bottom|top","bold":true}
 // TV -> phone: {"t":"hello","kind":"androidtv|lg","name":"…"}
@@ -143,11 +144,35 @@ object LinkServer
 		broadcast("{\"t\":\"sideclear\"}")
 	}
 
+	/** one text inside the lens: the Arabic, its English box, letter and background colours, coloured words */
+	class LensOut(val arabic: String, val box: FloatArray, val color: Int, val bg: Int, val spans: List<com.inarabic.caption.ColorSpan>)
+	@Volatile private var lastLens: String? = null
+
+	/** the lens's translations: each drawn over its English, same size and colours */
+	fun sendLens(items: List<LensOut>)
+	{
+		val arr = org.json.JSONArray()
+		for(it in items)
+			arr.put(JSONObject().put("ar", it.arabic).put("box", boxJson(it.box))
+				.put("color", String.format("#%06X", it.color and 0xFFFFFF)).put("bg", String.format("#%06X", it.bg and 0xFFFFFF))
+				.apply { if(it.spans.isNotEmpty()) put("spans", spansJson(it.spans)) })
+		val msg = JSONObject().put("t", "lens").put("items", arr).toString()
+		lastLens = msg
+		broadcast(msg)
+	}
+
+	fun sendLensClear()
+	{
+		lastLens = null
+		broadcast("{\"t\":\"lensclear\"}")
+	}
+
 	/** sends what is on screen again (the TVs hide a line they have not heard about for a while) */
 	fun refresh()
 	{
 		lastSub?.let { broadcast(it) }
 		lastSide?.let { broadcast(it) }
+		lastLens?.let { broadcast(it) }
 	}
 
 	/** a short notice shown on the TVs (top of the screen) */
@@ -238,6 +263,7 @@ object LinkServer
 			lastSub?.let { conn.send(it) }
 			lastBox2?.let { conn.send(it) }
 			lastSide?.let { conn.send(it) }
+			lastLens?.let { conn.send(it) }
 		}
 
 		override fun onClose(conn: WebSocket, code: Int, reason: String?, remote: Boolean)

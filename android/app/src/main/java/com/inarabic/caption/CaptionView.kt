@@ -36,6 +36,10 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	class Side(val text: String, val box: FloatArray, val spans: List<IntArray> = emptyList())
 	var sides: List<Side> = emptyList()
 		set(v) { field = v; invalidate() }
+	/** the lens's translations: each over its English, with the English's own letter and background colours */
+	class Lens(val text: String, val box: FloatArray, val color: Int, val bg: Int, val spans: List<IntArray>)
+	var lens: List<Lens> = emptyList()
+		set(v) { field = v; invalidate() }
 	/** a short notice at the top (phone lost / back) */
 	private var bannerText: String? = null
 	private val hideBanner = Runnable { bannerText = null; invalidate() }
@@ -104,6 +108,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	private val hidePanel = Runnable { panelText = null }
 	private val hideSide = Runnable { sides = emptyList() }
 	private val hideZone = Runnable { zoneList = emptyList() }
+	private val hideLens = Runnable { lens = emptyList() }
 
 	/** A message from the phone (see the phone's LinkServer for the format). */
 	fun handle(o: org.json.JSONObject)
@@ -152,6 +157,19 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				zoneList = if(a == null) emptyList() else (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { z -> box(z)?.let { it to z.optBoolean("dialog", true) } } }
 				timers.removeCallbacks(hideZone); timers.postDelayed(hideZone, 8000)
 			}
+			"lens" ->
+			{
+				val items = o.optJSONArray("items")
+				lens = if(items == null) emptyList() else (0 until items.length()).mapNotNull { i ->
+					val it = items.optJSONObject(i) ?: return@mapNotNull null
+					val b = box(it) ?: return@mapNotNull null
+					val fg = try { Color.parseColor(it.optString("color")) } catch(e: Exception) { Color.WHITE }
+					val bg = try { Color.parseColor(it.optString("bg")) } catch(e: Exception) { Color.BLACK }
+					it.optString("ar").takeIf { a -> a.isNotBlank() }?.let { a -> Lens(a, b, fg, bg, spans(it)) }
+				}
+				timers.removeCallbacks(hideLens); timers.postDelayed(hideLens, 15000)
+			}
+			"lensclear" -> { timers.removeCallbacks(hideLens); lens = emptyList() }
 			"notice" -> banner(o.optString("text"))
 			"sideclear" -> { timers.removeCallbacks(hideSide); sides = emptyList() }
 			"panel" ->
@@ -307,6 +325,34 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			canvas.drawRoundRect(area, h * 0.006f, h * 0.006f, boxPaint)
 			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas); canvas.restore()
 		}
+
+		// the lens: over each English text, its own size and colours; the background fully covers the English
+		for(ln in lens)
+		{
+			val lb = fit(ln.box)
+			val lineH = if(lb.size > 4 && lb[4] > 0f) lb[4] * h else lb[3] * h
+			val area = RectF(lb[0] * w - lineH * 0.15f, lb[1] * h - lineH * 0.1f, (lb[0] + lb[2]) * w + lineH * 0.15f, (lb[1] + lb[3]) * h + lineH * 0.1f)
+			val para = lb.size > 4 && lb[4] > 0f && lb[3] > lb[4] * 1.6f && '\n' !in ln.text
+			textPaint.textSize = lineH * 0.95f * scale
+			textPaint.color = ln.color
+			textPaint.clearShadowLayer() // the game's own look: no added shadow
+			// one line: shrink a little to keep the English width, then widen if it still needs it
+			if(!para)
+			{
+				val need = ln.text.split('\n').maxOf { textPaint.measureText(it) } + lineH * 0.3f
+				if(need > area.width()) textPaint.textSize *= max(0.75f, area.width() / need)
+				val need2 = ln.text.split('\n').maxOf { textPaint.measureText(it) } + lineH * 0.3f
+				if(need2 > area.width()) { val cx = area.centerX(); area.left = max(0f, cx - need2 / 2); area.right = min(w, area.left + need2) }
+			}
+			val inner = (area.width() - lineH * 0.3f).toInt().coerceAtLeast(20)
+			val l = layout(styled(ln.text, ln.spans), inner, if(para) Layout.Alignment.ALIGN_NORMAL else Layout.Alignment.ALIGN_CENTER)
+			if(area.height() < l.height + lineH * 0.2f) area.bottom = area.top + l.height + lineH * 0.2f
+			val bp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ln.bg }
+			canvas.drawRoundRect(area, lineH * 0.12f, lineH * 0.12f, bp)
+			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); l.draw(canvas); canvas.restore()
+			textPaint.setShadowLayer(4f, 0f, 2f, Color.BLACK)
+		}
+		textPaint.color = color
 
 		// subtitle
 		val t = text

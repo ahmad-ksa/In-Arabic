@@ -78,6 +78,9 @@ class StreamActivity : AppCompatActivity()
 			it.onSystemUi = { on -> if(on) notice("شاشة البلايستيشن ظاهرة، الترجمة متوقفة مؤقتاً", 0) else binding.iaNotice.visibility = View.GONE }
 			it.start()
 		}
+		// the lens: what is inside it is read and translated (a box already open is taken over)
+		binding.iaLens.onChange = { r -> captionEngine?.setLens(r) }
+		binding.iaLens.rect?.let { captionEngine?.setLens(it) }
 		// tap the Arabic line on the phone to correct it: remembered, and replaced on the TV at once
 		binding.iaCaption.setOnClickListener {
 			val cur = captionEngine?.current ?: return@setOnClickListener
@@ -556,6 +559,41 @@ class StreamActivity : AppCompatActivity()
 	}
 
 	private fun adjustStreamViewAspect() = adjustSurfaceViewAspect()
+
+	// ---- a quick tap with two fingers opens the lens there (the touches go on to the stream as before) ----
+	private var tapDownAt = 0L
+	private var tapTwo = false
+	private var tapMoved = false
+	private val tapStart = FloatArray(4)
+	override fun dispatchTouchEvent(e: MotionEvent): Boolean
+	{
+		when(e.actionMasked)
+		{
+			MotionEvent.ACTION_DOWN -> { tapDownAt = e.eventTime; tapTwo = false; tapMoved = false; tapStart[0] = e.rawX; tapStart[1] = e.rawY }
+			MotionEvent.ACTION_POINTER_DOWN ->
+				if(e.pointerCount == 2 && e.eventTime - tapDownAt < 300) { tapTwo = true; tapStart[2] = e.getX(1); tapStart[3] = e.getY(1) }
+				else tapTwo = false
+			MotionEvent.ACTION_MOVE ->
+			{
+				val slop = 24 * resources.displayMetrics.density
+				if(kotlin.math.hypot(e.rawX - tapStart[0], e.rawY - tapStart[1]) > slop) tapMoved = true
+			}
+			MotionEvent.ACTION_UP ->
+				if(tapTwo && !tapMoved && e.eventTime - tapDownAt < 450 && captionEngine != null)
+				{
+					tapTwo = false
+					val lens = binding.iaLens
+					val at = IntArray(2); lens.getLocationOnScreen(at)
+					val x0 = tapStart[0] - at[0]; val y0 = tapStart[1] - at[1]
+					lens.open(x0, y0)
+					// the views below saw the fingers go down: tell them the touch is over (not a tap for them)
+					val c = MotionEvent.obtain(e); c.action = MotionEvent.ACTION_CANCEL
+					super.dispatchTouchEvent(c); c.recycle()
+					return true
+				}
+		}
+		return super.dispatchTouchEvent(e)
+	}
 
 	override fun dispatchKeyEvent(event: KeyEvent) = viewModel.input.dispatchKeyEvent(event) || super.dispatchKeyEvent(event)
 	override fun onGenericMotionEvent(event: MotionEvent) = viewModel.input.onGenericMotionEvent(event) || super.onGenericMotionEvent(event)

@@ -28,6 +28,11 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:visibility="gone"/>
+        <!-- the lens: a quick two-finger tap opens it; what is inside is translated at once -->
+        <com.inarabic.caption.LensView
+            android:id="@+id/iaLens"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
     </com.metallic.chiaki.stream.AspectRatioFrameLayout>
 
 
