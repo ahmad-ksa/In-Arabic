@@ -171,7 +171,6 @@ class Translator(private val prefs: InArabicPrefs)
 		val body = JSONObject()
 			.put("model", model)
 			.put("temperature", 0.2)
-		// Gemini "thinks" before answering unless told not to: that is most of the wait for a short line
 		// thinking off (or as low as the model allows): it is most of the wait for a short line
 		val gemini = base.contains("generativelanguage")
 		if(!noReasoningParam)
@@ -179,7 +178,7 @@ class Translator(private val prefs: InArabicPrefs)
 			if(gemini) body.put("reasoning_effort", if(model.contains("2.5")) "none" else "low")
 			else if(model.contains("gpt-oss")) body.put("reasoning_effort", "low")
 		}
-			.put("messages", JSONArray()
+		body.put("messages", JSONArray()
 				.put(JSONObject().put("role", "system").put("content", system))
 				.put(JSONObject().put("role", "user").put("content", user)))
 		return try
