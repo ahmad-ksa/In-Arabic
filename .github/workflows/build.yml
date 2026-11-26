@@ -104,7 +104,7 @@ jobs:
           cat lgrepo/apps.json
       - name: Package Samsung WGT (same page, Tizen config)
         run: |
-          mkdir -p wgt && cp -r lg/index.html lg/qrcode.js lg/fonts lg/pattern.png lg/largeIcon.png samsung/config.xml wgt/
+          mkdir -p wgt && cp -r lg/index.html lg/qrcode.js lg/fonts lg/pattern.png lg/largeIcon.png lg/keepawake.mp4 samsung/config.xml wgt/
           sed -i "s/version=\"0.1.0\"/version=\"0.1.${{ github.run_number }}\"/" wgt/config.xml
           (cd wgt && zip -qr ../InArabic-samsung.wgt .)
       - uses: actions/upload-artifact@v4
