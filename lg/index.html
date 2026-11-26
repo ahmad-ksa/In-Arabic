@@ -252,6 +252,11 @@
     if (para) {
       d.style.width = (ownW + 2 * padX) + 'px'; d.style.whiteSpace = 'pre-line'; d.style.textAlign = 'right';
       while (d.offsetHeight > ownH + padY * 2 && s > start * (own ? 0.4 : 0.45)) { s *= 0.92; d.style.fontSize = s + 'px'; }
+      // the lens: shorter than the English, the letters grow (up to a little over the English size) to fill it
+      if (own) while (d.offsetHeight < (ownH + padY * 2) * 0.8 && s < lineH * 1.05) {
+        var prev = s; s *= 1.06; d.style.fontSize = s + 'px';
+        if (d.offsetHeight > ownH + padY * 2) { s = prev; d.style.fontSize = s + 'px'; break; }
+      }
     } else {
       d.style.whiteSpace = 'pre'; d.style.textAlign = 'center'; d.style.minWidth = (ownW + 2 * padX) + 'px';
       // keep the English width: smaller letters first, a bit wider only if it still does not fit

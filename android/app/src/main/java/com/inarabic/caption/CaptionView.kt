@@ -307,7 +307,17 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		if(para)
 		{
 			inner = ownW.toInt().coerceAtLeast(20)
-			l = fitLayout(styled(text, spans), start, inner, ownH, Layout.Alignment.ALIGN_NORMAL, if(own) 0.4f else 0.45f)
+			var lp = fitLayout(styled(text, spans), start, inner, ownH, Layout.Alignment.ALIGN_NORMAL, if(own) 0.4f else 0.45f)
+			// the lens: shorter than the English, the letters grow (up to a little over the English size) to fill it
+			if(own) while(lp.height < ownH * 0.8f && textPaint.textSize < lineH * 1.05f)
+			{
+				val sz = textPaint.textSize
+				textPaint.textSize = sz * 1.06f
+				val bigger = layout(styled(text, spans), inner, Layout.Alignment.ALIGN_NORMAL)
+				if(bigger.height > ownH) { textPaint.textSize = sz; break }
+				lp = bigger
+			}
+			l = lp
 		}
 		else
 		{

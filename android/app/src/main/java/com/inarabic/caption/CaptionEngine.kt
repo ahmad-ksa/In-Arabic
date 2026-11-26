@@ -577,12 +577,16 @@ class CaptionEngine(
 				val cx = b[0] + b[2] / 2; val cy = b[1] + b[3] / 2
 				return cx >= sub[0] - 0.02f && cx <= sub[0] + sub[2] + 0.02f && cy >= sub[1] - 0.03f && cy <= sub[1] + sub[3] + 0.03f
 			}
-			val found = reads.filter { it.box != null && it.text.any(Char::isLetter) && !onSub(it.box) }.map { rd ->
+			val found = reads.filter { it.box != null && it.text.any(Char::isLetter) && !onSub(it.box) }.mapTo(ArrayList()) { rd ->
 				val b = rd.box!!
 				val px = Rect((b[0] * frame.width).toInt(), (b[1] * frame.height).toInt(), ((b[0] + b[2]) * frame.width).toInt(), ((b[1] + b[3]) * frame.height).toInt())
 				val (fg, bg) = lineColors(frame, px)
 				LensItem(rd.text.trim(), b, fg, bg, rd.colored)
 			}
+			// a message read in pieces (its last line as a block of its own): the pieces are put together first, so the
+			// whole message is translated as one and its Arabic covers all of its English
+			val joined = joinPieces(found)
+			found.clear(); found.addAll(joined)
 			// steady: a text read again a little differently (the picture shook: a letter lost, a line cut) is the
 			// same message, its translation and colours kept; it only moves to where it is now
 			val prev = synchronized(lensItems) { lensItems.toList() }
@@ -640,6 +644,52 @@ class CaptionEngine(
 	}
 
 	private class LensItem(val english: String, val box: FloatArray, val fg: Int, val bg: Int, val colored: List<Colored>)
+
+	/** pieces of one message: right under each other, same width side by side, same letter size and same bubble colour */
+	private fun joinPieces(items: List<LensItem>): List<LensItem>
+	{
+		val out = ArrayList<LensItem>()
+		for(it in items.sortedBy { it.box[1] })
+		{
+			val last = out.lastOrNull()
+			if(last != null && samePiece(last, it)) { out[out.size - 1] = merge(last, it); continue }
+			out += it
+		}
+		return out
+	}
+
+	private fun lineH(b: FloatArray) = if(b.size > 4 && b[4] > 0f) b[4] else b[3]
+
+	private fun samePiece(a: LensItem, b: LensItem): Boolean
+	{
+		val ha = lineH(a.box); val hb = lineH(b.box)
+		if(kotlin.math.abs(ha - hb) > maxOf(ha, hb) * 0.25f) return false
+		val gap = b.box[1] - (a.box[1] + a.box[3])
+		if(gap > ha * 0.9f || gap < -ha * 0.5f) return false
+		val ox = minOf(a.box[0] + a.box[2], b.box[0] + b.box[2]) - maxOf(a.box[0], b.box[0])
+		if(ox < minOf(a.box[2], b.box[2]) * 0.5f) return false
+		fun d(x: Int, y: Int) = kotlin.math.abs(((x shr 16) and 255) - ((y shr 16) and 255)) + kotlin.math.abs(((x shr 8) and 255) - ((y shr 8) and 255)) + kotlin.math.abs((x and 255) - (y and 255))
+		return d(a.bg, b.bg) < 60 && d(a.fg, b.fg) < 120
+	}
+
+	private fun merge(a: LensItem, b: LensItem): LensItem
+	{
+		val l = minOf(a.box[0], b.box[0]); val t = minOf(a.box[1], b.box[1])
+		val r = maxOf(a.box[0] + a.box[2], b.box[0] + b.box[2]); val btm = maxOf(a.box[1] + a.box[3], b.box[1] + b.box[3])
+		val base = floatArrayOf(l, t, r - l, btm - t, (lineH(a.box) + lineH(b.box)) / 2)
+		// tilted: the own width is the wider one; the own height runs from the top of the first to the bottom of the second
+		val box = if(a.box.size > 7 && b.box.size > 7)
+		{
+			val ang = Math.toRadians(a.box[5].toDouble())
+			// centres in parts of the picture's height (the own sizes are measured that way); 16:9 picture
+			val ax = (a.box[0] + a.box[2] / 2) * 16f / 9f; val ay = a.box[1] + a.box[3] / 2
+			val bx = (b.box[0] + b.box[2] / 2) * 16f / 9f; val by = b.box[1] + b.box[3] / 2
+			val along = (-(bx - ax) * kotlin.math.sin(ang) + (by - ay) * kotlin.math.cos(ang)).toFloat()
+			base + floatArrayOf(a.box[5], maxOf(a.box[6], b.box[6]), a.box[7] / 2 + b.box[7] / 2 + kotlin.math.abs(along))
+		}
+		else base
+		return LensItem(a.english.trimEnd() + " " + b.english.trimStart(), box, a.fg, a.bg, a.colored + b.colored)
+	}
 	/** a message in the lens: its translation and colours fixed once, its place updated at each read */
 	private class LensState(val english: String, var box: FloatArray, var arabic: String, val fg: Int, val bg: Int, var spans: List<ColorSpan>, var missed: Int = 0)
 	{
@@ -781,34 +831,39 @@ class CaptionEngine(
 	 */
 	private fun lineColors(bmp: Bitmap, r: Rect): Pair<Int, Int>
 	{
-		val box = Rect(r); box.inset(-2, -2)
+		val box = Rect(r)
 		if(!box.intersect(0, 0, bmp.width, bmp.height) || box.width() < 3 || box.height() < 3)
 			return android.graphics.Color.WHITE to android.graphics.Color.BLACK
-		val edge = ArrayList<Int>()
-		val sx = maxOf(1, box.width() / 40); val sy = maxOf(1, box.height() / 8)
-		var x = box.left
-		while(x < box.right) { edge += bmp.getPixel(x, box.top); edge += bmp.getPixel(x, box.bottom - 1); x += sx }
-		var y = box.top
-		while(y < box.bottom) { edge += bmp.getPixel(box.left, y); edge += bmp.getPixel(box.right - 1, y); y += sy }
 		fun ch(c: Int, s: Int) = (c shr s) and 255
-		fun med(s: Int) = edge.map { ch(it, s) }.sorted()[edge.size / 2]
-		val bg = android.graphics.Color.rgb(med(16), med(8), med(0))
+		// the background: a ring just outside the letters (inside the bubble, clear of the strokes and their soft
+		// edges), so the Arabic's background is the bubble's own colour and does not show as a box of its own
+		val pad = maxOf(3, (minOf(box.height(), 40) * 0.3f).toInt())
+		val ring = Rect(box.left - pad, box.top - pad, box.right + pad, box.bottom + pad)
+		ring.intersect(0, 0, bmp.width, bmp.height)
+		val edge = ArrayList<Int>()
+		val sx = maxOf(1, ring.width() / 48); val sy = maxOf(1, ring.height() / 12)
+		var x = ring.left
+		while(x < ring.right) { edge += bmp.getPixel(x, ring.top); edge += bmp.getPixel(x, ring.bottom - 1); x += sx }
+		var y = ring.top
+		while(y < ring.bottom) { edge += bmp.getPixel(ring.left, y); edge += bmp.getPixel(ring.right - 1, y); y += sy }
+		fun med(list: List<Int>, s: Int) = list.map { ch(it, s) }.sorted()[list.size / 2]
+		val bg = android.graphics.Color.rgb(med(edge, 16), med(edge, 8), med(edge, 0))
 		val inner = ArrayList<Int>()
-		y = box.top + 1
-		while(y < box.bottom - 1) { x = box.left + 1; while(x < box.right - 1) { inner += bmp.getPixel(x, y); x += sx }; y += maxOf(1, sy / 2) }
+		val ix = maxOf(1, box.width() / 60); val iy = maxOf(1, box.height() / 16)
+		y = box.top
+		while(y < box.bottom) { x = box.left; while(x < box.right) { inner += bmp.getPixel(x, y); x += ix }; y += iy }
 		fun dist(c: Int) = kotlin.math.abs(ch(c, 16) - ch(bg, 16)) + kotlin.math.abs(ch(c, 8) - ch(bg, 8)) + kotlin.math.abs(ch(c, 0) - ch(bg, 0))
-		// the letters' own colour: the few pixels farthest from the background (the middle of the strokes, not
-		// their soft edges, which are half background: those made dark letters look grey)
+		// the letters' own colour: the few pixels farthest from the background (the middle of the strokes)
 		val far = inner.sortedByDescending(::dist).take(maxOf(3, inner.size / 25))
 		if(far.isEmpty() || dist(far[0]) < 60) return (if(lum(bg) > 128) android.graphics.Color.BLACK else android.graphics.Color.WHITE) to bg
-		fun medCh(s: Int) = far.map { ch(it, s) }.sorted()[far.size / 2]
 		val hsv = FloatArray(3)
-		android.graphics.Color.RGBToHSV(medCh(16), medCh(8), medCh(0), hsv)
-		// the picture is a little soft (video): the letters are pushed away from the background, as crisp as the game's
-		if(lum(android.graphics.Color.rgb(medCh(16), medCh(8), medCh(0))) < lum(bg)) hsv[2] *= 0.55f
-		else hsv[2] = maxOf(hsv[2], 0.95f)
-		val fg = android.graphics.Color.HSVToColor(hsv)
-		return fg to bg
+		android.graphics.Color.RGBToHSV(med(far, 16), med(far, 8), med(far, 0), hsv)
+		val darker = lum(android.graphics.Color.rgb(med(far, 16), med(far, 8), med(far, 0))) < lum(bg)
+		// the video is a little soft: grey letters are made crisp (black text black, white text white); coloured
+		// letters keep their colour (dark blue stays dark blue), only a little deeper or brighter
+		if(hsv[1] < 0.25f) { if(darker) hsv[2] *= 0.55f else hsv[2] = maxOf(hsv[2], 0.95f) }
+		else { if(darker) hsv[2] *= 0.85f else hsv[2] = maxOf(hsv[2], 0.9f); hsv[1] = minOf(1f, hsv[1] * 1.1f) }
+		return android.graphics.Color.HSVToColor(hsv) to bg
 	}
 	private fun lum(c: Int) = 0.299 * ((c shr 16) and 255) + 0.587 * ((c shr 8) and 255) + 0.114 * (c and 255)
 
