@@ -612,15 +612,32 @@ class CaptionEngine(
 			val fresh = ArrayList<LensItem>()
 			for(f in found)
 			{
-				val m = prev.filter { it !in used && near(it.box, f.box) && similar(it.english, f.english) >= 0.8f }
-					.maxByOrNull { similar(it.english, f.english) }
-				if(m != null) { used += m; m.box = f.box; m.missed = 0; keep += m } else fresh += f
+				// the same message: in the same place with much the same text, or close by with nearly the same text.
+				// A message read in two pieces this time (or two read as one) still belongs to the one already shown.
+				val m = prev.filter { (overlap(it.box, f.box) > 0.5f && similar(it.english, f.english) >= 0.5f) ||
+						(near(it.box, f.box) && similar(it.english, f.english) >= 0.8f) ||
+						(overlap(it.box, f.box) > 0.7f && (it.english.contains(f.english.take(12), true) || f.english.contains(it.english.take(12), true))) }
+					.maxByOrNull { overlap(it.box, f.box) + similar(it.english, f.english) }
+				if(m != null)
+				{
+					if(m !in used)
+					{
+						used += m; m.missed = 0
+						// it stays where it is unless it really moved (no jitter from one read to the next)
+						val dx = kotlin.math.abs((m.box[0] + m.box[2] / 2) - (f.box[0] + f.box[2] / 2))
+						val dy = kotlin.math.abs((m.box[1] + m.box[3] / 2) - (f.box[1] + f.box[3] / 2))
+						if(dx > 0.012f || dy > 0.012f) m.box = f.box
+						keep += m
+					}
+				}
+				else fresh += f
 			}
-			// a message missing from one or two reads (shaking) stays; after that it is gone
-			for(p in prev) if(p !in used && ++p.missed <= 2 && keep.none { overlap(it.box, p.box) > 0.3f }) keep += p
+			// a message missing from a few reads (shaking, a read in pieces) stays; after 4 s without it, it is gone.
+			// A new text over the same place replaces it only if it really is another message.
+			for(p in prev) if(p !in used && ++p.missed <= 4 && fresh.none { overlap(it.box, p.box) > 0.5f && similar(it.english, p.english) < 0.5f }) keep += p
 			val done = coroutineScope { fresh.map { async { it to lensTranslate(it.english) } }.awaitAll() }
 			if(lensRect == null) return
-			for((item, ar) in done) if(ar != null && keep.none { overlap(it.box, item.box) > 0.3f })
+			for((item, ar) in done) if(ar != null && keep.none { overlap(it.box, item.box) > 0.5f })
 				keep += LensState(item.english, item.box, ar, item.fg, item.bg, spans(item.english, ar, item.colored))
 			synchronized(lensItems) { lensItems.clear(); lensItems.addAll(keep) }
 			val ready = keep.map { LinkServer.LensOut(it.arabic, it.box, it.fg, it.bg, it.spans) }

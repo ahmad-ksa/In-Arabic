@@ -232,12 +232,13 @@
    * spilling onto what is below), with the English's tilt when it is tilted (a phone in the game).
    * b: x, y, w, h, line height, and for tilted text angle, own width, own height.
    */
-  function placeItem(host, ar, spans, b, size, fg, bgc, withOutline) {
+  function placeItem(host, ar, spans, b, size, fg, bgc, withOutline, own) {
     var tilted = b.length > 7, angle = tilted ? b[5] : 0;
     var ownW = tilted ? b[6] * 1080 : b[2] * 1920, ownH = tilted ? b[7] * 1080 : b[3] * 1080;
     var lineH = (b.length > 4 && b[4] > 0) ? b[4] * 1080 : ownH;
     var cx = (b[0] + b[2] / 2) * 1920, cy = (b[1] + b[3] / 2) * 1080;
-    var padX = lineH * 0.15, padY = lineH * 0.08;
+    // own (the lens): exactly the English text's area, as tight as its own bubble
+    var padX = lineH * (own ? 0.08 : 0.15), padY = lineH * (own ? 0.04 : 0.08);
     var para = ownH > lineH * 1.6 && ar.indexOf('\n') < 0;
     var d = document.createElement('div');
     d.className = 'item';
@@ -250,7 +251,7 @@
     host.appendChild(d);
     if (para) {
       d.style.width = (ownW + 2 * padX) + 'px'; d.style.whiteSpace = 'pre-line'; d.style.textAlign = 'right';
-      while (d.offsetHeight > ownH + padY * 3 && s > start * 0.45) { s *= 0.92; d.style.fontSize = s + 'px'; }
+      while (d.offsetHeight > ownH + padY * 2 && s > start * (own ? 0.4 : 0.45)) { s *= 0.92; d.style.fontSize = s + 'px'; }
     } else {
       d.style.whiteSpace = 'pre'; d.style.textAlign = 'center'; d.style.minWidth = (ownW + 2 * padX) + 'px';
       // keep the English width: smaller letters first, a bit wider only if it still does not fit
@@ -296,7 +297,7 @@
     host.style.transform = ''; // places freshly read: no movement on top
     (items || []).forEach(function (it) {
       var b = fit(it.box); if (!it.ar || !b) return;
-      placeItem(host, it.ar, it.spans, b, 0, it.color || '#FFFFFF', it.bg || '#000000', false);
+      placeItem(host, it.ar, it.spans, b, 0, it.color || '#FFFFFF', it.bg || '#000000', false, true);
     });
     relayout();
     lensTimer = setTimeout(function () { host.innerHTML = ''; }, 15000);
@@ -309,6 +310,9 @@
     els = els.concat([].slice.call($('lens').children));
     if ($('side').style.display !== 'none') els = els.concat([].slice.call($('side').children));
     els.forEach(function (el) {
+      // the lens's texts stay exactly on their English (each fits in its own area; a tilted one's level outline is
+      // bigger than it, and moving by it pushed neighbours away): only counted, never moved
+      if (el.parentNode === $('lens')) { var lr = el.getBoundingClientRect(); placed.push({ l: lr.left, t: lr.top, r: lr.right, b: lr.bottom }); return; }
       if (el.getAttribute('data-top') == null) el.setAttribute('data-top', parseFloat(el.style.top) || 0);
       var top0 = parseFloat(el.getAttribute('data-top'));
       el.style.top = top0 + 'px';

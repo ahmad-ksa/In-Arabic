@@ -286,7 +286,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	 * spilling onto what is below), with the English's tilt when it is tilted, and moved off anything already drawn.
 	 * [b]: x, y, w, h, line height, and for tilted text angle, own width, own height (see the phone's engine).
 	 */
-	private fun drawItem(canvas: Canvas, text: String, spans: List<IntArray>, b: FloatArray, size: Float?, fg: Int, bg: Paint, withOutline: Boolean)
+	private fun drawItem(canvas: Canvas, text: String, spans: List<IntArray>, b: FloatArray, size: Float?, fg: Int, bg: Paint, withOutline: Boolean, own: Boolean = false)
 	{
 		val w = width.toFloat(); val h = height.toFloat()
 		val tilted = b.size > 7
@@ -296,7 +296,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		val lineH = if(b.size > 4 && b[4] > 0f) b[4] * h else ownH
 		val cx = (b[0] + b[2] / 2) * w
 		val cy = (b[1] + b[3] / 2) * h
-		val padX = lineH * 0.15f; val padY = lineH * 0.08f
+		// [own] (the lens): exactly the English text's area, as tight as its own bubble
+		val padX = lineH * (if(own) 0.08f else 0.15f); val padY = lineH * (if(own) 0.04f else 0.08f)
 		// a paragraph (a message, a description): wraps inside the English width; a list or a prompt: one line each
 		val para = ownH > lineH * 1.6f && '\n' !in text
 		val start = size ?: (lineH * 0.82f * scale)
@@ -306,7 +307,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		if(para)
 		{
 			inner = ownW.toInt().coerceAtLeast(20)
-			l = fitLayout(styled(text, spans), start, inner, ownH + padY, Layout.Alignment.ALIGN_NORMAL)
+			l = fitLayout(styled(text, spans), start, inner, ownH, Layout.Alignment.ALIGN_NORMAL, if(own) 0.4f else 0.45f)
 		}
 		else
 		{
@@ -328,7 +329,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		if(bounds.left < 0) dx = -bounds.left else if(bounds.right > w) dx = w - bounds.right
 		if(bounds.top < 0) dy = -bounds.top else if(bounds.bottom > h) dy = h - bounds.bottom
 		bounds.offset(dx, dy)
-		dy += avoid(bounds, h)
+		// the lens's texts stay exactly on their English (each fits in its own area, so they cannot overlap; a tilted
+		// one's level outline is bigger than it, and moving by it pushed neighbours away); the others move off
+		if(!own) dy += avoid(bounds, h)
 		placed += bounds
 		canvas.save()
 		canvas.translate(dx, dy)
@@ -448,7 +451,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			val bp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ln.bg }
 			textPaint.clearShadowLayer() // the game's own look: no added shadow
 			val tf = textPaint.typeface; textPaint.typeface = fontBold // bold, like the game's text
-			drawItem(canvas, ln.text, ln.spans, fit(ln.box), null, ln.color, bp, false)
+			drawItem(canvas, ln.text, ln.spans, fit(ln.box), null, ln.color, bp, false, own = true)
 			textPaint.setShadowLayer(4f, 0f, 2f, Color.BLACK)
 			textPaint.typeface = tf
 		}
