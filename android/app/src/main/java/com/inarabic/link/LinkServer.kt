@@ -47,6 +47,8 @@ object LinkServer
 
 	/** connected screens, for the status line in the app */
 	val screens = mutableMapOf<WebSocket, String>()
+	/** LG screens and their addresses (kept awake from the phone, see LgKeepAwake) */
+	private val lgScreens = mutableMapOf<WebSocket, String>()
 	var onScreensChanged: (() -> Unit)? = null
 
 	private var appContext: Context? = null
@@ -242,6 +244,8 @@ object LinkServer
 		{
 			synchronized(screens) { screens.remove(conn) }
 			onScreensChanged?.invoke()
+			val ip = synchronized(lgScreens) { lgScreens.remove(conn)?.takeIf { it !in lgScreens.values } }
+			if(ip != null) com.inarabic.lg.LgKeepAwake.stop(ip)
 		}
 
 		override fun onMessage(conn: WebSocket, message: String)
@@ -255,6 +259,12 @@ object LinkServer
 					val name = o.optString("name").ifBlank { kind }
 					synchronized(screens) { screens[conn] = name }
 					onScreensChanged?.invoke()
+					// an LG screen: the phone keeps it awake (you play with the controller, not its remote)
+					val ip = conn.remoteSocketAddress?.address?.hostAddress
+					if(kind == "lg" && ip != null) appContext?.let {
+						synchronized(lgScreens) { lgScreens[conn] = ip }
+						com.inarabic.lg.LgKeepAwake.start(it, ip)
+					}
 				}
 				else if(o.optString("t") == "ping")
 					conn.send("{\"t\":\"pong\",\"at\":${o.optLong("at")}}")
