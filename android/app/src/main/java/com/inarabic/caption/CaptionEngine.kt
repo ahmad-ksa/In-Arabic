@@ -551,8 +551,9 @@ class CaptionEngine(
 		synchronized(lensItems) { lensItems.clear() }
 		synchronized(trackLock) { trackRef = null }
 		if(r == null) { LinkServer.sendLensClear(); return }
-		// the box follows the text when the game's phone shakes (not the whole screen: there the world moves, the HUD does not)
-		if(!full && small != null) trackJob = scope.launch {
+		// following the shaking is off (not exact enough: the translations stay still, steadied by the reads instead);
+		// set FOLLOW_MOVEMENT to try it again
+		if(FOLLOW_MOVEMENT && !full && small != null) trackJob = scope.launch {
 			while(isActive)
 			{
 				val t0 = System.currentTimeMillis()
@@ -666,6 +667,7 @@ class CaptionEngine(
 	// ---- following the movement: between two reads (once a second) the picture inside the box is compared,
 	// about 15 times a second, with the one read last; the shift (and a small turn) moves the translations ----
 	private val TRACK_W = 320
+	private val FOLLOW_MOVEMENT = false
 	private class Gray(val w: Int, val h: Int, val px: IntArray)
 	private val trackLock = Any()
 	private var trackRef: Gray? = null
