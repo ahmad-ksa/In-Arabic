@@ -180,7 +180,7 @@
     });
     if (at < text.length) el.appendChild(document.createTextNode(text.slice(at)));
   }
-  function caption(text, box, spans) {
+  function caption(text, box, spans, fg, bgc) {
     box = fit(box, true);
     var c = $('cap');
     clearTimeout(hideTimer);
@@ -198,9 +198,10 @@
     var minW = W * 0.2;
     if (area.w < minW) { var cx = Math.min(Math.max(area.x + area.w / 2, minW / 2), W - minW / 2); area.x = cx - minW / 2; area.w = minW; }
     c.style.fontSize = sizeFor(box, 0.042, 0.026, 0.055) + 'px';
-    c.style.background = bg();
-    c.style.color = style.color;
-    c.style.fontWeight = style.bold ? '700' : '400';
+    // «ترجمة كاملة»: the dialogue's own colours (from the game's line); its background only when it has one
+    c.style.background = bgc || bg();
+    c.style.color = fg || style.color;
+    c.style.fontWeight = (fg || style.bold) ? '700' : '400';
     c.style.left = area.x + 'px';
     c.style.width = area.w + 'px';
     c.style.minHeight = area.h + 'px';
@@ -393,7 +394,7 @@
     };
     ws.onmessage = function (e) {
       var o; try { o = JSON.parse(e.data); } catch (x) { return; }
-      if (o.t === 'sub') caption(o.ar, o.box, o.spans);
+      if (o.t === 'sub') caption(o.ar, o.box, o.spans, o.fg, o.bg);
       else if (o.t === 'clear') caption(null);
       else if (o.t === 'box2') box2(o.ar, o.box);
       else if (o.t === 'box2clear') box2(null);

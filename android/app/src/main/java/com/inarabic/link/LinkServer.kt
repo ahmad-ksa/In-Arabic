@@ -100,10 +100,18 @@ object LinkServer
 		catch(e: Exception) { Log.w(TAG, "nsd", e) }
 	}
 
+	/** the dialogue line's own look on screen: letters' colour, background's colour, 1 if it has a background of its own */
+	@Volatile var subLook: IntArray? = null
+
 	fun sendSub(id: Int, arabic: String, english: String, final: Boolean, box: FloatArray?, spans: List<com.inarabic.caption.ColorSpan> = emptyList())
 	{
 		val o = JSONObject().put("t", "sub").put("id", id).put("ar", arabic).put("en", english).put("final", final)
 		if(box != null) o.put("box", boxJson(box))
+		// «ترجمة كاملة»: the Arabic in the dialogue's own colours (its background only if it has one)
+		subLook?.let { l ->
+			o.put("fg", String.format("#%06X", l[0] and 0xFFFFFF))
+			if(l[2] == 1) o.put("bg", String.format("#%06X", l[1] and 0xFFFFFF))
+		}
 		if(spans.isNotEmpty()) o.put("spans", spansJson(spans))
 		val msg = o.toString()
 		lastSub = msg

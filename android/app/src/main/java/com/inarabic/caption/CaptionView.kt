@@ -66,6 +66,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	var zoom = 0f
 	var dy = 0f
 	/** the menus' own size and height (apart from the dialogue's) */
+	/** the dialogue's own colours (letters; background when the game's line has one) */
+	private var subFg: Int? = null
+	private var subBg: Int? = null
 	var menuScale = 1f
 	var menuDy = 0f
 	/** false on the phone: its picture is the stream itself */
@@ -135,6 +138,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			{
 				box = box(o)
 				textSpans = spans(o)
+				// «ترجمة كاملة»: the dialogue's own colours (from the game's line), else the look from the settings
+				subFg = o.optString("fg").takeIf { it.isNotEmpty() }?.let { try { Color.parseColor(it) } catch(e: Exception) { null } }
+				subBg = o.optString("bg").takeIf { it.isNotEmpty() }?.let { try { Color.parseColor(it) } catch(e: Exception) { null } }
 				text = o.optString("ar")
 				// safety: never leave a line on screen forever if the phone disappears
 				timers.removeCallbacks(hide); timers.postDelayed(hide, 15000)
@@ -433,6 +439,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				area.left = cx - minW / 2; area.right = cx + minW / 2
 			}
 			val inner = (area.width() - w * 0.02f).toInt().coerceAtLeast(50)
+			subFg?.let { textPaint.color = it; textPaint.typeface = fontBold } // the game's own letters: its colour, bold
 			// at most three lines: a longer translation gets smaller letters, it never spreads over the picture
 			val l = fitLayout(styled(t, textSpans), textPaint.textSize, inner, max(area.height(), textPaint.textSize * 1.25f * 3) , Layout.Alignment.ALIGN_CENTER, 0.6f)
 			val need = l.height + h * 0.024f
@@ -446,8 +453,10 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 					if(area.height() < need) area.bottom = min(h, area.top + need)
 				}
 			}
-			canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, boxPaint)
+			val sbg = subBg
+			canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, if(sbg != null) Paint(Paint.ANTI_ALIAS_FLAG).apply { color = sbg } else boxPaint)
 			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas); canvas.restore()
+			textPaint.color = color; textPaint.typeface = if(bold) fontBold else fontRegular
 			placed += RectF(area)
 		}
 

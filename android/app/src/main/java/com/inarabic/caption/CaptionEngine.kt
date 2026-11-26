@@ -333,6 +333,20 @@ class CaptionEngine(
 			if(ev0 is TrackerEvent.NewLine || ev0 == TrackerEvent.Clear) synchronized(lineColors) { lineColors.clear() }
 			if(read.text.isNotBlank()) addLineColors(read.colored)
 			if(read.text.isNotBlank()) lastSubRead = read.text
+			// «ترجمة كاملة» for the dialogue: its letters' colour, and its background's when it has one of its own
+			// (a band behind it); read once per line, from the first clear reading
+			if(ev0 is TrackerEvent.NewLine || ev0 == TrackerEvent.Clear) LinkServer.subLook = null
+			val rb = read.box
+			if(LinkServer.subLook == null && rb != null && read.text.isNotBlank())
+			{
+				val px = Rect((rb[0] * frame.width).toInt(), (rb[1] * frame.height).toInt(), ((rb[0] + rb[2]) * frame.width).toInt(), ((rb[1] + rb[3]) * frame.height).toInt())
+				val (fg0, bg) = lineColors(frame, px)
+				val plain = plainBehind(frame, px)
+				// over the scene the letters are the bright ones (game subtitles are light with a dark edge): their colour,
+				// not the dark edge's
+				val fg = if(plain) fg0 else brightLetters(frame, px)
+				LinkServer.subLook = intArrayOf(fg, bg, if(plain) 1 else 0)
+			}
 			if(ev0 != null) Diag.add("sub ${ev0.javaClass.simpleName}: " + read.text)
 			when(val ev = ev0)
 			{
@@ -865,6 +879,41 @@ class CaptionEngine(
 		else { if(darker) hsv[2] *= 0.85f else hsv[2] = maxOf(hsv[2], 0.9f); hsv[1] = minOf(1f, hsv[1] * 1.1f) }
 		return android.graphics.Color.HSVToColor(hsv) to bg
 	}
+	/** the colour of the brightest strokes in the line (white stays white; a light yellow stays yellow) */
+	private fun brightLetters(bmp: Bitmap, r: Rect): Int
+	{
+		val box = Rect(r)
+		if(!box.intersect(0, 0, bmp.width, bmp.height) || box.width() < 3 || box.height() < 3) return android.graphics.Color.WHITE
+		val px = ArrayList<Int>()
+		val sx = maxOf(1, box.width() / 80); val sy = maxOf(1, box.height() / 16)
+		var y = box.top
+		while(y < box.bottom) { var x = box.left; while(x < box.right) { px += bmp.getPixel(x, y); x += sx }; y += sy }
+		val top = px.sortedByDescending { lum(it) }.take(maxOf(3, px.size / 15))
+		fun med(s: Int) = top.map { (it shr s) and 255 }.sorted()[top.size / 2]
+		val hsv = FloatArray(3)
+		android.graphics.Color.RGBToHSV(med(16), med(8), med(0), hsv)
+		if(hsv[1] < 0.25f) return android.graphics.Color.WHITE
+		hsv[2] = maxOf(hsv[2], 0.9f)
+		return android.graphics.Color.HSVToColor(hsv)
+	}
+
+	/** the text has a background of its own (one even colour around it: a band, a box), not the moving scene */
+	private fun plainBehind(bmp: Bitmap, r: Rect): Boolean
+	{
+		val pad = maxOf(3, (minOf(r.height(), 40) * 0.3f).toInt())
+		val ring = Rect(r.left - pad, r.top - pad, r.right + pad, r.bottom + pad)
+		if(!ring.intersect(0, 0, bmp.width, bmp.height) || ring.width() < 4 || ring.height() < 4) return false
+		val v = ArrayList<Double>()
+		val sx = maxOf(1, ring.width() / 48); val sy = maxOf(1, ring.height() / 12)
+		var x = ring.left
+		while(x < ring.right) { v += lum(bmp.getPixel(x, ring.top)); v += lum(bmp.getPixel(x, ring.bottom - 1)); x += sx }
+		var y = ring.top
+		while(y < ring.bottom) { v += lum(bmp.getPixel(ring.left, y)); v += lum(bmp.getPixel(ring.right - 1, y)); y += sy }
+		val mean = v.average()
+		val sd = kotlin.math.sqrt(v.sumOf { (it - mean) * (it - mean) } / v.size)
+		return sd < 14
+	}
+
 	private fun lum(c: Int) = 0.299 * ((c shr 16) and 255) + 0.587 * ((c shr 8) and 255) + 0.114 * (c and 255)
 
 	private suspend fun gameSpans(english: String, arabic: String, colored: List<Colored>): List<ColorSpan>
