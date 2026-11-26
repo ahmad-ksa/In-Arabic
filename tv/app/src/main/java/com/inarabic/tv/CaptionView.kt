@@ -61,10 +61,13 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	var fitToTv = true
 
 	/** the box from the phone (0..1 of the PS5 picture) in 0..1 of this screen */
-	private fun fit(b: FloatArray): FloatArray
+	private fun fit(b: FloatArray): FloatArray = fit(b, false)
+	/** [move]: the dialogue line, which your up/down setting moves (on the phone too); side texts stay on their English */
+	private fun fit(b: FloatArray, move: Boolean): FloatArray
 	{
-		if(!fitToTv || (zoom == 0f && dy == 0f)) return b
-		val k = 1f + zoom
+		val dy = if(move) this.dy else 0f
+		val k = if(fitToTv) 1f + zoom else 1f
+		if(k == 1f && dy == 0f) return b
 		val o = b.copyOf()
 		o[0] = 0.5f + (b[0] - 0.5f) * k; o[2] = b[2] * k
 		o[1] = 0.5f + (b[1] - 0.5f) * k + dy; o[3] = b[3] * k
@@ -91,6 +94,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	private val subSize = FloatArray(1)
 	/** each side text keeps its size while it stays on screen */
 	private val sideSizes = HashMap<String, FloatArray>()
+	private var sideUniform = 0f
 	fun styleChanged() = invalidate()
 
 	private val timers = android.os.Handler(android.os.Looper.getMainLooper())
@@ -228,7 +232,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 
 		// second box: in its own area of the picture, smaller text, top aligned
 		val b2t = box2Text
-		val b2 = box2?.let(::fit)
+		val b2 = box2?.let { fit(it, true) }
 		if(!b2t.isNullOrBlank() && b2 != null)
 		{
 			textPaint.textSize = h * 0.028f * scale
@@ -268,11 +272,16 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		}
 
 		// side texts: each exactly over its English text (a bit wider if the Arabic needs it), kept on screen
-		for(sd in sides)
+		// one size for all of them (the English of a menu or a stats panel is one size; the reading of each
+		// line's height is not exact): the middle size, kept while it stays close
+		val rawSizes = sides.map { sizeFor(fit(it.box), h, 0.03f, 0.02f, 0.045f) }
+		val mid = rawSizes.sorted().getOrNull(rawSizes.size / 2)
+		if(mid != null) { if(sideUniform <= 0f || kotlin.math.abs(mid - sideUniform) > sideUniform * 0.25f) sideUniform = mid }
+		for((si, sd) in sides.withIndex())
 		{
 			val sb = fit(sd.box)
-			if(sideSizes.size > 200) sideSizes.clear()
-			textPaint.textSize = sizeFor(sb, h, 0.03f, 0.02f, 0.045f, sideSizes.getOrPut(sd.text) { FloatArray(1) })
+			val raw = rawSizes[si]
+			textPaint.textSize = if(raw in sideUniform * 0.65f..sideUniform * 1.5f) sideUniform else raw
 			val area = RectF(sb[0] * w - w * 0.004f, sb[1] * h - h * 0.004f, (sb[0] + sb[2]) * w + w * 0.004f, (sb[1] + sb[3]) * h + h * 0.004f)
 			// a paragraph (help box) keeps the English box's width and wraps; a short prompt may widen
 			// a paragraph (help box, description) keeps the English box's width and wraps; a list or a prompt does not
@@ -301,7 +310,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		val t = text
 		if(!t.isNullOrBlank())
 		{
-			val b = box?.let(::fit)
+			val b = box?.let { fit(it, true) }
 			textPaint.textSize = sizeFor(b, h, 0.042f, 0.026f, 0.055f, subSize)
 			val area = when
 			{

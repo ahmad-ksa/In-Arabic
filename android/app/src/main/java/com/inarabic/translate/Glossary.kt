@@ -24,6 +24,12 @@ object Glossary
 		"wanted" to "مطلوب", "lost them" to "أفلتّ منهم", "out of ammo" to "نفدت الذخيرة", "reloading" to "إعادة تعبئة",
 		"low health" to "صحتك منخفضة", "you are hidden" to "أنت مختبئ", "detected" to "انكشفت", "danger" to "خطر",
 		// prompts
+		// vehicle stats
+		"speed" to "السرعة", "acceleration" to "التسارع", "braking" to "الكبح", "handling" to "التحكم",
+		"asphalt handling" to "التحكم على الأسفلت", "off-road handling" to "التحكم على الطرق الوعرة",
+		"offroad handling" to "التحكم على الطرق الوعرة", "ff-road handling" to "التحكم على الطرق الوعرة",
+		"off road handling" to "التحكم على الطرق الوعرة", "strength" to "المتانة", "rating" to "التقييم",
+		"top speed" to "السرعة القصوى", "traction" to "الثبات", "armor" to "الدروع", "armour" to "الدروع",
 		"open" to "افتح", "close" to "أغلق", "enter" to "ادخل", "exit" to "اخرج", "leave" to "اترك", "talk" to "تكلّم",
 		"interact" to "تفاعل", "use" to "استخدم", "pick up" to "التقط", "take" to "خذ", "grab" to "امسك", "drop" to "ارمِ",
 		"search" to "فتّش", "loot" to "اجمع", "examine" to "افحص", "inspect" to "افحص", "read" to "اقرأ", "climb" to "تسلّق",

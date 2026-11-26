@@ -148,11 +148,12 @@
   function outline(el) {
     el.style.textShadow = style.outline ? '-3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 3px 0 #000, 0 -3px 0 #000, 3px 0 0 #000, -3px 0 0 #000' : '0 2px 4px #000';
   }
-  function fit(b) {
+  // move: the dialogue line, which the up/down setting moves; side texts stay on their English
+  function fit(b, move) {
     if (!b) return b;
     var k = 1 + (style.zoom || 0), o = b.slice();
     o[0] = 0.5 + (b[0] - 0.5) * k; o[2] = b[2] * k;
-    o[1] = 0.5 + (b[1] - 0.5) * k + (style.dy || 0); o[3] = b[3] * k;
+    o[1] = 0.5 + (b[1] - 0.5) * k + (move ? (style.dy || 0) : 0); o[3] = b[3] * k;
     if (o.length > 4) o[4] = b[4] * k;
     return o;
   }
@@ -174,7 +175,7 @@
     if (at < text.length) el.appendChild(document.createTextNode(text.slice(at)));
   }
   function caption(text, box, spans) {
-    box = fit(box);
+    box = fit(box, true);
     var c = $('cap');
     clearTimeout(hideTimer);
     if (!text) { c.style.display = 'none'; return; }
@@ -208,7 +209,7 @@
   function box2(text, box) {
     var b = $('box2');
     if (!text || !box) { b.style.display = 'none'; return; }
-    box = fit(box);
+    box = fit(box, true);
     b.style.left = box[0] * 1920 + 'px'; b.style.top = box[1] * 1080 + 'px';
     b.style.width = box[2] * 1920 + 'px'; b.style.minHeight = box[3] * 1080 + 'px';
     b.style.fontSize = Math.round(1080 * 0.028 * style.scale) + 'px';
@@ -216,7 +217,7 @@
     b.style.color = style.color;
     b.textContent = text; b.style.display = 'block';
   }
-  var sideTimer = 0;
+  var sideTimer = 0, sideUniform = 0;
   // texts off to the side (mission titles, button prompts): each exactly over its English text
   function side(items) {
     var host = $('side');
@@ -224,12 +225,17 @@
     host.innerHTML = '';
     if (!items || !items.length) { host.style.display = 'none'; return; }
     host.style.display = 'block';
+    // one size for all of them: the middle size, kept while it stays close (no size jumping)
+    var raw = items.map(function (it) { return it.box ? sizeFor(fit(it.box), 0.03, 0.02, 0.045) : 0; }).filter(function (v) { return v > 0; });
+    var mid = raw.slice().sort(function (a, b) { return a - b; })[Math.floor(raw.length / 2)];
+    if (mid && (!sideUniform || Math.abs(mid - sideUniform) > sideUniform * 0.25)) sideUniform = mid;
     items.forEach(function (it) {
       var bx = fit(it.box); if (!it.ar || !bx) return;
       var d = document.createElement('div');
       d.className = 'side-item';
       paint(d, it.ar, it.spans); outline(d);
-      d.style.fontSize = sizeFor(bx, 0.03, 0.02, 0.045) + 'px';
+      var sz = sizeFor(bx, 0.03, 0.02, 0.045);
+      d.style.fontSize = (sz >= sideUniform * 0.65 && sz <= sideUniform * 1.5 ? sideUniform : sz) + 'px';
       d.style.background = bg();
       d.style.color = style.color;
       var para = bx.length > 4 && bx[4] > 0 && bx[3] > bx[4] * 1.6 && it.ar.split('\n').some(function (x) { return x.length > 30; });
