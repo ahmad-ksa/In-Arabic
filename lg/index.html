@@ -449,13 +449,29 @@
           var r = JSON.parse(m);
           if (r.timestamp == null) return;
           var a = new PalmServiceBridge();
-          keepBridges.push(a); if (keepBridges.length > 20) keepBridges.splice(1, 1);
+          keepBridges.push(a); if (keepBridges.length > 20) keepBridges.splice(2, 1);
           a.call('luna://com.webos.service.tvpower/power/responseScreenSaverRequest',
             JSON.stringify({ clientName: 'inarabic', ack: false, timestamp: r.timestamp }));
         } catch (e) {}
       };
       keepBridges.unshift(b);
       b.call('luna://com.webos.service.tvpower/power/registerScreenSaverRequest', JSON.stringify({ subscribe: true, clientName: 'inarabic' }));
+    } catch (e) {}
+    // if the TV still turns its screen off ("press any button to turn on the TV"), turn it straight back on
+    try {
+      var p = new PalmServiceBridge();
+      p.onservicecallback = function (m) {
+        try {
+          var r = JSON.parse(m);
+          if (/screen ?off|screen ?saver/i.test(r.state || '') || r.processing === 'Screen Off') {
+            var on = new PalmServiceBridge();
+            keepBridges.push(on); if (keepBridges.length > 20) keepBridges.splice(2, 1);
+            on.call('luna://com.webos.service.tvpower/power/turnOnScreen', '{}');
+          }
+        } catch (e) {}
+      };
+      keepBridges.splice(1, 0, p);
+      p.call('luna://com.webos.service.tvpower/power/getPowerState', JSON.stringify({ subscribe: true }));
     } catch (e) {}
   }
   noScreenSaver();
