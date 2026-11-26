@@ -50,6 +50,8 @@ object LinkServer
 	val screens = mutableMapOf<WebSocket, String>()
 	/** LG screens and their addresses (kept awake from the phone, see LgKeepAwake) */
 	private val lgScreens = mutableMapOf<WebSocket, String>()
+	/** an LG TV app is connected now */
+	fun hasLgScreen() = synchronized(lgScreens) { lgScreens.isNotEmpty() }
 	var onScreensChanged: (() -> Unit)? = null
 
 	private var appContext: Context? = null

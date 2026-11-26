@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
-// Pairing like a QR login: the TV app shows a QR code ("inarabic:pair?t=TOKEN&n=NAME"), the phone scans it with
+// Pairing like a QR login: the TV app shows a QR code ("inarabic:pair?t=TOKEN&n=NAME&ip=TV"), the phone scans it with
 // Google's code scanner (no camera permission needed) and from then on accepts that screen's token.
 
 package com.inarabic.link
@@ -51,6 +51,9 @@ object Pairing
 				val name = Uri.parse("http://x/?" + uri.encodedSchemeSpecificPart.substringAfter('?', "")).getQueryParameter("n") ?: "شاشة"
 				add(activity, token, name)
 				LinkServer.start(activity)
+				// the phone reaches the TV itself and opens «بالعربي» there with its address: no typing, no searching
+				val tvIp = Uri.parse("http://x/?" + uri.encodedSchemeSpecificPart.substringAfter('?', "")).getQueryParameter("ip")
+				com.inarabic.lg.LgKeepAwake.linkScreens(activity, foregroundOnly = false, hint = tvIp)
 				Toast.makeText(activity, "تم ربط «$name» ✓ — ستتصل خلال ثوانٍ", Toast.LENGTH_LONG).show()
 				onPaired(name)
 			}

@@ -10,6 +10,10 @@
 // device?"), and then every minute presses a key nobody uses (BLUE). If the TV still reports
 // "Screen Saver" / "Screen Off", it turns the screen straight back on.
 //
+// The same link also connects the TV app to the phone by itself (linkScreens): the phone finds the LG TVs on the
+// network (SSDP, the way LG's own remote app does), and opens «بالعربي» on them with the phone's address, so the
+// TV never has to look for the phone (its address may have changed since last time).
+//
 // The pairing manifest (assets/lg-remote-pairing.json) is the public one from the lgtv2 library (MIT).
 
 package com.inarabic.lg
@@ -67,6 +71,74 @@ object LgKeepAwake
 		prefs().getString("last_ip", null)?.let { start(context, it) } // the pointer socket presses once it opens
 	}
 
+	/**
+	 * Opens «بالعربي» on the LG TVs with this phone's address (the QR was scanned, "start playing" was tapped, or the
+	 * app was opened). [foregroundOnly]: only if our app is already on the TV screen (opening the phone app must not
+	 * take over a TV that is showing something else). [hint]: a TV address already known (from its QR).
+	 */
+	fun linkScreens(context: Context, foregroundOnly: Boolean, hint: String? = null)
+	{
+		appContext = context.applicationContext
+		if(com.inarabic.link.LinkServer.hasLgScreen()) return
+		Thread {
+			val ips = LinkedHashSet<String>()
+			hint?.takeIf { it.isNotBlank() }?.let { ips += it }
+			prefs().getString("last_ip", null)?.let { ips += it }
+			ips += findTvs(appContext!!)
+			Log.i(TAG, "link: TVs $ips")
+			synchronized(this) {
+				for(ip in ips)
+				{
+					// a TV that refused earlier (or gave up) is asked again: this time you asked for it
+					val tv = tvs[ip]?.takeIf { !it.closed } ?: Tv(ip).also { tvs[ip] = it; it.connect() }
+					tv.wantLaunch(foregroundOnly)
+				}
+			}
+		}.start()
+	}
+
+	/** LG TVs on the home network: they answer an SSDP search for their second-screen service */
+	private fun findTvs(context: Context): List<String>
+	{
+		val out = LinkedHashSet<String>()
+		val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+		val lock = try { wifi.createMulticastLock("inarabic-ssdp").apply { setReferenceCounted(false); acquire() } } catch(e: Exception) { null }
+		try
+		{
+			java.net.DatagramSocket().use { s ->
+				s.soTimeout = 600
+				val msg = ("M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1900\r\nMAN: \"ssdp:discover\"\r\nMX: 1\r\n" +
+					"ST: urn:lge-com:service:webos-second-screen:1\r\n\r\n").toByteArray()
+				val group = java.net.InetAddress.getByName("239.255.255.250")
+				repeat(2) { s.send(java.net.DatagramPacket(msg, msg.size, group, 1900)) }
+				val end = System.currentTimeMillis() + 2500
+				val buf = ByteArray(2048)
+				while(System.currentTimeMillis() < end)
+				{
+					try
+					{
+						val pk = java.net.DatagramPacket(buf, buf.size)
+						s.receive(pk)
+						val txt = String(pk.data, 0, pk.length)
+						if(txt.contains("webos", true) || txt.contains("lge", true)) pk.address?.hostAddress?.let { out += it }
+					}
+					catch(e: java.net.SocketTimeoutException) { }
+				}
+			}
+		}
+		catch(e: Exception) { Log.w(TAG, "ssdp ${e.message}") }
+		finally { try { lock?.release() } catch(e: Exception) { } }
+		return out.toList()
+	}
+
+	/** this phone's address on the TV's network */
+	private fun phoneIpFor(tvIp: String): String?
+	{
+		val all = com.inarabic.link.LinkServer.addresses()
+		val net = tvIp.substringBeforeLast('.')
+		return all.firstOrNull { it.substringBeforeLast('.') == net } ?: all.firstOrNull()
+	}
+
 	/** no LG screen at this address any more */
 	@Synchronized fun stop(ip: String)
 	{
@@ -85,6 +157,31 @@ object LgKeepAwake
 		var secure = true
 		var unsigned = false
 		var nextId = 0
+		@Volatile var registered = false
+		/** open our app on the TV once registered: 0 no, 1 only if it is already on screen, 2 yes */
+		@Volatile var launchWanted = 0
+
+		fun wantLaunch(foregroundOnly: Boolean)
+		{
+			launchWanted = maxOf(launchWanted, if(foregroundOnly) 1 else 2)
+			if(registered) main?.let { doLaunch(it) }
+		}
+
+		fun doLaunch(c: WebSocketClient)
+		{
+			val w = launchWanted; launchWanted = 0
+			if(w == 0 || com.inarabic.link.LinkServer.hasLgScreen()) return
+			if(w == 1) send(c, "request", "fg", "ssap://com.webos.applicationManager/getForegroundAppInfo") else launch(c)
+		}
+
+		/** opens «بالعربي» on the TV (or wakes it if it is open) with the phone's address */
+		fun launch(c: WebSocketClient)
+		{
+			val phone = phoneIpFor(ip) ?: return
+			Log.i(TAG, "$ip: open the TV app, phone $phone")
+			send(c, "request", "launch${nextId++}", "ssap://system.launcher/launch",
+				JSONObject().put("id", "com.inarabic.lg").put("params", JSONObject().put("phone", phone)))
+		}
 
 		fun connect()
 		{
@@ -110,6 +207,7 @@ object LgKeepAwake
 
 		fun lost()
 		{
+			registered = false
 			task?.cancel(false); task = null
 			try { pointer?.close() } catch(e: Exception) { }
 			pointer = null
@@ -170,7 +268,10 @@ object LgKeepAwake
 					prefs().edit().putString("key_$ip", p.optString("client-key")).apply()
 					send(c, "request", "pointer", "ssap://com.webos.service.networkinput/getPointerInputSocket")
 					send(c, "subscribe", "power", "ssap://com.webos.service.tvpower/power/getPowerState")
+					registered = true
+					doLaunch(c)
 				}
+				id == "fg" -> if(p.optString("appId") == "com.inarabic.lg") launch(c)
 				id == "pointer" && p.optString("socketPath").isNotEmpty() -> openPointer(p.optString("socketPath"))
 				id == "power" ->
 				{
@@ -199,7 +300,7 @@ object LgKeepAwake
 			pointer = p
 			try { p.connect() } catch(e: Exception) { }
 			task?.cancel(false)
-			task = timer.scheduleAtFixedRate(Runnable { press() }, PRESS_EVERY_S, PRESS_EVERY_S, TimeUnit.SECONDS)
+			task = timer.scheduleAtFixedRate(Runnable { if(com.inarabic.link.LinkServer.hasLgScreen()) press() }, PRESS_EVERY_S, PRESS_EVERY_S, TimeUnit.SECONDS)
 		}
 
 		fun press()

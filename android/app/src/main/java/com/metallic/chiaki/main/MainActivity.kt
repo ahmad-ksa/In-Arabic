@@ -38,6 +38,8 @@ class MainActivity : AppCompatActivity()
 		super.onCreate(savedInstanceState)
 		if(savedInstanceState == null && !com.inarabic.SetupActivity.done(this)) startActivity(Intent(this, com.inarabic.SetupActivity::class.java))
 		com.inarabic.link.LinkServer.start(this) // TVs can connect as soon as the app is open
+		// «بالعربي» already open on an LG TV but not linked (the phone's address changed): give it the address
+		com.inarabic.lg.LgKeepAwake.linkScreens(this, foregroundOnly = true)
 		binding = ActivityMainBinding.inflate(layoutInflater)
 		setContentView(binding.root)
 

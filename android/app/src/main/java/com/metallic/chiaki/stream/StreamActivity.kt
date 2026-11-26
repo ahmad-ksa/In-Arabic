@@ -197,6 +197,8 @@ class StreamActivity : AppCompatActivity()
 		setupZoneEditor(iaPrefs)
 		// "start playing": a press on the LG TV at once (out of its screen saver), then every minute as before
 		com.inarabic.lg.LgKeepAwake.pressNow(this)
+		// and «بالعربي» opened on the LG TV with the phone's address, if it is not linked yet
+		com.inarabic.lg.LgKeepAwake.linkScreens(this, foregroundOnly = false)
 		// In Arabic: no on-screen game buttons (you play with the controller); one clear menu button instead
 		viewModel.setOnScreenControlsEnabled(false)
 		viewModel.setTouchpadOnlyEnabled(false)

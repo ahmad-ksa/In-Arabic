@@ -107,15 +107,17 @@
     for (var i = 0; i < 16; i++) cfg.token += '0123456789abcdef'.charAt(Math.floor(Math.random() * 16));
     store.set('token', cfg.token);
   }
-  // this screen's QR code: the phone scans it once and from then on accepts this screen
-  (function () {
+  // this screen's QR code: the phone scans it once and from then on accepts this screen; with the TV's own
+  // address in it (when the TV tells it), the phone reaches the TV straight away and gives it its address
+  function drawQr(tvIp) {
     try {
       var q = qrcode(0, 'M');
-      q.addData('inarabic:pair?t=' + cfg.token + '&n=' + encodeURIComponent('LG TV'));
+      q.addData('inarabic:pair?t=' + cfg.token + '&n=' + encodeURIComponent('LG TV') + (tvIp ? '&ip=' + tvIp : ''));
       q.make();
       $('qr').innerHTML = q.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
     } catch (e) { $('qr').textContent = 'QR'; }
-  })();
+  }
+  drawQr('');
   function wsUrl(ip) { return 'ws://' + ip + ':' + PORT + '/?token=' + cfg.token + '&code=' + encodeURIComponent(cfg.code); }
   var style = { scale: 1, cover: true, opacity: 0.85, color: '#FFFFFF', pos: 'auto', bold: true };
 
@@ -554,6 +556,30 @@
     } catch (e) {}
   }
   noScreenSaver();
+
+  // the phone opened this app with its address (it found the TV on the network): use it, no searching
+  function launchParams(detail) {
+    var p = detail;
+    try {
+      if (!p || typeof p !== 'object') {
+        var raw = (window.webOSSystem && webOSSystem.launchParams) || (window.PalmSystem && PalmSystem.launchParams) || '{}';
+        p = typeof raw === 'string' ? JSON.parse(raw || '{}') : raw;
+      }
+    } catch (e) { p = {}; }
+    return p || {};
+  }
+  function fromPhone(p) {
+    if (!p || !p.phone || !/^\d+\.\d+\.\d+\.\d+$/.test(p.phone)) return false;
+    cfg.ip = p.phone; store.set('ip', cfg.ip); fails = 0;
+    status('الجوال أرسل عنوانه — جارٍ الاتصال…', true);
+    return true;
+  }
+  // already open: the phone opens it again with its address
+  document.addEventListener('webOSRelaunch', function (e) {
+    if (fromPhone(launchParams(e && e.detail)) && !(ws && ws.readyState === 1)) { searching = false; connect(); }
+  });
+  fromPhone(launchParams(null));
+  myIp(function (ip) { if (ip) drawQr(ip); });
 
   showGame();
   if (cfg.ip) connect(); else { openSetup(true); discover(); }
