@@ -91,6 +91,8 @@ class CaptionEngine(
 		@Volatile var arabic: String? = null
 		@Volatile var spans: List<ColorSpan> = emptyList()
 		var asked = false
+		/** times an incomplete translation (English left in it) was asked again */
+		var tries = 0
 		var retryAt = 0L
 	}
 	private val sideItems = ArrayList<SideItem>()
@@ -118,7 +120,7 @@ class CaptionEngine(
 		if(t - aiErrorShownAt < 20000) return
 		aiErrorShownAt = t
 		Diag.add("AI failed: $why")
-		val msg = "$why — الترجمة واقفة. غيّر «مصدر الترجمة» من الإعدادات إذا تبي مصدر ثاني"
+		val msg = "$why — الترجمة واقفة لين يرجع"
 		LinkServer.sendNotice(msg)
 		mainHandler.post { onNotice?.invoke(msg) }
 	}
@@ -175,20 +177,7 @@ class CaptionEngine(
 		SessionLog.begin(context, prefs.gameName)
 		LinkServer.start(context)
 		LinkServer.sendStyle(prefs)
-		scope.launch { translator.prepare() }
 		if(prefs.secondReader) scope.launch { paddle = PaddleReader.open(context) }
-		// review: while nobody is talking, the AI corrects lines the free model translated (memory gets better)
-		scope.launch {
-			while(isActive)
-			{
-				delay(20000)
-				if(!prefs.aiEnabled || System.currentTimeMillis() - lastLineAt < 8000) continue
-				val todo = TranslationMemory.unreviewed(15)
-				if(todo.isEmpty()) continue
-				for((en, ar) in translator.review(todo.map { it.english to it.arabic }))
-					TranslationMemory.put(en, ar, TranslationMemory.Source.AI)
-			}
-		}
 		loop = scope.launch {
 			while(isActive)
 			{
@@ -343,6 +332,7 @@ class CaptionEngine(
 			// letters, a frame in motion); a new line starts from nothing
 			if(ev0 is TrackerEvent.NewLine || ev0 == TrackerEvent.Clear) synchronized(lineColors) { lineColors.clear() }
 			if(read.text.isNotBlank()) addLineColors(read.colored)
+			if(read.text.isNotBlank()) lastSubRead = read.text
 			if(ev0 != null) Diag.add("sub ${ev0.javaClass.simpleName}: " + read.text)
 			when(val ev = ev0)
 			{
@@ -355,56 +345,40 @@ class CaptionEngine(
 		finally { frame.recycle() }
 	}
 
-	private fun translate(id: Int, english: String, box: FloatArray?)
+	/** the dialogue as last read (a retry of an incomplete translation uses the newest reading) */
+	@Volatile private var lastSubRead = ""
+
+	private fun translate(id: Int, english: String, box: FloatArray?, tries: Int = 0)
 	{
 		currentId = id
 		lastLineAt = System.currentTimeMillis()
 		scope.launch {
 			val known0 = TranslationMemory.get(english)
-			// the fixed game words win over anything the free translator said before (not over your own corrections)
+			// the fixed game words win over anything translated before (not over your own corrections)
 			val fixed = if(known0?.source == TranslationMemory.Source.USER) null else com.inarabic.translate.Glossary.lookup(english)
 			if(fixed != null) { show(id, english, fixed, true, box); return@launch }
-			val known = known0
-			TranslationMemory.engine = prefs.engine
-			val wantAi = prefs.aiOnly
-			// a line seen before: from memory, final at once (unless only the free model had translated it)
-			if(known != null && (known.source != TranslationMemory.Source.QUICK || !wantAi))
+			// a line seen before: from memory at once. Your corrections always; anything else only if it is complete
+			// (an old translation with English left in it is asked again)
+			val known = known0?.takeIf { it.source == TranslationMemory.Source.USER || com.inarabic.translate.Translator.complete(it.arabic) }
+			if(known != null) { show(id, english, known.arabic, true, box); return@launch }
+			val ar = translator.quick(english)
+			if(ar == null) { if(currentId == id) aiFailed(translator.lastAiError ?: "Google Translate ما رد"); return@launch }
+			val done = com.inarabic.translate.Translator.complete(ar)
+			// only a complete translation is remembered: an incomplete one would come back every time
+			if(done) TranslationMemory.put(english, ar, TranslationMemory.Source.QUICK)
+			if(currentId != id)
 			{
-				show(id, english, known.arabic, true, box)
+				// the dialogue moved on before the answer came: still shown if nothing newer is on screen yet
+				if(lastShownId > id) return@launch
+				showLate(id, english, ar)
 				return@launch
 			}
-			if(prefs.aiOnly)
+			show(id, english, ar, true, box)
+			// English left in it: translated again from the next readings (a cleaner reading usually fixes it), 3 times at most
+			if(!done && tries < 3)
 			{
-				// the AI only: wait for it; the free translation only if it does not answer
-				val better = translator.better(english)
-				if(currentId != id)
-				{
-					better?.let { SessionLog.add(english, it) }
-					// the dialogue moved on before the answer came: still show it if nothing newer is on screen yet,
-					// so a quick line is not lost (the next translation replaces it)
-					if(better == null || lastShownId > id) return@launch
-					TranslationMemory.put(english, better, TranslationMemory.Source.AI)
-					showLate(id, english, better)
-					return@launch
-				}
-				if(better != null) { TranslationMemory.put(english, better, TranslationMemory.Source.AI); show(id, english, better, true, box); return@launch }
-				// the AI did not answer: say why, and show nothing (you decide whether to turn it off)
-				aiFailed(translator.lastAiError ?: "الذكاء الاصطناعي ما رد")
-				return@launch
-			}
-			val quick = known?.arabic ?: translator.quick(english)
-			if(currentId != id) return@launch
-			if(quick != null)
-			{
-				TranslationMemory.put(english, quick, TranslationMemory.Source.QUICK)
-				show(id, english, quick, !wantAi, box)
-			}
-			if(wantAi && !prefs.aiOnly)
-			{
-				val better = translator.better(english) ?: return@launch
-				TranslationMemory.put(english, better, TranslationMemory.Source.AI)
-				if(currentId != id) { SessionLog.add(english, better); return@launch }
-				show(id, english, better, true, box)
+				delay(1500)
+				if(currentId == id) translate(id, lastSubRead.ifBlank { english }, current?.box ?: box, tries + 1)
 			}
 		}
 	}
@@ -443,8 +417,8 @@ class CaptionEngine(
 	{
 		scope.launch {
 			val known = TranslationMemory.get(english)
-			val ar = known?.arabic ?: translator.better(english) ?: (if(prefs.aiOnly) null else translator.quick(english)) ?: return@launch
-			if(known == null) TranslationMemory.put(english, ar, if(prefs.aiEnabled) TranslationMemory.Source.AI else TranslationMemory.Source.QUICK)
+			val ar = known?.arabic?.takeIf { known.source == TranslationMemory.Source.USER || com.inarabic.translate.Translator.complete(it) } ?: translator.quick(english) ?: return@launch
+			if(known == null && com.inarabic.translate.Translator.complete(ar)) TranslationMemory.put(english, ar, TranslationMemory.Source.QUICK)
 			LinkServer.sendBox2(ar, box)
 		}
 	}
@@ -511,20 +485,25 @@ class CaptionEngine(
 			{
 				known?.source == TranslationMemory.Source.USER -> known.arabic
 				g != null -> g
-				prefs.aiOnly ->
-					(known?.takeIf { it.source == TranslationMemory.Source.AI && it.engine == prefs.engine }?.arabic
-						?: translator.better(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) })
-						.also { if(it == null) aiFailed(translator.lastAiError ?: "الذكاء الاصطناعي ما رد") }
-				else -> known?.arabic ?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) }
+				// remembered only if complete; else Google Translate (remembered only if complete)
+				else -> known?.arabic?.takeIf { com.inarabic.translate.Translator.complete(it) }
+					?: translator.quick(st.text)?.also { if(com.inarabic.translate.Translator.complete(it)) TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) }
 			}
 			if(ar == null) { item.retryAt = System.currentTimeMillis() + 6000; item.asked = false; return@launch } // try again a bit later
 			val arN = com.inarabic.translate.Glossary.arabicNames(ar)
+			// English left in it: shown, and asked again in a moment (3 times at most); a complete one replaces it
+			if(!com.inarabic.translate.Translator.complete(arN) && item.tries < 3) { item.tries++; item.retryAt = System.currentTimeMillis() + 1500; item.asked = false }
+			if(item.arabic != null && !com.inarabic.translate.Translator.complete(arN) && leftEnglish(arN) >= leftEnglish(item.arabic!!)) return@launch
 			item.spans = spans(st.text, arN, item.colored)
 			item.arabic = if(st.button != null) "$arN  ${st.button}" else arN
 			Diag.add("side item: ${st.text} → ${item.arabic}")
 			sendSideIfChanged()
 		}
 	}
+
+	/** how many English words are left in a translation (names and brands aside) */
+	private fun leftEnglish(ar: String) = Regex("(?<![A-Za-z])[a-z][a-z']+(?![A-Za-z])").findAll(ar).count()
+
 
 	/** Arabic stretches to colour: only the game's own coloured words (the Arabic keeps the English colours) */
 	private suspend fun spans(english: String, arabic: String, colored: List<Colored>): List<ColorSpan> =
@@ -627,6 +606,7 @@ class CaptionEngine(
 						val dx = kotlin.math.abs((m.box[0] + m.box[2] / 2) - (f.box[0] + f.box[2] / 2))
 						val dy = kotlin.math.abs((m.box[1] + m.box[3] / 2) - (f.box[1] + f.box[3] / 2))
 						if(dx > 0.012f || dy > 0.012f) m.box = f.box
+						m.lastRead = f.english
 						keep += m
 					}
 				}
@@ -636,6 +616,11 @@ class CaptionEngine(
 			// A new text over the same place replaces it only if it really is another message.
 			for(p in prev) if(p !in used && ++p.missed <= 4 && fresh.none { overlap(it.box, p.box) > 0.5f && similar(it.english, p.english) < 0.5f }) keep += p
 			val done = coroutineScope { fresh.map { async { it to lensTranslate(it.english) } }.awaitAll() }
+			// English left in a shown translation: asked again from the newest reading; kept only if it has less English
+			val redo = keep.filter { !com.inarabic.translate.Translator.complete(it.arabic) && it.tries < 3 }
+			coroutineScope { redo.map { st -> async { st.tries++; st to lensTranslate(st.lastRead) } }.awaitAll() }.forEach { (st, ar) ->
+				if(ar != null && leftEnglish(ar) < leftEnglish(st.arabic)) { st.arabic = ar; st.spans = spans(st.lastRead, ar, emptyList()) }
+			}
 			if(lensRect == null) return
 			for((item, ar) in done) if(ar != null && keep.none { overlap(it.box, item.box) > 0.5f })
 				keep += LensState(item.english, item.box, ar, item.fg, item.bg, spans(item.english, ar, item.colored))
@@ -656,7 +641,12 @@ class CaptionEngine(
 
 	private class LensItem(val english: String, val box: FloatArray, val fg: Int, val bg: Int, val colored: List<Colored>)
 	/** a message in the lens: its translation and colours fixed once, its place updated at each read */
-	private class LensState(val english: String, var box: FloatArray, val arabic: String, val fg: Int, val bg: Int, val spans: List<ColorSpan>, var missed: Int = 0)
+	private class LensState(val english: String, var box: FloatArray, var arabic: String, val fg: Int, val bg: Int, var spans: List<ColorSpan>, var missed: Int = 0)
+	{
+		var tries = 0
+		/** the newest reading of this message (a retry uses it) */
+		var lastRead = english
+	}
 	private val lensItems = ArrayList<LensState>()
 
 	private fun near(a: FloatArray, b: FloatArray): Boolean
@@ -774,16 +764,16 @@ class CaptionEngine(
 		{
 			known?.source == TranslationMemory.Source.USER -> known.arabic
 			g != null -> g
-			prefs.aiOnly ->
-				known?.takeIf { it.source == TranslationMemory.Source.AI && it.engine == prefs.engine }?.arabic
-					?: translator.better(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) }
-			else -> known?.arabic ?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) }
+			else -> known?.arabic?.takeIf { com.inarabic.translate.Translator.complete(it) }
+				?: translator.quick(st.text)?.also { if(com.inarabic.translate.Translator.complete(it)) TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) }
 		} ?: return null
 		val arN = com.inarabic.translate.Glossary.arabicNames(ar)
 		val out = if(st.button != null) "$arN  ${st.button}" else arN
-		lensCache[english] = out
+		// only a complete translation is kept for the box: an incomplete one is asked again
+		if(com.inarabic.translate.Translator.complete(arN)) lensCache[english] = out
 		return out
 	}
+
 
 	/**
 	 * The colours of one line of text: the background is what lies around the letters (the edge of the box),

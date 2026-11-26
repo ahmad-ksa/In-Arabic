@@ -93,33 +93,15 @@ class InArabicPrefs(context: Context)
 		set(v) { p.edit().putBoolean("ia_phone_audio", v).apply() }
 	/** reconnect by itself when the stream drops */
 	val autoReconnect get() = p.getBoolean("ia_auto_reconnect", true)
-	/** translations from the AI only: the free on-device one is used only if the AI does not answer */
-	/**
-	 * Where translations come from: "mlkit" (on the phone), "ai" (Gemini / an AI with a key), "mymemory",
-	 * "deepl", "microsoft", "libre". Anything but "mlkit" is used alone (never mixed with the on-device one).
-	 */
-	val engine: String get() = p.getString("ia_engine", null) ?: if(p.getBoolean("ia_ai_enabled", false)) "ai" else "mlkit"
-	val aiOnly get() = engine != "mlkit"
-	val groqKey get() = p.getString("ia_groq_key", "")?.trim() ?: ""
-	val groqModel get() = p.getString("ia_groq_model", null)?.trim().takeUnless { it.isNullOrEmpty() } ?: "openai/gpt-oss-120b"
-	val myMemoryEmail get() = p.getString("ia_mm_email", "")?.trim() ?: ""
-	val deeplKey get() = p.getString("ia_deepl_key", "")?.trim() ?: ""
-	val msKey get() = p.getString("ia_ms_key", "")?.trim() ?: ""
-	val msRegion get() = p.getString("ia_ms_region", "")?.trim() ?: ""
-	val libreUrl get() = p.getString("ia_libre_url", "")?.trim() ?: ""
-	val libreKey get() = p.getString("ia_libre_key", "")?.trim() ?: ""
+	/** the one translation source: Google Translate (the AI and keyed sources were removed) */
+	val engine: String get() = "google"
+	val aiOnly get() = false
 	val box2Enabled get() = p.getBoolean("ia_box2", false)
 	val box2 get() = floatArrayOf(p.getInt("ia_box2_x", 2) / 100f, p.getInt("ia_box2_y", 3) / 100f,
 		p.getInt("ia_box2_w", 40) / 100f, p.getInt("ia_box2_h", 22) / 100f)
 
-	/** Second, better translation by an AI model (OpenAI-compatible API). */
-	val aiEnabled get() = engine == "ai" && aiKey.isNotBlank()
-	val aiBaseUrl get() = p.getString("ia_ai_base", null)?.trim()?.trimEnd('/').takeUnless { it.isNullOrEmpty() } ?: "https://api.openai.com/v1"
-	// "gemini-flash-latest" (set by an earlier version) is now a model with only ~20 free requests a day:
-	// the Flash-Lite one has 500 and is fast enough for subtitles
-	val aiModel get() = (p.getString("ia_ai_model", null)?.trim().takeUnless { it.isNullOrEmpty() } ?: "gpt-4o-mini")
-		.let { if(it == "gemini-flash-latest") "gemini-3.5-flash-lite" else it }
-	val aiKey get() = p.getString("ia_ai_key", "")?.trim() ?: ""
+	/** (no AI any more) */
+	val aiEnabled get() = false
 
 	/** Caption look on the TV. */
 	val textScale get() = p.getInt("ia_text_scale", 100) / 100f

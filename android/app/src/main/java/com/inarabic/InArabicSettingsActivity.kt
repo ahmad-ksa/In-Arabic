@@ -49,43 +49,12 @@ class InArabicSettingsActivity : AppCompatActivity()
 			val ctx = requireContext()
 			val prefs = InArabicPrefs(ctx)
 			TranslationMemory.load(ctx)
-			findPreference<EditTextPreference>("ia_ai_key")?.apply {
-				setOnBindEditTextListener { it.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
-				summaryProvider = Preference.SummaryProvider<EditTextPreference> { p ->
-					val k = p.text ?: ""
-					if(k.isBlank()) "غير مضبوط" else "مضبوط (…" + k.takeLast(4) + ")"
-				}
-			}
-			findPreference<Preference>("ia_download_model")?.setOnPreferenceClickListener {
-				Toast.makeText(ctx, "جارٍ تنزيل نموذج الترجمة…", Toast.LENGTH_SHORT).show()
-				lifecycleScope.launch {
-					val t = Translator(prefs)
-					val ok = t.prepare()
-					t.close()
-					Toast.makeText(ctx, if(ok) "نموذج الترجمة جاهز ✓" else "تعذّر التنزيل، تأكد من الإنترنت", Toast.LENGTH_LONG).show()
-				}
-				true
-			}
 			findPreference<Preference>("ia_address")?.summary = addressText(prefs)
 			findPreference<Preference>("ia_test")?.setOnPreferenceClickListener {
 				LinkServer.sendSub(-1, "هذا سطر تجريبي للترجمة العربية فوق اللعبة", "This is a test line", true, floatArrayOf(0.25f, 0.84f, 0.5f, 0.06f))
 				if(prefs.box2Enabled) LinkServer.sendBox2("الهدف: اعثر على المفتاح في القبو", prefs.box2)
 				lifecycleScope.launch { delay(6000); LinkServer.sendClear(); LinkServer.sendBox2Clear() }
 				Toast.makeText(ctx, "أرسلت سطرًا تجريبيًا إلى الشاشات (${LinkServer.screens.size})", Toast.LENGTH_SHORT).show()
-				true
-			}
-			findPreference<Preference>("ia_ai_gemini")?.setOnPreferenceClickListener {
-				PreferenceManager.getDefaultSharedPreferences(ctx).edit()
-					.putString("ia_engine", "ai")
-					.putString("ia_ai_base", "https://generativelanguage.googleapis.com/v1beta/openai")
-					.putString("ia_ai_model", "gemini-3.5-flash-lite").apply()
-				findPreference<androidx.preference.ListPreference>("ia_engine")?.value = "ai"
-				findPreference<EditTextPreference>("ia_ai_base")?.text = "https://generativelanguage.googleapis.com/v1beta/openai"
-				findPreference<EditTextPreference>("ia_ai_model")?.text = "gemini-3.5-flash-lite"
-				AlertDialog.Builder(ctx).setTitle("مفتاح Gemini المجاني")
-					.setMessage("1. افتح الصفحة وسجّل بحساب Google.\n2. اضغط Create API key وانسخه.\n3. ارجع هنا والصقه في «مفتاح API».")
-					.setPositiveButton("افتح الصفحة") { _, _ -> startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://aistudio.google.com/apikey"))) }
-					.setNegativeButton("إغلاق", null).show()
 				true
 			}
 			findPreference<Preference>("ia_diag")?.setOnPreferenceClickListener {
@@ -109,7 +78,6 @@ class InArabicSettingsActivity : AppCompatActivity()
 				Toast.makeText(ctx, "أُلغي ربط كل الشاشات", Toast.LENGTH_SHORT).show()
 				true
 			}
-			findPreference<Preference>("ia_review")?.setOnPreferenceClickListener { reviewAll(prefs); true }
 			findPreference<Preference>("ia_memory")?.apply {
 				summary = memoryText()
 				setOnPreferenceClickListener {
@@ -172,56 +140,6 @@ class InArabicSettingsActivity : AppCompatActivity()
 					if(prefs.lowContrast) "⚠ النص صعب يتقرا بدون خلفية. فعّل «حدّ أسود حول الحروف» أو زِد العتامة" else null
 		}
 
-		/** Corrects every line only the free model has translated, in batches, now. */
-		private fun reviewAll(prefs: InArabicPrefs)
-		{
-			val ctx = requireContext()
-			if(!prefs.aiEnabled) { Toast.makeText(ctx, "فعّل الترجمة بالذكاء الاصطناعي وضع المفتاح أولًا", Toast.LENGTH_LONG).show(); return }
-			val total = TranslationMemory.count(TranslationMemory.Source.QUICK)
-			if(total == 0) { Toast.makeText(ctx, "كل الترجمات المحفوظة مراجعة ✓", Toast.LENGTH_LONG).show(); return }
-			val wait = AlertDialog.Builder(ctx).setMessage("جارٍ مراجعة $total سطر…").setCancelable(false).show()
-			lifecycleScope.launch {
-				var done = 0
-				val t = Translator(prefs)
-				withContext(Dispatchers.Default) {
-					// bounded: a line the AI skips is not asked again and again
-					repeat(total / 20 + 2)
-					{
-						val todo = TranslationMemory.unreviewed(20)
-						if(todo.isEmpty()) return@withContext
-						val fixed = t.review(todo.map { it.english to it.arabic })
-						if(fixed.isEmpty()) return@withContext
-						for((en, ar) in fixed) TranslationMemory.put(en, ar, TranslationMemory.Source.AI)
-						done += fixed.size
-						withContext(Dispatchers.Main) { wait.setMessage("جارٍ مراجعة الترجمات… $done من $total") }
-					}
-				}
-				t.close()
-				wait.dismiss()
-				findPreference<Preference>("ia_memory")?.summary = memoryText()
-				Toast.makeText(ctx, "روجع $done سطر ✓", Toast.LENGTH_LONG).show()
-			}
-		}
-
-		private fun pairedText(): String
-		{
-			val s = com.inarabic.link.Pairing.screens(requireContext()).values
-			return if(s.isEmpty()) "افتح تطبيق الشاشة وامسح الباركود الظاهر عليها" else "مربوطة: " + s.joinToString("، ")
-		}
-
-		private fun memoryText() =
-			"${TranslationMemory.size()} سطر محفوظ (منها ${TranslationMemory.count(TranslationMemory.Source.USER)} من تصحيحاتك) — اضغط للمسح"
-
-		private fun addressText(prefs: InArabicPrefs): String
-		{
-			val a = LinkServer.addresses()
-			val n = LinkServer.screens.size
-			val connected = if(n == 0) "لا توجد شاشة متصلة الآن" else "شاشات متصلة: $n"
-			return if(a.isEmpty()) "اتصل بشبكة الواي فاي أولًا"
-			else "العنوان: " + a.joinToString(" أو ") + "\nرمز الاقتران: " + prefs.pairCode + "\n" + connected
-		}
-
-		/** The story so far, from the last play session: by the AI when there is a key, else the last lines. */
 		private fun summary(prefs: InArabicPrefs)
 		{
 			val ctx = requireContext()

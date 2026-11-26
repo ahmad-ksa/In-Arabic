@@ -88,7 +88,7 @@ object SessionsUi
 		val lines = SessionLog.lines(s.file)
 		if(!prefs.aiEnabled)
 		{
-			text(ctx, "آخر ما قيل", "الملخص يحتاج تفعيل الذكاء الاصطناعي من الإعدادات. هذي آخر الجمل:\n\n" +
+			text(ctx, "آخر ما قيل", "هذي آخر الجمل:\n\n" +
 				lines.takeLast(12).joinToString("\n") { "• " + it.second }, onTv = true)
 			return
 		}

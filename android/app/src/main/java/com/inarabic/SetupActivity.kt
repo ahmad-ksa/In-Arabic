@@ -141,17 +141,7 @@ class SetupActivity : AppCompatActivity()
 			3 ->
 			{
 				heading.text = "الترجمة"
-				body.addView(para("الترجمة المجانية تشتغل على الجوال بدون إنترنت بعد ما تنزّل نموذجها مرة وحدة (30 ميغا تقريباً).", text2))
-				val st = para("", text2)
-				body.addView(st)
-				body.addView(action("نزّل نموذج الترجمة") {
-					st.text = "جاري التحميل…"
-					lifecycleScope.launch {
-						val t = Translator(InArabicPrefs(this@SetupActivity)); val ok = t.prepare(); t.close()
-						st.text = if(ok) "✓ نموذج الترجمة جاهز" else "التحميل وقف. تأكد من الإنترنت وحاول مرة ثانية"
-					}
-				})
-				body.addView(card("اختياري: ترجمة أدق تفهم سياق اللعبة بالذكاء الاصطناعي — ضع مفتاح API من «إعدادات الترجمة»."))
+				body.addView(para("الترجمة من Google Translate: سريعة ودقيقة وتحتاج إنترنت بس، بدون تنزيل ولا مفاتيح.", text2))
 				body.addView(action("🎮 اختر لعبتك") { SessionsUi.pickGame(this, lifecycleScope, InArabicPrefs(this)) {} })
 			}
 			4 ->

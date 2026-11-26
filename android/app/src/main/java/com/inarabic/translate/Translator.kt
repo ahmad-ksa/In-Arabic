@@ -1,241 +1,74 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
-// Two-step translation: Google's free on-device English->Arabic model answers at once; then, when the
-// user has set an API key, an AI model (OpenAI-compatible chat API) gives a better line that replaces it.
+// Translation: Google Translate only (its free web service, no key). Lines are translated as they are; a list
+// (lines under each other) goes in one request and keeps its lines. The fixed game words (Glossary) come first.
+// A translation that still has English words in it (Google left a word it did not know) is "incomplete": it is
+// shown, but not remembered as final, so the next reading of the line is translated again.
 
 package com.inarabic.translate
 
-import android.util.Log
 import android.util.LruCache
-import com.google.mlkit.common.model.DownloadConditions
-import com.google.mlkit.nl.translate.TranslateLanguage
-import com.google.mlkit.nl.translate.Translation
-import com.google.mlkit.nl.translate.TranslatorOptions
 import com.inarabic.InArabicPrefs
 import com.inarabic.caption.SubtitleTracker
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import org.json.JSONArray
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
-import kotlin.coroutines.resume
 
-class Translator(private val prefs: InArabicPrefs)
+class Translator(@Suppress("unused") private val prefs: InArabicPrefs)
 {
-	companion object { private const val TAG = "InArabic" }
+	companion object
+	{
+		/** an English word left in the Arabic: lowercase letters (names and brands keep their capital: Brian, FIB, BuckMe) */
+		private val LEFT_ENGLISH = Regex("(?<![A-Za-z])[a-z][a-z']+(?![A-Za-z])")
 
-	private val local = Translation.getClient(
-		TranslatorOptions.Builder()
-			.setSourceLanguage(TranslateLanguage.ENGLISH)
-			.setTargetLanguage(TranslateLanguage.ARABIC)
-			.build())
+		/** true when nothing English is left in the Arabic (names and brands aside) */
+		fun complete(arabic: String): Boolean = !LEFT_ENGLISH.containsMatchIn(arabic)
+	}
 
-	private val quickCache = LruCache<String, String>(600)
-	private val aiCache = LruCache<String, String>(600)
+	private val cache = LruCache<String, String>(800)
 
-	/** recent lines (English -> Arabic) given to the AI as context, so names and tone stay consistent */
-	private val history = ArrayDeque<Pair<String, String>>()
-
-	@Volatile var modelReady = false
+	/** why the last request failed, in Arabic (shown to you), or null */
+	@Volatile var lastAiError: String? = null
 		private set
 
-	/** Downloads Google's English->Arabic model (about 30 MB, once). */
-	suspend fun prepare(): Boolean = suspendCancellableCoroutine { c ->
-		local.downloadModelIfNeeded(DownloadConditions.Builder().build())
-			.addOnSuccessListener { modelReady = true; if(c.isActive) c.resume(true) }
-			.addOnFailureListener { Log.w(TAG, "model download failed", it); if(c.isActive) c.resume(false) }
-	}
+	/** nothing to download any more: Google Translate needs only the internet */
+	suspend fun prepare(): Boolean = true
 
 	suspend fun quick(english0: String): String?
 	{
-		// a list: each line on its own, kept under each other
-		if('\n' in english0) return english0.split('\n').filter { it.isNotBlank() }.map { quick(it) ?: it }.joinToString("\n")
 		Glossary.lookup(english0)?.let { return it }
+		// a list: the lines in one request, kept under each other (Google keeps the lines of one request)
+		if('\n' in english0)
+		{
+			val lines = english0.split('\n').filter { it.isNotBlank() }
+			val fixed = lines.map { Glossary.lookup(it) }
+			val todo = lines.filterIndexed { i, _ -> fixed[i] == null }
+			val got = if(todo.isEmpty()) emptyList() else google(todo.joinToString("\n") { Glossary.sentenceCase(it) })
+				?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() }
+			if(got != null && got.size == todo.size)
+			{
+				var j = 0
+				return lines.indices.joinToString("\n") { i -> fixed[i] ?: Glossary.arabicNames(got[j++]) }
+			}
+			// the lines did not come back one for one: each on its own
+			return lines.map { quick(it) ?: it }.joinToString("\n")
+		}
 		val english = Glossary.sentenceCase(english0)
 		val k = SubtitleTracker.key(english)
-		quickCache.get(k)?.let { return it }
-		if(!modelReady && !prepare()) return null
-		val ar: String? = suspendCancellableCoroutine { c ->
-			local.translate(english)
-				.addOnSuccessListener { if(c.isActive) c.resume(it) }
-				.addOnFailureListener { Log.w(TAG, "translate failed", it); if(c.isActive) c.resume(null) }
-		}
-		val named = ar?.let { Glossary.arabicNames(it) }
-		if(named != null) quickCache.put(k, named)
-		return named
-	}
-
-	/** Better translation by the AI model, or null (no key, offline, timeout). */
-	suspend fun better(english: String): String?
-	{
-		if(!prefs.aiOnly) return null
-		if('\n' in english)
-		{
-			// a list: each line by the AI; if one line fails the whole list waits (never mixed with the on-device one)
-			val lines = english.split('\n').filter { it.isNotBlank() }
-			// Google keeps the lines of one request: the whole list in one go
-			if(prefs.engine == "google" && lines.none { Glossary.lookup(it) != null })
-			{
-				val all = withTimeoutOrNull(9000) { withContext(Dispatchers.IO) { OnlineEngines.google(lines.joinToString("\n")) } }
-				val got = all?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() }
-				if(got != null && got.size == lines.size) return got.joinToString("\n") { Glossary.arabicNames(it) }
-			}
-			// every line at the same time, not one after the other
-			val parts = kotlinx.coroutines.coroutineScope {
-				lines.map { l -> async { Glossary.lookup(l) ?: better(l) } }.awaitAll()
-			}
-			if(parts.any { it == null }) return null
-			return parts.joinToString("\n")
-		}
-		val k = prefs.engine + ":" + SubtitleTracker.key(english)
-		aiCache.get(k)?.let { return it }
-		val ar0 = withTimeoutOrNull(9000) { withContext(Dispatchers.IO) {
-			runCatching { when(prefs.engine)
-			{
-				"ai", "groq" -> askAi(english)
-				"google" -> OnlineEngines.google(english)
-				"mymemory" -> OnlineEngines.myMemory(english, prefs.myMemoryEmail)
-				"deepl" -> OnlineEngines.deepl(english, prefs.deeplKey)
-				"microsoft" -> OnlineEngines.microsoft(english, prefs.msKey, prefs.msRegion)
-				"libre" -> OnlineEngines.libre(english, prefs.libreUrl, prefs.libreKey)
-				else -> null
-			} }.getOrElse { OnlineEngines.lastError = "المصدر رجّع رد غريب"; null }.also { if(prefs.engine != "ai" && prefs.engine != "groq") lastAiError = if(it == null) OnlineEngines.lastError else null }
-		} }
-		val ar = ar0?.let { Glossary.arabicNames(it) }
-		if(ar != null)
-		{
-			aiCache.put(k, ar)
-			synchronized(history) {
-				history.addLast(english to ar)
-				while(history.size > 6) history.removeFirst()
-			}
-		}
+		cache.get(k)?.let { return it }
+		val ar = google(english)?.let { Glossary.arabicNames(it) } ?: return null
+		// only a complete translation is kept: an incomplete one is asked again at the next reading
+		if(complete(ar)) cache.put(k, ar)
 		return ar
 	}
 
-	/**
-	 * Review: the AI re-translates lines that only the free model has done, several at once (cheaper), fixing
-	 * reading mistakes and keeping names consistent. Returns English -> better Arabic.
-	 */
-	suspend fun review(lines: List<Pair<String, String>>): Map<String, String>
-	{
-		if(!prefs.aiEnabled || lines.isEmpty()) return emptyMap()
-		val system = "أنت مراجع ترجمات ألعاب فيديو. ستصلك أسطر إنجليزية مرقمة مع ترجمة آلية أولية. صحّح أخطاء القراءة الواضحة " +
-			"في الإنجليزي، ثم أعد ترجمة كل سطر إلى عربية فصحى سهلة وطبيعية بأسلوب ترجمات الألعاب، مع توحيد أسماء الشخصيات والأماكن. " +
-			"ترجمة أمينة للمعنى والنبرة: إذا فيه شتائم أو كلام بذيء أو عنف ترجمه كما هو بمقابله العربي بدون تلطيف أو حذف أو رقابة (ترجمة لعبة للكبار، استخدام شخصي). " +
-			"أعد JSON فقط بالشكل {\"1\":\"الترجمة\",\"2\":\"…\"} بلا أي نص آخر."
-		val user = buildString {
-			if(prefs.gameName.isNotBlank()) append("اللعبة: ").append(prefs.gameName).append("\n\n")
-			lines.forEachIndexed { i, (en, ar) -> append(i + 1).append(") ").append(en).append("\n   الأولية: ").append(ar).append('\n') }
-		}
-		val raw = ask(system, user, 40000) ?: return emptyMap()
-		return try
-		{
-			val json = JSONObject(raw.substring(raw.indexOf('{'), raw.lastIndexOf('}') + 1))
-			buildMap {
-				lines.forEachIndexed { i, (en, _) ->
-					json.optString((i + 1).toString()).trim().takeIf { it.isNotEmpty() }?.let { put(en, it) }
-				}
-			}
-		}
-		catch(e: Exception) { Log.w(TAG, "review parse", e); emptyMap() }
-	}
+	private suspend fun google(text: String): String? =
+		withTimeoutOrNull(9000) { withContext(Dispatchers.IO) { OnlineEngines.google(text) } }
+			.also { lastAiError = if(it == null) (OnlineEngines.lastError ?: "Google Translate ما رد. تأكد من الإنترنت") else null }
 
-	/** One question to the AI model (used for the story summary too). */
-	suspend fun ask(system: String, user: String, timeoutMs: Long = 30000): String? =
-		if(service().second.isBlank()) null
-		else withTimeoutOrNull(timeoutMs) { withContext(Dispatchers.IO) { chat(system, user, (timeoutMs - 1000).toInt()) } }
+	/** (the AI sources are gone: kept so the callers stay simple) */
+	suspend fun better(@Suppress("UNUSED_PARAMETER") english: String): String? = null
+	suspend fun review(@Suppress("UNUSED_PARAMETER") lines: List<Pair<String, String>>): Map<String, String> = emptyMap()
+	suspend fun ask(@Suppress("UNUSED_PARAMETER") system: String, @Suppress("UNUSED_PARAMETER") user: String, @Suppress("UNUSED_PARAMETER") timeoutMs: Long = 30000): String? = null
 
-	private fun askAi(english: String): String?
-	{
-		val context = synchronized(history) { history.toList() }
-		val system = "أنت مترجم ترجمات ألعاب فيديو من الإنجليزية إلى العربية. ترجم السطر الأخير فقط إلى عربية فصحى سهلة " +
-			"وطبيعية يفهمها اللاعب، قصيرة بقدر الأصل تقريبًا. أبقِ أسماء الشخصيات والأماكن كما تُنطق بالعربية، " +
-			"وصحّح أخطاء القراءة الواضحة في النص الإنجليزي. " + "ترجمة أمينة للمعنى والنبرة: إذا فيه شتائم أو كلام بذيء أو عنف ترجمه كما هو بمقابله العربي بدون تلطيف أو حذف أو رقابة (ترجمة لعبة للكبار، استخدام شخصي). " +
-			"أعد الترجمة العربية فقط بلا أي شرح أو علامات تنصيص."
-		val user = buildString {
-			if(prefs.gameName.isNotBlank()) append("اللعبة: ").append(prefs.gameName).append("\n\n")
-			if(context.isNotEmpty())
-			{
-				append("السياق (أسطر سابقة):\n")
-				for((en, ar) in context) append(en).append(" => ").append(ar).append('\n')
-				append('\n')
-			}
-			append("السطر المطلوب:\n").append(english)
-		}
-		return chat(system, user, 8000)
-	}
-
-	/** why the last AI request failed, in Arabic (null: it worked) */
-	@Volatile var lastAiError: String? = null
-	@Volatile private var noReasoningParam = false
-
-	/** the chat service of the chosen source: Groq has its own key and model, everything else the AI settings */
-	private fun service(): Triple<String, String, String> =
-		if(prefs.engine == "groq") Triple("https://api.groq.com/openai/v1", prefs.groqKey, prefs.groqModel)
-		else Triple(prefs.aiBaseUrl, prefs.aiKey, prefs.aiModel)
-
-	private fun chat(system: String, user: String, readTimeoutMs: Int): String?
-	{
-		val (base, key, model) = service()
-		val body = JSONObject()
-			.put("model", model)
-			.put("temperature", 0.2)
-		// thinking off (or as low as the model allows): it is most of the wait for a short line
-		val gemini = base.contains("generativelanguage")
-		if(!noReasoningParam)
-		{
-			if(gemini) body.put("reasoning_effort", if(model.contains("2.5")) "none" else "low")
-			else if(model.contains("gpt-oss")) body.put("reasoning_effort", "low")
-		}
-		body.put("messages", JSONArray()
-				.put(JSONObject().put("role", "system").put("content", system))
-				.put(JSONObject().put("role", "user").put("content", user)))
-		return try
-		{
-			val con = URL("$base/chat/completions").openConnection() as HttpURLConnection
-			con.requestMethod = "POST"
-			con.connectTimeout = 5000
-			con.readTimeout = readTimeoutMs
-			con.doOutput = true
-			con.setRequestProperty("Content-Type", "application/json")
-			con.setRequestProperty("Authorization", "Bearer $key")
-			con.outputStream.use { it.write(body.toString().toByteArray()) }
-			if(con.responseCode !in 200..299)
-			{
-				val err = con.errorStream?.bufferedReader()?.readText()?.take(300) ?: ""
-				Log.w(TAG, "AI ${con.responseCode}: $err")
-				// a model that cannot switch thinking off: ask again without that setting, and stop sending it
-				if(con.responseCode == 400 && !noReasoningParam && err.contains("reasoning", true))
-				{
-					noReasoningParam = true
-					return chat(system, user, readTimeoutMs)
-				}
-				lastAiError = when(con.responseCode)
-				{
-					429 -> "خلص حد الذكاء الاصطناعي لليوم"
-					401, 403 -> "مفتاح الذكاء الاصطناعي غلط أو موقوف"
-					404 -> "اسم النموذج غلط في إعدادات الذكاء الاصطناعي"
-					else -> "الذكاء الاصطناعي ما رد (${con.responseCode})"
-				}
-				return null
-			}
-			val txt = con.inputStream.bufferedReader().readText()
-			lastAiError = null
-			JSONObject(txt).getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content")
-				.trim().trim('"', '«', '»').ifBlank { null }
-		}
-		catch(e: Exception)
-		{
-			Log.w(TAG, "AI request failed", e)
-			lastAiError = "الذكاء الاصطناعي ما رد. تأكد من الإنترنت"
-			null
-		}
-	}
-
-	fun close() = local.close()
+	fun close() {}
 }

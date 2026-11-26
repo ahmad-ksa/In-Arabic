@@ -7,13 +7,9 @@
     <PreferenceCategory app:title="١. الترجمة" app:iconSpaceReserved="false">
         <SwitchPreference app:key="ia_enabled" app:defaultValue="true" app:iconSpaceReserved="false"
             app:title="الترجمة شغالة" app:summary="تترجم وقت اللعب من الجوال" />
-        <ListPreference app:key="ia_engine" app:title="مصدر الترجمة" app:defaultValue="mlkit" app:iconSpaceReserved="false"
-            app:entries="@array/ia_engine_names" app:entryValues="@array/ia_engine_values" app:useSimpleSummaryProvider="true" />
         <ListPreference app:key="ia_mode" app:title="وش أترجم؟" app:defaultValue="menus" app:iconSpaceReserved="false"
             app:entries="@array/ia_mode_names" app:entryValues="@array/ia_mode_values" app:useSimpleSummaryProvider="true" />
         <Preference app:key="ia_game_pick" app:title="اللعبة" app:iconSpaceReserved="false" />
-        <Preference app:key="ia_download_model" app:title="نزّل نموذج الترجمة" app:iconSpaceReserved="false"
-            app:summary="مرة وحدة (30 ميغا تقريباً)، بعدها تشتغل الترجمة بدون إنترنت" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="٢. الشاشة (التلفزيون)" app:iconSpaceReserved="false">
@@ -72,22 +68,5 @@
             app:title="افصل الأزرار عن الحوار" app:summary="النص القصير على طرف مربع الحوار يُترجم مكانه" />
         <SwitchPreference app:key="ia_auto_reconnect" app:defaultValue="true" app:iconSpaceReserved="false"
             app:title="أعد الاتصال تلقائياً إذا انقطع البث" />
-        <Preference app:key="ia_engines_info" app:title="مفاتيح مصادر الترجمة" app:iconSpaceReserved="false"
-            app:summary="كل مصدر له مفتاحه هنا. «الجوال» و«MyMemory» ما يحتاجون مفتاح" />
-        <Preference app:key="ia_ai_gemini" app:title="مفتاح Gemini المجاني" app:iconSpaceReserved="false" />
-        <EditTextPreference app:key="ia_ai_key" app:title="مفتاح API" app:iconSpaceReserved="false" />
-        <EditTextPreference app:key="ia_ai_base" app:title="عنوان الخدمة" app:iconSpaceReserved="false"
-            app:defaultValue="https://api.openai.com/v1" app:useSimpleSummaryProvider="true" />
-        <EditTextPreference app:key="ia_groq_key" app:title="مفتاح Groq (مجاني من console.groq.com)" app:iconSpaceReserved="false" />
-        <EditTextPreference app:key="ia_groq_model" app:title="نموذج Groq" app:defaultValue="openai/gpt-oss-120b" app:iconSpaceReserved="false" app:useSimpleSummaryProvider="true" />
-        <EditTextPreference app:key="ia_deepl_key" app:title="مفتاح DeepL (مجاني من deepl.com)" app:iconSpaceReserved="false" />
-        <EditTextPreference app:key="ia_ms_key" app:title="مفتاح Microsoft Translator" app:iconSpaceReserved="false" />
-        <EditTextPreference app:key="ia_ms_region" app:title="منطقة Microsoft (مثل westeurope)" app:iconSpaceReserved="false" app:useSimpleSummaryProvider="true" />
-        <EditTextPreference app:key="ia_libre_url" app:title="عنوان LibreTranslate" app:iconSpaceReserved="false" app:useSimpleSummaryProvider="true" />
-        <EditTextPreference app:key="ia_libre_key" app:title="مفتاح LibreTranslate (إذا يطلب)" app:iconSpaceReserved="false" />
-        <EditTextPreference app:key="ia_mm_email" app:title="إيميلك لـ MyMemory (يرفع الحد اليومي)" app:iconSpaceReserved="false" app:useSimpleSummaryProvider="true" />
-        <EditTextPreference app:key="ia_ai_model" app:title="النموذج" app:iconSpaceReserved="false"
-            app:defaultValue="gpt-4o-mini" app:useSimpleSummaryProvider="true" />
-        <Preference app:key="ia_review" app:title="راجع الترجمات المحفوظة بالذكاء الاصطناعي" app:iconSpaceReserved="false" />
     </PreferenceCategory>
 </PreferenceScreen>

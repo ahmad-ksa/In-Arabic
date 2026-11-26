@@ -17,9 +17,10 @@ object TranslationMemory
 	 * The translation source in use ("mlkit", "ai", "deepl"…): each one keeps its own translations, so you can
 	 * switch and compare. Your corrections belong to all of them.
 	 */
-	@Volatile var engine: String = "mlkit"
+	@Volatile var engine: String = "google"
 
-	private fun slot(k: String, src: Source, eng: String) = when(src) { Source.USER -> "u:$k"; Source.QUICK -> "mlkit:$k"; Source.AI -> "$eng:$k" }
+	// each source keeps its own: "google:…" now (the old on-device "mlkit:…" lines are kept in the file but not used)
+	private fun slot(k: String, src: Source, eng: String) = when(src) { Source.USER -> "u:$k"; else -> "$eng:$k" }
 
 	private val map = LinkedHashMap<String, Entry>()
 	private var file: File? = null
@@ -46,7 +47,7 @@ object TranslationMemory
 	@Synchronized fun get(english: String): Entry?
 	{
 		val k = SubtitleTracker.key(english)
-		return map["u:$k"] ?: (if(engine != "mlkit") map["$engine:$k"] else null) ?: map["mlkit:$k"]
+		return map["u:$k"] ?: map["$engine:$k"]
 	}
 
 	/** Stores a translation unless a better one (higher source) is already known. */
@@ -54,7 +55,7 @@ object TranslationMemory
 	{
 		val k = SubtitleTracker.key(english)
 		if(k.isEmpty() || arabic.isBlank()) return
-		val eng = if(source == Source.QUICK) "mlkit" else engine
+		val eng = engine
 		val slot = slot(k, source, eng)
 		if(map[slot]?.arabic == arabic) return
 		map[slot] = Entry(english, arabic, source, eng)

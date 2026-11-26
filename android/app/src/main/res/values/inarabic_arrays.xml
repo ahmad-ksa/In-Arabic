@@ -30,17 +30,4 @@
     <string-array name="ia_mode_values" translatable="false">
         <item>dialog</item><item>zones</item><item>popups</item><item>menus</item><item>all</item>
     </string-array>
-    <string-array name="ia_engine_names">
-        <item>١. الجوال (بدون إنترنت، مجاني)</item>
-        <item>٢. Google Translate (بدون مفتاح، سريع ودقيق، غير رسمي)</item>
-        <item>٣. Gemini (مفتاح مجاني بدون بطاقة، يفهم السياق)</item>
-        <item>٤. Groq gpt-oss (مفتاح مجاني بدون بطاقة، سريع)</item>
-        <item>٥. MyMemory (بدون مفتاح، حد يومي)</item>
-        <item>٦. DeepL (مفتاح، يطلب بطاقة)</item>
-        <item>٧. Microsoft Translator (مفتاح، يطلب بطاقة)</item>
-        <item>٨. LibreTranslate (سيرفرك)</item>
-    </string-array>
-    <string-array name="ia_engine_values" translatable="false">
-        <item>mlkit</item><item>google</item><item>ai</item><item>groq</item><item>mymemory</item><item>deepl</item><item>microsoft</item><item>libre</item>
-    </string-array>
 </resources>

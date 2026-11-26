@@ -136,7 +136,6 @@ dependencies {
 
     // In Arabic: on-device OCR + translation, WebSocket link to the TV apps
     implementation 'com.google.mlkit:text-recognition:16.0.1'
-    implementation 'com.google.mlkit:translate:17.0.3'
     implementation 'org.java-websocket:Java-WebSocket:1.5.7'
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.20.0'
     implementation 'com.google.android.gms:play-services-code-scanner:16.1.0'
