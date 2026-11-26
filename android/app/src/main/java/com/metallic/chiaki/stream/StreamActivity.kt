@@ -155,7 +155,22 @@ class StreamActivity : AppCompatActivity()
 			showOverlay()
 		}
 
-		binding.displayModeToggle.addOnButtonCheckedListener { _, _, _ ->
+		// In Arabic: the game fills the whole phone screen, round corners and camera cut-out included;
+		// the picture mode you pick last is kept (stretch by default: nothing of the picture is cut off)
+		if(android.os.Build.VERSION.SDK_INT >= 28)
+			window.attributes = window.attributes.apply {
+				layoutInDisplayCutoutMode = if(android.os.Build.VERSION.SDK_INT >= 30) android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+					else android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+			}
+		val modePrefs = getSharedPreferences("ia_stream", MODE_PRIVATE)
+		binding.displayModeToggle.check(when(modePrefs.getString("mode", "stretch"))
+		{
+			"fit" -> R.id.display_mode_normal_button
+			"zoom" -> R.id.display_mode_zoom_button
+			else -> R.id.display_mode_stretch_button
+		})
+		binding.displayModeToggle.addOnButtonCheckedListener { _, id, checked ->
+			if(checked) modePrefs.edit().putString("mode", when(id) { R.id.display_mode_normal_button -> "fit"; R.id.display_mode_zoom_button -> "zoom"; else -> "stretch" }).apply()
 			adjustStreamViewAspect()
 			showOverlay()
 		}

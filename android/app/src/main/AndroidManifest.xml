@@ -54,7 +54,8 @@
         <activity
             android:name=".stream.StreamActivity"
             android:theme="@style/StreamTheme"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenSize" />
+            android:screenOrientation="sensorLandscape"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize" />
 
         <activity
             android:name=".settings.SettingsActivity" />

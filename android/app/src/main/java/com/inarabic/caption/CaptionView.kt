@@ -65,8 +65,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	/** the box from the phone (0..1 of the PS5 picture) in 0..1 of this screen */
 	private fun fit(b: FloatArray): FloatArray
 	{
-		if(!fitToTv || (zoom == 0f && dy == 0f)) return b
-		val k = 1f + zoom
+		if(zoom == 0f && dy == 0f) return b
+		// the phone shows the stream itself: no zoom to match, but the up/down move you set applies here too
+		val k = if(fitToTv) 1f + zoom else 1f
 		val o = b.copyOf()
 		o[0] = 0.5f + (b[0] - 0.5f) * k; o[2] = b[2] * k
 		o[1] = 0.5f + (b[1] - 0.5f) * k + dy; o[3] = b[3] * k

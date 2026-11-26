@@ -49,7 +49,7 @@
         <SeekBarPreference app:key="ia_tv_zoom" app:title="مطابقة التلفزيون: تكبير (%)" app:iconSpaceReserved="false"
             app:summary="إذا الترجمة على التلفزيون أقرب للوسط من الإنجليزي، زِده"
             app:defaultValue="0" android:max="15" app:min="0" app:showSeekBarValue="true" />
-        <SeekBarPreference app:key="ia_tv_shift" app:title="مطابقة التلفزيون: أعلى/أسفل (%)" app:iconSpaceReserved="false"
+        <SeekBarPreference app:key="ia_tv_shift" app:title="ارفع أو نزّل الترجمة (%) — على التلفزيون والجوال" app:iconSpaceReserved="false"
             app:defaultValue="0" android:max="10" app:min="-10" app:showSeekBarValue="true" />
     </PreferenceCategory>
 
