@@ -83,7 +83,8 @@ class InArabicPrefs(context: Context)
 		get() = mode == "dialog"
 		set(v) { mode = if(v) "dialog" else "menus" }
 	/** also read the rest of the picture for short prompts (OPEN, ENTER…) and translate them in place */
-	val scanScreen get() = mode != "dialog"
+	// "zones": every reading frame you placed (dialogue and side ones), nothing else on the screen
+	val scanScreen get() = mode != "dialog" && mode != "zones"
 	/** reading the whole picture keeps only game words and button prompts (no signs, no shop boards) */
 	val scanOnlyPrompts get() = mode == "menus"
 	/** game sound on the phone (off: the TV plays it) */

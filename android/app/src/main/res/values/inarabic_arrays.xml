@@ -25,10 +25,10 @@
         <item>#000000</item><item>#0B1A33</item><item>#0F2A20</item><item>#2B2B2B</item>
     </string-array>
     <string-array name="ia_mode_names">
-        <item>الحوارات فقط</item><item>الحوارات + التعليمات اللي تطلع من اللعبة (النص الأبيض)</item><item>الحوارات + الأزرار والقوائم والمهام</item><item>كل شي على الشاشة (حتى اللوحات)</item>
+        <item>الحوارات فقط</item><item>مربعات القراءة فقط (اللي حطيتها على الشاشة)</item><item>الحوارات + التعليمات اللي تطلع من اللعبة (النص الأبيض)</item><item>الحوارات + الأزرار والقوائم والمهام</item><item>كل شي على الشاشة (حتى اللوحات)</item>
     </string-array>
     <string-array name="ia_mode_values" translatable="false">
-        <item>dialog</item><item>popups</item><item>menus</item><item>all</item>
+        <item>dialog</item><item>zones</item><item>popups</item><item>menus</item><item>all</item>
     </string-array>
     <string-array name="ia_engine_names">
         <item>١. الجوال (بدون إنترنت، مجاني)</item>
