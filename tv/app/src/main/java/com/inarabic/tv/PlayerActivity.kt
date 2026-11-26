@@ -20,7 +20,13 @@ import android.widget.TextView
 
 class PlayerActivity : Activity()
 {
-	companion object { const val EXTRA_INPUT = "input" }
+	companion object
+	{
+		const val EXTRA_INPUT = "input"
+		/** open now: the other ways of showing subtitles stay quiet (never two translations over each other) */
+		@Volatile var open = false
+			private set
+	}
 
 	private lateinit var tv: TvView
 	private lateinit var caption: CaptionView
@@ -32,6 +38,7 @@ class PlayerActivity : Activity()
 	override fun onCreate(savedInstanceState: Bundle?)
 	{
 		super.onCreate(savedInstanceState)
+		open = true
 		window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or WindowManager.LayoutParams.FLAG_FULLSCREEN)
 		val root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
 		tv = TvView(this)
@@ -85,6 +92,7 @@ class PlayerActivity : Activity()
 
 	override fun onDestroy()
 	{
+		open = false
 		link?.stop()
 		try { tv.reset() } catch(e: Exception) { }
 		super.onDestroy()

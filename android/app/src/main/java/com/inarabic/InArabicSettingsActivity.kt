@@ -88,6 +88,12 @@ class InArabicSettingsActivity : AppCompatActivity()
 					.setNegativeButton("إغلاق", null).show()
 				true
 			}
+			findPreference<Preference>("ia_diag")?.setOnPreferenceClickListener {
+				val t = Diag.text().ifBlank { "السجل فاضي: العب شوي والترجمة شغالة، وارجع هنا" }
+				startActivity(android.content.Intent.createChooser(android.content.Intent(android.content.Intent.ACTION_SEND)
+					.setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, t), "شارك سجل التشخيص"))
+				true
+			}
 			findPreference<Preference>("ia_summary")?.setOnPreferenceClickListener { SessionsUi.show(ctx, lifecycleScope, prefs); true }
 			findPreference<Preference>("ia_game_pick")?.apply {
 				summary = prefs.gameName.ifBlank { "أي لعبة (تُعرف تلقائيًا إذا كانت شغالة)" }

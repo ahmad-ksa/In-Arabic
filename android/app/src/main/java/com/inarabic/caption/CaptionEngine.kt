@@ -99,6 +99,7 @@ class CaptionEngine(
 		val t = System.currentTimeMillis()
 		if(t - aiErrorShownAt < 20000) return
 		aiErrorShownAt = t
+		com.inarabic.Diag.add("AI failed: $why")
 		val msg = "$why — الترجمة واقفة. أطفِ «ترجمة بالذكاء الاصطناعي» من الإعدادات عشان ترجع الترجمة المحمّلة"
 		LinkServer.sendNotice(msg)
 		mainHandler.post { onNotice?.invoke(msg) }
@@ -297,14 +298,16 @@ class CaptionEngine(
 			val items = sticky.values.map { it.first }.sortedWith(compareBy({ it.second[1] }, { it.second[0] }))
 			when(sideTracker.feed(OcrRead(items.joinToString(" | ") { it.first.text })))
 			{
-				is TrackerEvent.NewLine, is TrackerEvent.Update -> translateSide(items)
-				TrackerEvent.Clear -> LinkServer.sendSideClear()
+				is TrackerEvent.NewLine, is TrackerEvent.Update -> { com.inarabic.Diag.add("side read: " + items.joinToString(" | ") { it.first.text }); translateSide(items) }
+				TrackerEvent.Clear -> { com.inarabic.Diag.add("side clear"); LinkServer.sendSideClear() }
 				null -> {}
 			}
 			if(read.text.isNotBlank()) subColored = read.colored
 			// what is on screen is sent again every few seconds: the TVs keep it as long as the English is there
 			if(now - refreshedAt > 4000) { refreshedAt = now; LinkServer.refresh() }
-			when(val ev = subTracker.feed(read))
+			val ev0 = subTracker.feed(read)
+			if(ev0 != null) com.inarabic.Diag.add("sub ${ev0.javaClass.simpleName}: " + read.text)
+			when(val ev = ev0)
 			{
 				is TrackerEvent.NewLine -> translate(++nextId, ev.text, ev.box)
 				is TrackerEvent.Update -> translate(currentId.takeIf { it >= 0 } ?: ++nextId, ev.text, ev.box)
@@ -391,6 +394,7 @@ class CaptionEngine(
 		if(id > lastShownId) lastShownId = id
 		if(box != null) lastBox = box
 		val arabic = com.inarabic.translate.Glossary.arabicNames(arabic0)
+		com.inarabic.Diag.add("show #$id ${if(final) "final" else "first"}: $english → $arabic")
 		current = Current(id, english, arabic, box)
 		LinkServer.sendSub(id, arabic, english, final, box, spans(english, arabic, subColored))
 		if(final) SessionLog.add(english, arabic)
@@ -422,7 +426,7 @@ class CaptionEngine(
 				val arN = com.inarabic.translate.Glossary.arabicNames(ar)
 				Triple(if(st.button != null) "$arN  ${st.button}" else arN, box, spans(st.text, arN, colored))
 			}
-			if(out.isNotEmpty()) LinkServer.sendSide(out)
+			if(out.isNotEmpty()) { com.inarabic.Diag.add("side show: " + out.joinToString(" | ") { it.first }); LinkServer.sendSide(out) }
 		}
 	}
 

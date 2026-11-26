@@ -87,7 +87,14 @@ class OverlayService : Service()
 		super.onDestroy()
 	}
 
-	private fun onMessage(o: JSONObject) { view?.handle(o) }
+	private fun onMessage(o: JSONObject)
+	{
+		// only one way of showing subtitles at a time: "play inside the app" wins
+		val v = view ?: return
+		if(PlayerActivity.open) { v.visibility = android.view.View.GONE; return }
+		v.visibility = android.view.View.VISIBLE
+		v.handle(o)
+	}
 
 	private var wasConnected = false
 	private fun setStatus(s: String)

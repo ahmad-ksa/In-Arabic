@@ -32,7 +32,11 @@ class CaptionAccessibilityService : AccessibilityService()
 		lp.gravity = Gravity.TOP or Gravity.START
 		try { wm.addView(v, lp); view = v } catch(e: Exception) { return }
 		v.test()
-		link = Link(this, { v.handle(it) }, { }).also { it.start() }
+		// only one way of showing subtitles at a time: this one only when the other two are off
+		link = Link(this, { o ->
+			if(PlayerActivity.open || OverlayService.running) v.visibility = android.view.View.GONE
+			else { v.visibility = android.view.View.VISIBLE; v.handle(o) }
+		}, { }).also { it.start() }
 	}
 
 	override fun onAccessibilityEvent(event: AccessibilityEvent?) {}

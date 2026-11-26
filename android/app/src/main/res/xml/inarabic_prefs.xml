@@ -55,6 +55,8 @@
         <Preference app:key="ia_summary" app:title="سجل الجلسات والملخص" app:iconSpaceReserved="false"
             app:summary="حوار كل جلسة، وملخص يذكّرك وين وقفت" />
         <Preference app:key="ia_memory" app:title="ذاكرة الترجمة" app:iconSpaceReserved="false" />
+        <Preference app:key="ia_diag" app:title="شارك سجل التشخيص" app:iconSpaceReserved="false"
+            app:summary="وش قرأ البرنامج ووش عرض آخر دقائق. أرسله إذا شفت ترجمة غريبة" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="متقدم" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="0">
