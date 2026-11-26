@@ -371,6 +371,8 @@
     try { ws = new WebSocket(wsUrl(cfg.ip)); } catch (e) { return later(); }
     ws.onopen = function () {
       opened = true; fails = 0;
+      scanGen++; searching = false; // linked: any search still running is over
+      store.set('ip', cfg.ip); lastGood = cfg.ip;
       if (open) openSetup(false); // paired and connected: back to the game
       ws.send(JSON.stringify({ t: 'hello', kind: 'lg', name: 'LG TV' }));
       status('متصل بالجوال ✓');
@@ -404,7 +406,8 @@
         if (!open) openSetup(true);
         return later();
       }
-      // the phone may have a new address: after a few failures, look for it again
+      // the phone may have a new address: after a few failures, look for it again (its last address is
+      // tried first in the search, so a phone that was only away for a moment is found again at once)
       if (!opened && ++fails >= 3) { fails = 0; cfg.ip = ''; return discover(); }
       status('انقطع الاتصال بالجوال — إعادة المحاولة…', true); later();
     };
@@ -437,18 +440,23 @@
       b.call('luna://com.webos.service.connectionmanager/getStatus', '{}');
     } catch (e) { finish(null); }
   }
-  var searching = false;
+  var searching = false, scanGen = 0, lastGood = store.get('ip', '');
+  // a link open or opening: nothing to search for
+  function linked() { return !!(ws && (ws.readyState === 0 || ws.readyState === 1)); }
   function discover() {
-    if (searching) return;
+    if (searching || linked()) return;
     searching = true;
+    var gen = ++scanGen;
     status('أبحث عن الجوال في الشبكة… (افتح تطبيق الجوال)', true);
     myIp(function (ip) {
+      if (gen !== scanGen) return;
       var nets = [];
       if (ip) nets.push(ip.split('.').slice(0, 3).join('.'));
       ['192.168.1', '192.168.0', '192.168.100', '192.168.8', '10.0.0', '192.168.68', '192.168.31', '192.168.43'].forEach(function (n) { if (nets.indexOf(n) < 0) nets.push(n); });
       var hosts = [];
       nets.forEach(function (n) { for (var h = 1; h < 255; h++) hosts.push(n + '.' + h); });
       if (ip) hosts.splice(hosts.indexOf(ip), 1);
+      if (lastGood) { var li = hosts.indexOf(lastGood); if (li >= 0) hosts.splice(li, 1); hosts.unshift(lastGood); }
       var next = 0, active = 0, found = false;
       var probe = function (host) {
         active++;
@@ -457,6 +465,8 @@
           var x = w; w = null;
           try { x.onopen = x.onclose = x.onerror = null; x.close(); } catch (e) {}
           active--;
+          // this search was replaced (the phone gave its address, or the link came back): stop here
+          if (gen !== scanGen || linked()) { found = true; return; }
           if (res && !found) {
             found = true; searching = false;
             cfg.ip = host; store.set('ip', host);
@@ -471,6 +481,7 @@
       };
       var pump = function () {
         if (found) return;
+        if (gen !== scanGen || linked()) { found = true; return; }
         while (active < 40 && next < hosts.length) probe(hosts[next++]);
         if (active === 0 && next >= hosts.length) {
           searching = false;
@@ -584,7 +595,7 @@
   }
   // already open: the phone opens it again with its address
   document.addEventListener('webOSRelaunch', function (e) {
-    if (fromPhone(launchParams(e && e.detail)) && !(ws && ws.readyState === 1)) { searching = false; connect(); }
+    if (fromPhone(launchParams(e && e.detail)) && !(ws && ws.readyState === 1)) { scanGen++; searching = false; connect(); }
   });
   fromPhone(launchParams(null));
   myIp(function (ip) { if (ip) drawQr(ip); });
