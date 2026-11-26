@@ -52,7 +52,9 @@ class CaptionEngine(
 			val w = surfaceView.width
 			val h = surfaceView.height
 			if(w < 16 || h < 16 || !surfaceView.holder.surface.isValid) return@withContext null
-			val scale = minOf(1f, maxWidth.toFloat() / w)
+			// always this wide, whatever the view's size: the stream's own frames are copied, so the small floating
+			// window is read as well as the full screen
+			val scale = maxWidth.toFloat() / w
 			val bmp = Bitmap.createBitmap((w * scale).toInt(), (h * scale).toInt(), Bitmap.Config.ARGB_8888)
 			suspendCancellableCoroutine { c ->
 				try

@@ -251,7 +251,45 @@ class StreamActivity : AppCompatActivity()
 	override fun onPause()
 	{
 		super.onPause()
+		// in the small floating window the stream (and the translation on the TV) goes on
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode) return
 		viewModel.session.pause()
+	}
+
+	override fun onStop()
+	{
+		super.onStop()
+		// the floating window was closed (or the app is really gone): now the stream stops
+		viewModel.session.pause()
+	}
+
+	// ---- leaving the app (home, another app): the stream becomes a small floating window, like a video, and the
+	// translation goes on on the TV; tap the window to come back full screen ----
+	private fun pipParams(): android.app.PictureInPictureParams?
+	{
+		if(Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return null
+		val b = android.app.PictureInPictureParams.Builder().setAspectRatio(android.util.Rational(16, 9))
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) b.setAutoEnterEnabled(viewModel.session.state.value == StreamStateConnected).setSeamlessResizeEnabled(false)
+		return b.build()
+	}
+
+	override fun onUserLeaveHint()
+	{
+		super.onUserLeaveHint()
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && Build.VERSION.SDK_INT < Build.VERSION_CODES.S && viewModel.session.state.value == StreamStateConnected)
+			try { pipParams()?.let { enterPictureInPictureMode(it) } } catch(e: Exception) { }
+	}
+
+	override fun onPictureInPictureModeChanged(inPip: Boolean, newConfig: android.content.res.Configuration)
+	{
+		super.onPictureInPictureModeChanged(inPip, newConfig)
+		// the small window shows only the game: our buttons and the phone's own translations are hidden
+		val v = if(inPip) View.GONE else View.VISIBLE
+		binding.iaMenu.visibility = v
+		binding.iaLens.visibility = v
+		binding.iaOverlay.visibility = if(inPip || !com.inarabic.InArabicPrefs(this).showOnPhone) View.GONE else View.VISIBLE
+		if(inPip) { binding.iaCaption.visibility = View.GONE; binding.iaNotice.visibility = View.GONE; binding.overlay.isVisible = false }
+		else { hideSystemUI(); viewModel.session.resume() }
 	}
 
 	override fun onDestroy()
@@ -450,6 +488,7 @@ class StreamActivity : AppCompatActivity()
 	{
 		binding.progressBar.visibility = if(state == StreamStateConnecting) View.VISIBLE else View.GONE
 		if(state == StreamStateConnected) startCaptions() else if(state is StreamStateQuit) stopCaptions()
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) try { pipParams()?.let { setPictureInPictureParams(it) } } catch(e: Exception) { }
 		if(state == StreamStateConnected && autoTries > 0) { autoTries = 0; notice("رجع البث ✓", 2500) }
 
 		when(state)
