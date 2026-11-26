@@ -73,6 +73,7 @@ class LgInstallActivity : AppCompatActivity()
 			lifecycleScope.launch {
 				val found = withContext(Dispatchers.IO) { scan() }
 				if(found == null) say("ما لقينا. تأكد إن «Key Server» شغال وإن الجوال على نفس الواي فاي، أو اكتب العنوان بنفسك.")
+				else if(found.startsWith("!")) { ip.setText(found.drop(1)); say("لقينا تلفزيون LG على ${found.drop(1)} بس «Key Server» مقفل. افتح Developer Mode في التلفزيون وشغّله، وبعدين اضغط ثبّت.") }
 				else { ip.setText(found); say("لقينا التلفزيون: $found") }
 			}
 		}
@@ -96,26 +97,34 @@ class LgInstallActivity : AppCompatActivity()
 		val m = (e.message ?: e.toString())
 		return when
 		{
-			m.contains("9991") || m.contains("refused", true) -> "التلفزيون ما رد. تأكد إن «Key Server» شغال في Developer Mode"
+			m.contains("9922") -> "التلفزيون رد بس وضع المطوّر مقفل. شغّل «Dev Mode Status» في تطبيق Developer Mode"
+			m.contains("9991") || m.contains("refused", true) || m.contains("unreachable", true) -> "التلفزيون ما رد. تأكد إن «Key Server» شغال في Developer Mode"
 			m.contains("passphrase", true) || m.contains("Auth", true) || m.contains("invalid privatekey", true) -> "كلمة المرور غلط. اكتب الـ Passphrase اللي في التطبيق بالضبط"
 			m.contains("timeout", true) -> "انتهى الوقت. تأكد إنكم على نفس الشبكة"
 			else -> m
 		}
 	}
 
-	/** the subnet's addresses with the key server open */
+	/** the TV on the subnet: one with the key server open first, else any LG TV (marked with "!") */
 	private fun scan(): String?
 	{
 		val me = com.inarabic.NetUtil.broadcastAddress().takeIf { it != "255.255.255.255" } ?: return null
 		val base = me.substringBeforeLast('.')
-		val pool = java.util.concurrent.Executors.newFixedThreadPool(32)
+		fun open(h: String, port: Int) = try { Socket().use { s -> s.connect(InetSocketAddress(h, port), 500) }; true } catch(e: Exception) { false }
+		val pool = java.util.concurrent.Executors.newFixedThreadPool(48)
 		try
 		{
 			val tasks = (1..254).map { i -> pool.submit<String?> {
 				val h = "$base.$i"
-				try { Socket().use { s -> s.connect(InetSocketAddress(h, 9991), 400) }; h } catch(e: Exception) { null }
+				when
+				{
+					open(h, 9991) -> h
+					open(h, 3000) || open(h, 3001) -> "!$h"   // webOS's own control ports: an LG TV, key server off
+					else -> null
+				}
 			} }
-			return tasks.firstNotNullOfOrNull { it.get() }
+			val all = tasks.mapNotNull { it.get() }
+			return all.firstOrNull { !it.startsWith("!") } ?: all.firstOrNull()
 		}
 		finally { pool.shutdownNow() }
 	}
