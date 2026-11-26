@@ -140,6 +140,25 @@ class InArabicSettingsActivity : AppCompatActivity()
 					if(prefs.lowContrast) "⚠ النص صعب يتقرا بدون خلفية. فعّل «حدّ أسود حول الحروف» أو زِد العتامة" else null
 		}
 
+		private fun pairedText(): String
+		{
+			val s = com.inarabic.link.Pairing.screens(requireContext()).values
+			return if(s.isEmpty()) "افتح تطبيق الشاشة وامسح الباركود الظاهر عليها" else "مربوطة: " + s.joinToString("، ")
+		}
+
+		private fun memoryText() =
+			"${TranslationMemory.size()} سطر محفوظ (منها ${TranslationMemory.count(TranslationMemory.Source.USER)} من تصحيحاتك) — اضغط للمسح"
+
+		private fun addressText(prefs: InArabicPrefs): String
+		{
+			val a = LinkServer.addresses()
+			val n = LinkServer.screens.size
+			val connected = if(n == 0) "لا توجد شاشة متصلة الآن" else "شاشات متصلة: $n"
+			return if(a.isEmpty()) "اتصل بشبكة الواي فاي أولًا"
+			else "العنوان: " + a.joinToString(" أو ") + "\nرمز الاقتران: " + prefs.pairCode + "\n" + connected
+		}
+
+		/** The story so far, from the last play session: by the AI when there is a key, else the last lines. */
 		private fun summary(prefs: InArabicPrefs)
 		{
 			val ctx = requireContext()
