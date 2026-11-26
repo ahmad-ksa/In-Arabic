@@ -70,16 +70,26 @@ class Translator(private val prefs: InArabicPrefs)
 	/** Better translation by the AI model, or null (no key, offline, timeout). */
 	suspend fun better(english: String): String?
 	{
-		if(!prefs.aiEnabled) return null
+		if(!prefs.aiOnly) return null
 		if('\n' in english)
 		{
 			// a list: each line by the AI; if one line fails the whole list waits (never mixed with the on-device one)
 			val parts = english.split('\n').filter { it.isNotBlank() }.map { Glossary.lookup(it) ?: better(it) ?: return null }
 			return parts.joinToString("\n")
 		}
-		val k = SubtitleTracker.key(english)
+		val k = prefs.engine + ":" + SubtitleTracker.key(english)
 		aiCache.get(k)?.let { return it }
-		val ar0 = withTimeoutOrNull(9000) { withContext(Dispatchers.IO) { askAi(english) } }
+		val ar0 = withTimeoutOrNull(9000) { withContext(Dispatchers.IO) {
+			when(prefs.engine)
+			{
+				"ai" -> askAi(english)
+				"mymemory" -> OnlineEngines.myMemory(english, prefs.myMemoryEmail)
+				"deepl" -> OnlineEngines.deepl(english, prefs.deeplKey)
+				"microsoft" -> OnlineEngines.microsoft(english, prefs.msKey, prefs.msRegion)
+				"libre" -> OnlineEngines.libre(english, prefs.libreUrl, prefs.libreKey)
+				else -> null
+			}.also { if(prefs.engine != "ai") lastAiError = if(it == null) OnlineEngines.lastError else null }
+		} }
 		val ar = ar0?.let { Glossary.arabicNames(it) }
 		if(ar != null)
 		{
@@ -147,7 +157,6 @@ class Translator(private val prefs: InArabicPrefs)
 
 	/** why the last AI request failed, in Arabic (null: it worked) */
 	@Volatile var lastAiError: String? = null
-		private set
 	@Volatile private var noReasoningParam = false
 
 	private fun chat(system: String, user: String, readTimeoutMs: Int): String?

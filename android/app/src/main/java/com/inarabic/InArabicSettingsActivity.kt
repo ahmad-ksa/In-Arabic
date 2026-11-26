@@ -76,10 +76,10 @@ class InArabicSettingsActivity : AppCompatActivity()
 			}
 			findPreference<Preference>("ia_ai_gemini")?.setOnPreferenceClickListener {
 				PreferenceManager.getDefaultSharedPreferences(ctx).edit()
-					.putBoolean("ia_ai_enabled", true)
+					.putString("ia_engine", "ai")
 					.putString("ia_ai_base", "https://generativelanguage.googleapis.com/v1beta/openai")
 					.putString("ia_ai_model", "gemini-flash-latest").apply()
-				findPreference<androidx.preference.SwitchPreference>("ia_ai_enabled")?.isChecked = true
+				findPreference<androidx.preference.ListPreference>("ia_engine")?.value = "ai"
 				findPreference<EditTextPreference>("ia_ai_base")?.text = "https://generativelanguage.googleapis.com/v1beta/openai"
 				findPreference<EditTextPreference>("ia_ai_model")?.text = "gemini-flash-latest"
 				AlertDialog.Builder(ctx).setTitle("مفتاح Gemini المجاني")

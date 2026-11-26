@@ -30,4 +30,15 @@
     <string-array name="ia_mode_values" translatable="false">
         <item>dialog</item><item>popups</item><item>menus</item><item>all</item>
     </string-array>
+    <string-array name="ia_engine_names">
+        <item>١. الجوال (بدون إنترنت، مجاني)</item>
+        <item>٢. Gemini / ذكاء اصطناعي (مفتاح مجاني)</item>
+        <item>٣. MyMemory (أونلاين، بدون مفتاح)</item>
+        <item>٤. DeepL (مفتاح مجاني)</item>
+        <item>٥. Microsoft Translator (مفتاح)</item>
+        <item>٦. LibreTranslate</item>
+    </string-array>
+    <string-array name="ia_engine_values" translatable="false">
+        <item>mlkit</item><item>ai</item><item>mymemory</item><item>deepl</item><item>microsoft</item><item>libre</item>
+    </string-array>
 </resources>

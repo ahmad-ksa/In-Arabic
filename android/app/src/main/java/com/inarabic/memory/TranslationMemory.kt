@@ -11,7 +11,15 @@ import java.io.File
 object TranslationMemory
 {
 	enum class Source(val rank: Int) { QUICK(1), AI(2), USER(3) }
-	data class Entry(val english: String, val arabic: String, val source: Source)
+	data class Entry(val english: String, val arabic: String, val source: Source, val engine: String = "")
+
+	/**
+	 * The translation source in use ("mlkit", "ai", "deepl"…): each one keeps its own translations, so you can
+	 * switch and compare. Your corrections belong to all of them.
+	 */
+	@Volatile var engine: String = "mlkit"
+
+	private fun slot(k: String, src: Source, eng: String) = when(src) { Source.USER -> "u:$k"; Source.QUICK -> "mlkit:$k"; Source.AI -> "$eng:$k" }
 
 	private val map = LinkedHashMap<String, Entry>()
 	private var file: File? = null
@@ -27,25 +35,30 @@ object TranslationMemory
 			if(p.size >= 3)
 			{
 				val src = runCatching { Source.valueOf(p[0]) }.getOrNull() ?: return@forEachLine
-				val e = Entry(unescape(p[1]), unescape(p[2]), src)
-				val k = SubtitleTracker.key(e.english)
-				val old = map[k]
-				if(old == null || old.source.rank <= src.rank) map[k] = e
+				val eng = p.getOrNull(3) ?: if(src == Source.AI) "ai" else "mlkit"
+				val e = Entry(unescape(p[1]), unescape(p[2]), src, eng)
+				map[slot(SubtitleTracker.key(e.english), src, eng)] = e
 			}
 		}
 	}
 
-	@Synchronized fun get(english: String): Entry? = map[SubtitleTracker.key(english)]
+	/** your correction, else this source's translation, else the on-device one */
+	@Synchronized fun get(english: String): Entry?
+	{
+		val k = SubtitleTracker.key(english)
+		return map["u:$k"] ?: (if(engine != "mlkit") map["$engine:$k"] else null) ?: map["mlkit:$k"]
+	}
 
 	/** Stores a translation unless a better one (higher source) is already known. */
 	@Synchronized fun put(english: String, arabic: String, source: Source)
 	{
 		val k = SubtitleTracker.key(english)
 		if(k.isEmpty() || arabic.isBlank()) return
-		val old = map[k]
-		if(old != null && (old.source.rank > source.rank || old.arabic == arabic && old.source == source)) return
-		map[k] = Entry(english, arabic, source)
-		try { file?.appendText("${source.name}\t${escape(english)}\t${escape(arabic)}\n") } catch(e: Exception) { }
+		val eng = if(source == Source.QUICK) "mlkit" else engine
+		val slot = slot(k, source, eng)
+		if(map[slot]?.arabic == arabic) return
+		map[slot] = Entry(english, arabic, source, eng)
+		try { file?.appendText("${source.name}\t${escape(english)}\t${escape(arabic)}\t$eng\n") } catch(e: Exception) { }
 	}
 
 	/** Lines only the free model has translated, newest first: the ones the AI review improves. */

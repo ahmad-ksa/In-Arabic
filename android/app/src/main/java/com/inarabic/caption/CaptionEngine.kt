@@ -114,7 +114,7 @@ class CaptionEngine(
 		if(t - aiErrorShownAt < 20000) return
 		aiErrorShownAt = t
 		Diag.add("AI failed: $why")
-		val msg = "$why — الترجمة واقفة. أطفِ «ترجمة بالذكاء الاصطناعي» من الإعدادات عشان ترجع الترجمة المحمّلة"
+		val msg = "$why — الترجمة واقفة. غيّر «مصدر الترجمة» من الإعدادات إذا تبي مصدر ثاني"
 		LinkServer.sendNotice(msg)
 		mainHandler.post { onNotice?.invoke(msg) }
 	}
@@ -142,6 +142,7 @@ class CaptionEngine(
 	{
 		if(loop != null || !prefs.enabled) return
 		TranslationMemory.load(context)
+		TranslationMemory.engine = prefs.engine
 		SessionLog.begin(context, prefs.gameName)
 		LinkServer.start(context)
 		LinkServer.sendStyle(prefs)
@@ -329,7 +330,8 @@ class CaptionEngine(
 			val fixed = if(known0?.source == TranslationMemory.Source.USER) null else com.inarabic.translate.Glossary.lookup(english)
 			if(fixed != null) { show(id, english, fixed, true, box); return@launch }
 			val known = known0
-			val wantAi = prefs.aiEnabled
+			TranslationMemory.engine = prefs.engine
+			val wantAi = prefs.aiOnly
 			// a line seen before: from memory, final at once (unless only the free model had translated it)
 			if(known != null && (known.source != TranslationMemory.Source.QUICK || !wantAi))
 			{
@@ -467,7 +469,7 @@ class CaptionEngine(
 				known?.source == TranslationMemory.Source.USER -> known.arabic
 				g != null -> g
 				prefs.aiOnly ->
-					(known?.takeIf { it.source == TranslationMemory.Source.AI }?.arabic
+					(known?.takeIf { it.source == TranslationMemory.Source.AI && it.engine == prefs.engine }?.arabic
 						?: translator.better(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) })
 						.also { if(it == null) aiFailed(translator.lastAiError ?: "الذكاء الاصطناعي ما رد") }
 				else -> known?.arabic ?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) }
