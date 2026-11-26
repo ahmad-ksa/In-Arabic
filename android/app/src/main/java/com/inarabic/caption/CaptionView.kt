@@ -430,8 +430,10 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		{
 			val bp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ln.bg }
 			textPaint.clearShadowLayer() // the game's own look: no added shadow
+			val tf = textPaint.typeface; textPaint.typeface = fontBold // bold, like the game's text
 			drawItem(canvas, ln.text, ln.spans, fit(ln.box), null, ln.color, bp, false)
 			textPaint.setShadowLayer(4f, 0f, 2f, Color.BLACK)
+			textPaint.typeface = tf
 		}
 		textPaint.color = color
 

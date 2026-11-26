@@ -643,9 +643,17 @@ class CaptionEngine(
 		y = box.top + 1
 		while(y < box.bottom - 1) { x = box.left + 1; while(x < box.right - 1) { inner += bmp.getPixel(x, y); x += sx }; y += maxOf(1, sy / 2) }
 		fun dist(c: Int) = kotlin.math.abs(ch(c, 16) - ch(bg, 16)) + kotlin.math.abs(ch(c, 8) - ch(bg, 8)) + kotlin.math.abs(ch(c, 0) - ch(bg, 0))
-		val far = inner.sortedByDescending(::dist).take(maxOf(3, inner.size / 8))
+		// the letters' own colour: the few pixels farthest from the background (the middle of the strokes, not
+		// their soft edges, which are half background: those made dark letters look grey)
+		val far = inner.sortedByDescending(::dist).take(maxOf(3, inner.size / 25))
 		if(far.isEmpty() || dist(far[0]) < 60) return (if(lum(bg) > 128) android.graphics.Color.BLACK else android.graphics.Color.WHITE) to bg
-		val fg = android.graphics.Color.rgb(far.sumOf { ch(it, 16) } / far.size, far.sumOf { ch(it, 8) } / far.size, far.sumOf { ch(it, 0) } / far.size)
+		fun medCh(s: Int) = far.map { ch(it, s) }.sorted()[far.size / 2]
+		val hsv = FloatArray(3)
+		android.graphics.Color.RGBToHSV(medCh(16), medCh(8), medCh(0), hsv)
+		// the picture is a little soft (video): the letters are pushed away from the background, as crisp as the game's
+		if(lum(android.graphics.Color.rgb(medCh(16), medCh(8), medCh(0))) < lum(bg)) hsv[2] *= 0.55f
+		else hsv[2] = maxOf(hsv[2], 0.95f)
+		val fg = android.graphics.Color.HSVToColor(hsv)
 		return fg to bg
 	}
 	private fun lum(c: Int) = 0.299 * ((c shr 16) and 255) + 0.587 * ((c shr 8) and 255) + 0.114 * (c and 255)
