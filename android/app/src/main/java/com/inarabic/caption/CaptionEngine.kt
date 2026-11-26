@@ -17,6 +17,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.Text
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.inarabic.Diag
 import com.inarabic.InArabicPrefs
 import com.inarabic.link.LinkServer
 import com.inarabic.memory.SessionLog
@@ -76,7 +77,20 @@ class CaptionEngine(
 	private var paddle: PaddleReader? = null
 	// a subtitle stays until it is really gone (several empty reads), not at the first missed read
 	private val subTracker = SubtitleTracker(emptyReadsToClear = 5)
-	private val sticky = LinkedHashMap<String, Pair<Triple<SideText, FloatArray, List<Colored>>, Long>>()
+	/**
+	 * One text beside the dialogue (a menu entry, a prompt, a help box) while it is on screen. It is the same
+	 * item as long as it stays in the same place, even if one read spells it a little differently; it is
+	 * translated once, and that translation stays until the item has really left the screen.
+	 */
+	private class SideItem(var st: SideText, var box: FloatArray, var colored: List<Colored>, var seen: Long)
+	{
+		@Volatile var arabic: String? = null
+		@Volatile var spans: List<ColorSpan> = emptyList()
+		var asked = false
+		var retryAt = 0L
+	}
+	private val sideItems = ArrayList<SideItem>()
+	private var sideSent = ""
 	private var refreshedAt = 0L
 	private val box2Tracker = SubtitleTracker(emptyReadsToClear = 2)
 	private val sideTracker = SubtitleTracker(emptyReadsToClear = 2)
@@ -99,7 +113,7 @@ class CaptionEngine(
 		val t = System.currentTimeMillis()
 		if(t - aiErrorShownAt < 20000) return
 		aiErrorShownAt = t
-		com.inarabic.Diag.add("AI failed: $why")
+		Diag.add("AI failed: $why")
 		val msg = "$why — الترجمة واقفة. أطفِ «ترجمة بالذكاء الاصطناعي» من الإعدادات عشان ترجع الترجمة المحمّلة"
 		LinkServer.sendNotice(msg)
 		mainHandler.post { onNotice?.invoke(msg) }
@@ -272,7 +286,7 @@ class CaptionEngine(
 			if(busy != systemUi)
 			{
 				systemUi = busy
-				if(busy) { sticky.clear(); subTracker.reset(); sideTracker.reset(); currentId = -1; current = null; LinkServer.sendClear(); LinkServer.sendSideClear(); post(null) }
+				if(busy) { synchronized(sideItems) { sideItems.clear() }; sideSent = ""; subTracker.reset(); sideTracker.reset(); currentId = -1; current = null; LinkServer.sendClear(); LinkServer.sendSideClear(); post(null) }
 				mainHandler.post { onSystemUi?.invoke(busy) }
 			}
 			if(busy) return
@@ -288,25 +302,12 @@ class CaptionEngine(
 			}
 			val seen = HashSet<String>()
 			val now = System.currentTimeMillis()
-			for(r in side.filter { r -> r.box != null && !onSubtitle(r.box) && seen.add(SubtitleTracker.key(r.text)) })
-			{
-				val st = SideText.clean(r.text) ?: continue
-				sticky[SubtitleTracker.key(st.text)] = Triple(st, r.box!!, r.colored) to now
-			}
-			// a text missed by one or two reads stays on screen; it goes only when it has really left
-			sticky.entries.removeAll { now - it.value.second > 1800 }
-			val items = sticky.values.map { it.first }.sortedWith(compareBy({ it.second[1] }, { it.second[0] }))
-			when(sideTracker.feed(OcrRead(items.joinToString(" | ") { it.first.text })))
-			{
-				is TrackerEvent.NewLine, is TrackerEvent.Update -> { com.inarabic.Diag.add("side read: " + items.joinToString(" | ") { it.first.text }); translateSide(items) }
-				TrackerEvent.Clear -> { com.inarabic.Diag.add("side clear"); LinkServer.sendSideClear() }
-				null -> {}
-			}
+			updateSide(side.filter { r -> r.box != null && !onSubtitle(r.box) && seen.add(SubtitleTracker.key(r.text)) }, now)
 			if(read.text.isNotBlank()) subColored = read.colored
 			// what is on screen is sent again every few seconds: the TVs keep it as long as the English is there
 			if(now - refreshedAt > 4000) { refreshedAt = now; LinkServer.refresh() }
 			val ev0 = subTracker.feed(read)
-			if(ev0 != null) com.inarabic.Diag.add("sub ${ev0.javaClass.simpleName}: " + read.text)
+			if(ev0 != null) Diag.add("sub ${ev0.javaClass.simpleName}: " + read.text)
 			when(val ev = ev0)
 			{
 				is TrackerEvent.NewLine -> translate(++nextId, ev.text, ev.box)
@@ -394,7 +395,7 @@ class CaptionEngine(
 		if(id > lastShownId) lastShownId = id
 		if(box != null) lastBox = box
 		val arabic = com.inarabic.translate.Glossary.arabicNames(arabic0)
-		com.inarabic.Diag.add("show #$id ${if(final) "final" else "first"}: $english → $arabic")
+		Diag.add("show #$id ${if(final) "final" else "first"}: $english → $arabic")
 		current = Current(id, english, arabic, box)
 		LinkServer.sendSub(id, arabic, english, final, box, spans(english, arabic, subColored))
 		if(final) SessionLog.add(english, arabic)
@@ -411,22 +412,72 @@ class CaptionEngine(
 		}
 	}
 
-	private fun translateSide(items: List<Triple<SideText, FloatArray, List<Colored>>>)
+	private fun overlap(a: FloatArray, b: FloatArray): Float
 	{
-		if(items.isEmpty()) return
-		scope.launch {
-			val out = items.mapNotNull { (st, box, colored) ->
-				val known = TranslationMemory.get(st.text)?.takeIf { it.source == TranslationMemory.Source.USER || com.inarabic.translate.Glossary.lookup(st.text) == null }
-				// longer help texts are worth the AI (when on); short prompts take the quick model
-				val ai = if((known == null || (prefs.aiOnly && known.source == TranslationMemory.Source.QUICK)) && prefs.aiEnabled && (prefs.aiOnly || st.text.split(' ').size > 4) && com.inarabic.translate.Glossary.lookup(st.text) == null) translator.better(st.text) else null
-				val ar = ai?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) }
-					?: known?.arabic
-					?: (if(prefs.aiOnly && com.inarabic.translate.Glossary.lookup(st.text) == null) { aiFailed(translator.lastAiError ?: "الذكاء الاصطناعي ما رد"); null } else null)
-					?: if(prefs.aiOnly && com.inarabic.translate.Glossary.lookup(st.text) == null) return@mapNotNull null else translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) } ?: return@mapNotNull null
-				val arN = com.inarabic.translate.Glossary.arabicNames(ar)
-				Triple(if(st.button != null) "$arN  ${st.button}" else arN, box, spans(st.text, arN, colored))
+		val ix = minOf(a[0] + a[2], b[0] + b[2]) - maxOf(a[0], b[0])
+		val iy = minOf(a[1] + a[3], b[1] + b[3]) - maxOf(a[1], b[1])
+		if(ix <= 0 || iy <= 0) return 0f
+		return ix * iy / minOf(a[2] * a[3], b[2] * b[3])
+	}
+
+	/** this read's side texts: matched to the items already on screen by place, new ones added and translated once */
+	private fun updateSide(reads: List<OcrRead>, now: Long)
+	{
+		synchronized(sideItems) {
+			for(r in reads)
+			{
+				val st = SideText.clean(r.text) ?: continue
+				val box = r.box ?: continue
+				val same = sideItems.firstOrNull { overlap(it.box, box) > 0.5f }
+				if(same != null)
+				{
+					same.seen = now
+					// a longer, fuller reading of the same thing (still untranslated) replaces a cut one
+					if(same.arabic == null && !same.asked && st.text.length > same.st.text.length) { same.st = st; same.box = box }
+					continue
+				}
+				sideItems += SideItem(st, box, r.colored, now)
 			}
-			if(out.isNotEmpty()) { com.inarabic.Diag.add("side show: " + out.joinToString(" | ") { it.first }); LinkServer.sendSide(out) }
+			// gone only when it has not been seen for a while
+			sideItems.removeAll { now - it.seen > 1800 }
+			for(it in sideItems) if(!it.asked && now >= it.retryAt) { it.asked = true; translateItem(it) }
+		}
+		sendSideIfChanged()
+	}
+
+	@Synchronized private fun sendSideIfChanged()
+	{
+		val ready = synchronized(sideItems) { sideItems.filter { it.arabic != null }.map { Triple(it.arabic!!, it.box, it.spans) } }
+		val sig = ready.joinToString("|") { it.first + "@" + (it.second[0] * 100).toInt() + "," + (it.second[1] * 100).toInt() }
+		if(sig == sideSent) return
+		sideSent = sig
+		if(ready.isEmpty()) { Diag.add("side clear"); LinkServer.sendSideClear() }
+		else { Diag.add("side show: " + ready.joinToString(" | ") { it.first }); LinkServer.sendSide(ready) }
+	}
+
+	/** one item, once: the fixed game word, your correction, the AI (when on) or the on-device translator */
+	private fun translateItem(item: SideItem)
+	{
+		scope.launch {
+			val st = item.st
+			val g = com.inarabic.translate.Glossary.lookup(st.text)
+			val known = TranslationMemory.get(st.text)
+			val ar: String? = when
+			{
+				known?.source == TranslationMemory.Source.USER -> known.arabic
+				g != null -> g
+				prefs.aiOnly ->
+					(known?.takeIf { it.source == TranslationMemory.Source.AI }?.arabic
+						?: translator.better(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.AI) })
+						.also { if(it == null) aiFailed(translator.lastAiError ?: "الذكاء الاصطناعي ما رد") }
+				else -> known?.arabic ?: translator.quick(st.text)?.also { TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) }
+			}
+			if(ar == null) { item.retryAt = System.currentTimeMillis() + 6000; item.asked = false; return@launch } // try again a bit later
+			val arN = com.inarabic.translate.Glossary.arabicNames(ar)
+			item.spans = spans(st.text, arN, item.colored)
+			item.arabic = if(st.button != null) "$arN  ${st.button}" else arN
+			Diag.add("side item: ${st.text} → ${item.arabic}")
+			sendSideIfChanged()
 		}
 	}
 
