@@ -434,6 +434,32 @@
     draw();
   });
 
+  // ---------- no screen saver while you play: the TV sees no remote presses (you play with the controller)
+  // and would put its clock over the game. LG asks running apps first; we answer "not now" every time.
+  var keepBridges = [];
+  function noScreenSaver() {
+    if (SAMSUNG) {
+      try { webapis.appcommon.setScreenSaver(webapis.appcommon.AppCommonScreenSaverState.SCREEN_SAVER_OFF); } catch (e) {}
+      return;
+    }
+    try {
+      var b = new PalmServiceBridge();
+      b.onservicecallback = function (m) {
+        try {
+          var r = JSON.parse(m);
+          if (r.timestamp == null) return;
+          var a = new PalmServiceBridge();
+          keepBridges.push(a); if (keepBridges.length > 20) keepBridges.splice(1, 1);
+          a.call('luna://com.webos.service.tvpower/power/responseScreenSaverRequest',
+            JSON.stringify({ clientName: 'inarabic', ack: false, timestamp: r.timestamp }));
+        } catch (e) {}
+      };
+      keepBridges.unshift(b);
+      b.call('luna://com.webos.service.tvpower/power/registerScreenSaverRequest', JSON.stringify({ subscribe: true, clientName: 'inarabic' }));
+    } catch (e) {}
+  }
+  noScreenSaver();
+
   showGame();
   if (cfg.ip) connect(); else { openSetup(true); discover(); }
 })();
