@@ -79,7 +79,11 @@ class StreamActivity : AppCompatActivity()
 			it.start()
 		}
 		// the lens: what is inside it is read and translated (a box already open is taken over)
-		binding.iaLens.onChange = { r -> captionEngine?.setLens(r) }
+		binding.iaLens.onChange = { r ->
+			// the box replaces the whole-screen translation
+			if(r != null && fullScreen) { fullScreen = false; notice("ترجمة الشاشة كاملة: موقفة", 2000) }
+			if(!fullScreen) captionEngine?.setLens(r)
+		}
 		binding.iaLens.rect?.let { captionEngine?.setLens(it) }
 		// tap the Arabic line on the phone to correct it: remembered, and replaced on the TV at once
 		binding.iaCaption.setOnClickListener {
@@ -97,6 +101,7 @@ class StreamActivity : AppCompatActivity()
 
 	private fun stopCaptions()
 	{
+		fullScreen = false
 		captionEngine?.stop()
 		captionEngine = null
 		com.inarabic.link.LinkServer.local = null
@@ -562,6 +567,48 @@ class StreamActivity : AppCompatActivity()
 
 	private fun adjustStreamViewAspect() = adjustSurfaceViewAspect()
 
+	// ---- a double tap (one finger) translates the whole screen; another double tap stops it ----
+	private var fullScreen = false
+	private var lastTapUpAt = 0L
+	private val lastTapAt = FloatArray(2)
+	private var tapSingle = false
+
+	private fun toggleFullScreen()
+	{
+		val engine = captionEngine ?: return
+		fullScreen = !fullScreen
+		if(fullScreen)
+		{
+			if(binding.iaLens.rect != null) binding.iaLens.close() // the box gives way to the whole screen
+			engine.setLens(android.graphics.RectF(0f, 0f, 1f, 1f), full = true)
+			notice("ترجمة الشاشة كاملة: شغّالة (نقرتين توقفها)", 2500)
+		}
+		else
+		{
+			engine.setLens(null)
+			notice("ترجمة الشاشة كاملة: موقفة", 2000)
+		}
+	}
+
+	/** a tap on one of our buttons (menu, correction, frames bar, the box) is not a tap on the game */
+	private fun onOurButton(x: Float, y: Float): Boolean
+	{
+		if(binding.iaZone.visibility == View.VISIBLE) return true
+		// (the overlay itself fills the screen: only its bar of switches counts)
+		for(v in listOf<View>(binding.iaMenu, binding.iaCaption, binding.iaZoneBar, binding.iaNotice, binding.iaAudioSwitch.parent as View))
+		{
+			if(v.visibility != View.VISIBLE || !v.isShown) continue
+			val at = IntArray(2); v.getLocationOnScreen(at)
+			if(x >= at[0] && x <= at[0] + v.width && y >= at[1] && y <= at[1] + v.height) return true
+		}
+		binding.iaLens.rect?.let { r ->
+			val at = IntArray(2); binding.iaLens.getLocationOnScreen(at)
+			val lx = (x - at[0]) / binding.iaLens.width; val ly = (y - at[1]) / binding.iaLens.height
+			if(lx >= r.left - 0.05f && lx <= r.right + 0.05f && ly >= r.top - 0.08f && ly <= r.bottom + 0.05f) return true
+		}
+		return false
+	}
+
 	// ---- a quick tap with two fingers opens the lens there (the touches go on to the stream as before) ----
 	private var tapDownAt = 0L
 	private var tapTwo = false
@@ -571,9 +618,9 @@ class StreamActivity : AppCompatActivity()
 	{
 		when(e.actionMasked)
 		{
-			MotionEvent.ACTION_DOWN -> { tapDownAt = e.eventTime; tapTwo = false; tapMoved = false; tapStart[0] = e.rawX; tapStart[1] = e.rawY }
+			MotionEvent.ACTION_DOWN -> { tapDownAt = e.eventTime; tapTwo = false; tapMoved = false; tapStart[0] = e.rawX; tapStart[1] = e.rawY; tapSingle = !onOurButton(e.rawX, e.rawY) }
 			MotionEvent.ACTION_POINTER_DOWN ->
-				if(e.pointerCount == 2 && e.eventTime - tapDownAt < 300) { tapTwo = true; tapStart[2] = e.getX(1); tapStart[3] = e.getY(1) }
+				if(e.pointerCount == 2 && e.eventTime - tapDownAt < 300) { tapTwo = true; lastTapUpAt = 0L; tapStart[2] = e.getX(1); tapStart[3] = e.getY(1) }
 				else tapTwo = false
 			MotionEvent.ACTION_MOVE ->
 			{
@@ -581,7 +628,18 @@ class StreamActivity : AppCompatActivity()
 				if(kotlin.math.hypot(e.rawX - tapStart[0], e.rawY - tapStart[1]) > slop) tapMoved = true
 			}
 			MotionEvent.ACTION_UP ->
-				if(tapTwo && !tapMoved && e.eventTime - tapDownAt < 450 && captionEngine != null)
+				if(!tapTwo && tapSingle && !tapMoved && e.pointerCount == 1 && e.eventTime - tapDownAt < 250 && captionEngine != null)
+				{
+					// one quick tap: a second one soon after, close by, is a double tap
+					val near = 60 * resources.displayMetrics.density
+					if(e.eventTime - lastTapUpAt < 350 && kotlin.math.hypot(e.rawX - lastTapAt[0], e.rawY - lastTapAt[1]) < near)
+					{
+						lastTapUpAt = 0L
+						toggleFullScreen()
+					}
+					else { lastTapUpAt = e.eventTime; lastTapAt[0] = e.rawX; lastTapAt[1] = e.rawY }
+				}
+				else if(tapTwo && !tapMoved && e.eventTime - tapDownAt < 450 && captionEngine != null)
 				{
 					tapTwo = false
 					val lens = binding.iaLens

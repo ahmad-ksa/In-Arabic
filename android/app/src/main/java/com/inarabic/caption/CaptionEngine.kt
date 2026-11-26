@@ -533,9 +533,13 @@ class CaptionEngine(
 	private val lensCache = java.util.concurrent.ConcurrentHashMap<String, String>()
 	@Volatile private var lensSent = ""
 
-	/** the box in 0..1 of the picture; null: closed */
-	fun setLens(r: android.graphics.RectF?)
+	/** the whole screen is translated (a double tap): the lens over all of the picture, the dialogue left to itself */
+	@Volatile private var lensFull = false
+
+	/** the box in 0..1 of the picture; null: closed. [full]: the whole screen (no frame on the phone) */
+	fun setLens(r: android.graphics.RectF?, full: Boolean = false)
 	{
+		lensFull = r != null && full
 		lensRect = r?.let { android.graphics.RectF(it) }
 		lensJob?.cancel(); lensJob = null
 		lensSent = ""
@@ -566,8 +570,16 @@ class CaptionEngine(
 			val area = Rect((lr.left * frame.width).toInt(), (lr.top * frame.height).toInt(), (lr.right * frame.width).toInt(), (lr.bottom * frame.height).toInt())
 			if(!area.intersect(0, 0, frame.width, frame.height) || area.width() < 16 || area.height() < 8) return
 			val reads = ArrayList<OcrRead>()
-			readArea(frame, area, 0.008f, reads, everyLine = true, countLines = false)
-			val found = reads.filter { it.box != null && it.text.any(Char::isLetter) }.map { rd ->
+			// the whole screen: not the tiny HUD text, and not the dialogue (it has its own line already)
+			readArea(frame, area, if(lensFull) 0.014f else 0.008f, reads, everyLine = true, countLines = false)
+			val sub = if(lensFull && current != null) (current?.box ?: lastBox) else null
+			fun onSub(b: FloatArray): Boolean
+			{
+				if(sub == null) return false
+				val cx = b[0] + b[2] / 2; val cy = b[1] + b[3] / 2
+				return cx >= sub[0] - 0.02f && cx <= sub[0] + sub[2] + 0.02f && cy >= sub[1] - 0.03f && cy <= sub[1] + sub[3] + 0.03f
+			}
+			val found = reads.filter { it.box != null && it.text.any(Char::isLetter) && !onSub(it.box) }.map { rd ->
 				val b = rd.box!!
 				val px = Rect((b[0] * frame.width).toInt(), (b[1] * frame.height).toInt(), ((b[0] + b[2]) * frame.width).toInt(), ((b[1] + b[3]) * frame.height).toInt())
 				val (fg, bg) = lineColors(frame, px)
