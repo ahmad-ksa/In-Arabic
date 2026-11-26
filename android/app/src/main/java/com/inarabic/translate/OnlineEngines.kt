@@ -37,6 +37,15 @@ object OnlineEngines
 
 	private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
+	/** Google Translate's free web endpoint (no key; unofficial, may stop working or be limited at any time) */
+	fun google(text: String): String?
+	{
+		val r = http("https://translate.googleapis.com/translate_a/single", "POST", "client=gtx&sl=en&tl=ar&dt=t&q=" + enc(text),
+			type = "application/x-www-form-urlencoded") ?: return null
+		val parts = JSONArray(r).optJSONArray(0) ?: return null
+		return buildString { for(i in 0 until parts.length()) append(parts.optJSONArray(i)?.optString(0) ?: "") }.trim().ifBlank { null }
+	}
+
 	/** MyMemory: free, no key (a daily limit; an e-mail in the settings raises it) */
 	fun myMemory(text: String, email: String): String?
 	{

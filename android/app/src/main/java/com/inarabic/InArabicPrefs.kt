@@ -99,6 +99,8 @@ class InArabicPrefs(context: Context)
 	 */
 	val engine: String get() = p.getString("ia_engine", null) ?: if(p.getBoolean("ia_ai_enabled", false)) "ai" else "mlkit"
 	val aiOnly get() = engine != "mlkit"
+	val groqKey get() = p.getString("ia_groq_key", "")?.trim() ?: ""
+	val groqModel get() = p.getString("ia_groq_model", null)?.trim().takeUnless { it.isNullOrEmpty() } ?: "openai/gpt-oss-120b"
 	val myMemoryEmail get() = p.getString("ia_mm_email", "")?.trim() ?: ""
 	val deeplKey get() = p.getString("ia_deepl_key", "")?.trim() ?: ""
 	val msKey get() = p.getString("ia_ms_key", "")?.trim() ?: ""
@@ -112,7 +114,10 @@ class InArabicPrefs(context: Context)
 	/** Second, better translation by an AI model (OpenAI-compatible API). */
 	val aiEnabled get() = engine == "ai" && aiKey.isNotBlank()
 	val aiBaseUrl get() = p.getString("ia_ai_base", null)?.trim()?.trimEnd('/').takeUnless { it.isNullOrEmpty() } ?: "https://api.openai.com/v1"
-	val aiModel get() = p.getString("ia_ai_model", null)?.trim().takeUnless { it.isNullOrEmpty() } ?: "gpt-4o-mini"
+	// "gemini-flash-latest" (set by an earlier version) is now a model with only ~20 free requests a day:
+	// the Flash-Lite one has 500 and is fast enough for subtitles
+	val aiModel get() = (p.getString("ia_ai_model", null)?.trim().takeUnless { it.isNullOrEmpty() } ?: "gpt-4o-mini")
+		.let { if(it == "gemini-flash-latest") "gemini-3.5-flash-lite" else it }
 	val aiKey get() = p.getString("ia_ai_key", "")?.trim() ?: ""
 
 	/** Caption look on the TV. */

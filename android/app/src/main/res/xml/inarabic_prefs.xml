@@ -78,6 +78,8 @@
         <EditTextPreference app:key="ia_ai_key" app:title="مفتاح API" app:iconSpaceReserved="false" />
         <EditTextPreference app:key="ia_ai_base" app:title="عنوان الخدمة" app:iconSpaceReserved="false"
             app:defaultValue="https://api.openai.com/v1" app:useSimpleSummaryProvider="true" />
+        <EditTextPreference app:key="ia_groq_key" app:title="مفتاح Groq (مجاني من console.groq.com)" app:iconSpaceReserved="false" />
+        <EditTextPreference app:key="ia_groq_model" app:title="نموذج Groq" app:defaultValue="openai/gpt-oss-120b" app:iconSpaceReserved="false" app:useSimpleSummaryProvider="true" />
         <EditTextPreference app:key="ia_deepl_key" app:title="مفتاح DeepL (مجاني من deepl.com)" app:iconSpaceReserved="false" />
         <EditTextPreference app:key="ia_ms_key" app:title="مفتاح Microsoft Translator" app:iconSpaceReserved="false" />
         <EditTextPreference app:key="ia_ms_region" app:title="منطقة Microsoft (مثل westeurope)" app:iconSpaceReserved="false" app:useSimpleSummaryProvider="true" />

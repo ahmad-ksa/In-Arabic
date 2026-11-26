@@ -82,13 +82,14 @@ class Translator(private val prefs: InArabicPrefs)
 		val ar0 = withTimeoutOrNull(9000) { withContext(Dispatchers.IO) {
 			when(prefs.engine)
 			{
-				"ai" -> askAi(english)
+				"ai", "groq" -> askAi(english)
+				"google" -> OnlineEngines.google(english)
 				"mymemory" -> OnlineEngines.myMemory(english, prefs.myMemoryEmail)
 				"deepl" -> OnlineEngines.deepl(english, prefs.deeplKey)
 				"microsoft" -> OnlineEngines.microsoft(english, prefs.msKey, prefs.msRegion)
 				"libre" -> OnlineEngines.libre(english, prefs.libreUrl, prefs.libreKey)
 				else -> null
-			}.also { if(prefs.engine != "ai") lastAiError = if(it == null) OnlineEngines.lastError else null }
+			}.also { if(prefs.engine != "ai" && prefs.engine != "groq") lastAiError = if(it == null) OnlineEngines.lastError else null }
 		} }
 		val ar = ar0?.let { Glossary.arabicNames(it) }
 		if(ar != null)
@@ -132,7 +133,7 @@ class Translator(private val prefs: InArabicPrefs)
 
 	/** One question to the AI model (used for the story summary too). */
 	suspend fun ask(system: String, user: String, timeoutMs: Long = 30000): String? =
-		if(prefs.aiKey.isBlank()) null
+		if(service().second.isBlank()) null
 		else withTimeoutOrNull(timeoutMs) { withContext(Dispatchers.IO) { chat(system, user, (timeoutMs - 1000).toInt()) } }
 
 	private fun askAi(english: String): String?
@@ -159,33 +160,44 @@ class Translator(private val prefs: InArabicPrefs)
 	@Volatile var lastAiError: String? = null
 	@Volatile private var noReasoningParam = false
 
+	/** the chat service of the chosen source: Groq has its own key and model, everything else the AI settings */
+	private fun service(): Triple<String, String, String> =
+		if(prefs.engine == "groq") Triple("https://api.groq.com/openai/v1", prefs.groqKey, prefs.groqModel)
+		else Triple(prefs.aiBaseUrl, prefs.aiKey, prefs.aiModel)
+
 	private fun chat(system: String, user: String, readTimeoutMs: Int): String?
 	{
+		val (base, key, model) = service()
 		val body = JSONObject()
-			.put("model", prefs.aiModel)
+			.put("model", model)
 			.put("temperature", 0.2)
 		// Gemini "thinks" before answering unless told not to: that is most of the wait for a short line
-		val gemini = prefs.aiBaseUrl.contains("generativelanguage")
-		if(gemini && !noReasoningParam) body.put("reasoning_effort", "none")
+		// thinking off (or as low as the model allows): it is most of the wait for a short line
+		val gemini = base.contains("generativelanguage")
+		if(!noReasoningParam)
+		{
+			if(gemini) body.put("reasoning_effort", if(model.contains("2.5")) "none" else "low")
+			else if(model.contains("gpt-oss")) body.put("reasoning_effort", "low")
+		}
 			.put("messages", JSONArray()
 				.put(JSONObject().put("role", "system").put("content", system))
 				.put(JSONObject().put("role", "user").put("content", user)))
 		return try
 		{
-			val con = URL(prefs.aiBaseUrl + "/chat/completions").openConnection() as HttpURLConnection
+			val con = URL("$base/chat/completions").openConnection() as HttpURLConnection
 			con.requestMethod = "POST"
 			con.connectTimeout = 5000
 			con.readTimeout = readTimeoutMs
 			con.doOutput = true
 			con.setRequestProperty("Content-Type", "application/json")
-			con.setRequestProperty("Authorization", "Bearer " + prefs.aiKey)
+			con.setRequestProperty("Authorization", "Bearer $key")
 			con.outputStream.use { it.write(body.toString().toByteArray()) }
 			if(con.responseCode !in 200..299)
 			{
 				val err = con.errorStream?.bufferedReader()?.readText()?.take(300) ?: ""
 				Log.w(TAG, "AI ${con.responseCode}: $err")
 				// a model that cannot switch thinking off: ask again without that setting, and stop sending it
-				if(con.responseCode == 400 && gemini && !noReasoningParam && err.contains("reasoning", true))
+				if(con.responseCode == 400 && !noReasoningParam && err.contains("reasoning", true))
 				{
 					noReasoningParam = true
 					return chat(system, user, readTimeoutMs)

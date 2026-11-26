@@ -78,10 +78,10 @@ class InArabicSettingsActivity : AppCompatActivity()
 				PreferenceManager.getDefaultSharedPreferences(ctx).edit()
 					.putString("ia_engine", "ai")
 					.putString("ia_ai_base", "https://generativelanguage.googleapis.com/v1beta/openai")
-					.putString("ia_ai_model", "gemini-flash-latest").apply()
+					.putString("ia_ai_model", "gemini-3.5-flash-lite").apply()
 				findPreference<androidx.preference.ListPreference>("ia_engine")?.value = "ai"
 				findPreference<EditTextPreference>("ia_ai_base")?.text = "https://generativelanguage.googleapis.com/v1beta/openai"
-				findPreference<EditTextPreference>("ia_ai_model")?.text = "gemini-flash-latest"
+				findPreference<EditTextPreference>("ia_ai_model")?.text = "gemini-3.5-flash-lite"
 				AlertDialog.Builder(ctx).setTitle("مفتاح Gemini المجاني")
 					.setMessage("1. افتح الصفحة وسجّل بحساب Google.\n2. اضغط Create API key وانسخه.\n3. ارجع هنا والصقه في «مفتاح API».")
 					.setPositiveButton("افتح الصفحة") { _, _ -> startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://aistudio.google.com/apikey"))) }
