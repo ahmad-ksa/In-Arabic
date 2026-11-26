@@ -61,10 +61,12 @@
 </style>
 </head>
 <body>
-<video id="game" autoplay></video>
-<!-- a tiny black film, always playing: the TV keeps its screen saver away while something plays (as in a video app) -->
+<!-- a black film, always playing, behind the game picture. LG keeps the screen saver away only while a video
+     fills the whole screen from 0,0 with no opacity / transform / border (webOS FAQ), so it is full size here
+     (a tiny or see-through one does not count, and the HDMI input alone is not counted as playing video) -->
 <video id="awake" src="keepawake.mp4" muted loop autoplay playsinline
-  style="position:fixed;left:0;top:0;width:4px;height:4px;opacity:0.01;pointer-events:none;z-index:-1"></video>
+  style="position:absolute;left:0;top:0;width:1920px;height:1080px;object-fit:fill;background:#000;pointer-events:none"></video>
+<video id="game" autoplay></video>
 <div id="cap"></div>
 <div id="box2"></div>
 <div id="side"></div>
@@ -127,6 +129,7 @@
     if (SAMSUNG) {
       try {
         document.body.style.background = 'transparent'; $('game').style.display = 'none';
+        $('awake').style.display = 'none'; // the full-size black film would hide the TV picture behind the page
         tizen.tvwindow.setSource({ type: 'HDMI', number: cfg.hdmi }, function () {}, function () {});
         tizen.tvwindow.show(function () {}, function () {}, ['0px', '0px', '1920px', '1080px'], 'MAIN');
       } catch (e) { status('الشاشة ما سمحت بعرض مدخل HDMI داخل التطبيق'); }

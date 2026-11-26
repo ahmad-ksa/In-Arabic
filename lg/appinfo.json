@@ -14,6 +14,7 @@
   "trustLevel": "default",
   "requiredACG": [],
   "supportQuickStart": true,
+  "screenSaverProperties": { "preferredType": 2 },
   "vendorExtension": {
     "allowCrossDomain": true
   }
