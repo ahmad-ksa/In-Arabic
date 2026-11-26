@@ -121,8 +121,33 @@ class CaptionEngine(
 
 	/** called on the main thread when [systemUi] changes */
 	var onSystemUi: ((Boolean) -> Unit)? = null
-	/** coloured phrases of the subtitle on screen now */
+	/** coloured phrases of the subtitle on screen now (all its reads together) */
 	@Volatile private var subColored: List<Colored> = emptyList()
+	/** phrase -> colour -> how many reads saw it, for the line on screen */
+	private val lineColors = LinkedHashMap<String, HashMap<Int, Int>>()
+
+	private fun addLineColors(found: List<Colored>)
+	{
+		var added = false
+		synchronized(lineColors) {
+			for(c in found)
+			{
+				val k = c.english.lowercase()
+				val m = lineColors.getOrPut(k) { added = true; HashMap() }
+				// colours a little apart in light are the same colour: counted together
+				val same = m.keys.firstOrNull { sameHue(it, c.color) } ?: c.color
+				m[same] = (m[same] ?: 0) + 1
+			}
+			// a shorter phrase inside a longer one is the same words: the longer one is kept
+			val keys = lineColors.keys.toList()
+			for(k in keys) if(keys.any { it != k && it.length > k.length && it.contains(k) }) lineColors.remove(k)
+			subColored = lineColors.map { (k, m) -> Colored(k, m.maxByOrNull { it.value }!!.key) }
+		}
+		// a colour seen only now, after the line was already shown: shown again with it
+		if(added) current?.let { c -> if(c.id == currentId) scope.launch {
+			LinkServer.sendSub(c.id, c.arabic, c.english, true, c.box, spans(c.english, c.arabic, subColored))
+		} }
+	}
 	/** prompts found in the rest of the picture ("OPEN" next to a car), from the last whole-screen read */
 	private var screenItems: List<OcrRead> = emptyList()
 	@Volatile private var lastLineAt = 0L
@@ -228,7 +253,7 @@ class CaptionEngine(
 		val c = current ?: return
 		TranslationMemory.put(c.english, arabic, TranslationMemory.Source.USER)
 		current = c.copy(arabic = arabic)
-		LinkServer.sendSub(c.id, arabic, c.english, true, c.box, emptyList())
+		scope.launch { LinkServer.sendSub(c.id, arabic, c.english, true, c.box, spans(c.english, arabic, subColored)) } // your words, the game's colours
 		post(arabic)
 	}
 
@@ -307,10 +332,13 @@ class CaptionEngine(
 			val now = System.currentTimeMillis()
 			// texts inside the lens are the lens's (drawn with their own colours): not twice
 			updateSide(side.filter { r -> r.box != null && !onSubtitle(r.box) && !inLens(r.box) && seen.add(SubtitleTracker.key(r.text)) }, now)
-			if(read.text.isNotBlank()) subColored = read.colored
 			// what is on screen is sent again every few seconds: the TVs keep it as long as the English is there
 			if(now - refreshedAt > 4000) { refreshedAt = now; LinkServer.refresh() }
 			val ev0 = subTracker.feed(read)
+			// the line's coloured words, gathered over all its reads (one read may miss a colour: light behind the
+			// letters, a frame in motion); a new line starts from nothing
+			if(ev0 is TrackerEvent.NewLine || ev0 == TrackerEvent.Clear) synchronized(lineColors) { lineColors.clear() }
+			if(read.text.isNotBlank()) addLineColors(read.colored)
 			if(ev0 != null) Diag.add("sub ${ev0.javaClass.simpleName}: " + read.text)
 			when(val ev = ev0)
 			{
@@ -437,6 +465,14 @@ class CaptionEngine(
 				if(same != null)
 				{
 					same.seen = now
+					// a coloured word this read saw and the earlier ones missed: the item is coloured again
+					val more = r.colored.filter { c -> same.colored.none { it.english.equals(c.english, true) } }
+					if(more.isNotEmpty())
+					{
+						same.colored = same.colored + more
+						val ar = same.arabic
+						if(ar != null) scope.launch { same.spans = spans(same.st.text, ar.removeSuffix("  ${same.st.button}"), same.colored); sideSent = ""; sendSideIfChanged() }
+					}
 					// a longer, fuller reading of the same thing (still untranslated) replaces a cut one
 					if(same.arabic == null && !same.asked && st.text.length > same.st.text.length) { same.st = st; same.box = box }
 					continue

@@ -26,7 +26,34 @@ object ColorText
 	 * Where each translated phrase sits in [arabic]: the whole phrase if it is there as it is, otherwise
 	 * its longest word (without ال / و / ب …), stretched to the whole Arabic word it is part of.
 	 */
+	/**
+	 * Arabic for matching: without vowel marks and tatweel, one alef. The matched places are mapped back to the
+	 * real text, so "بغسّالة" (with a shadda) is still found for "غسالة".
+	 */
+	private fun norm(t: String): Pair<String, IntArray>
+	{
+		val sb = StringBuilder(); val at = ArrayList<Int>()
+		for((i, ch) in t.withIndex())
+		{
+			if(ch in '\u064B'..'\u0652' || ch == '\u0670' || ch == '\u0640') continue
+			sb.append(when(ch) { 'أ', 'إ', 'آ' -> 'ا'; 'ى' -> 'ي'; else -> ch }); at += i
+		}
+		at += t.length
+		return sb.toString() to at.toIntArray()
+	}
+
 	fun place(arabic: String, phrases: List<Pair<String, Int>>): List<ColorSpan>
+	{
+		val (plain, at) = norm(arabic)
+		return placePlain(plain, phrases.map { norm(it.first).first to it.second }).mapNotNull { sp ->
+			val s = at[sp.start]; val e = at[sp.end - 1] + 1
+			// the marks right after the last letter belong to it
+			var e2 = e; while(e2 < arabic.length && (arabic[e2] in '\u064B'..'\u0652' || arabic[e2] == '\u0670')) e2++
+			if(s < e2) ColorSpan(s, e2, sp.color) else null
+		}
+	}
+
+	private fun placePlain(arabic: String, phrases: List<Pair<String, Int>>): List<ColorSpan>
 	{
 		val out = ArrayList<ColorSpan>()
 		fun free(s: Int, e: Int) = out.none { s < it.end && e > it.start }
