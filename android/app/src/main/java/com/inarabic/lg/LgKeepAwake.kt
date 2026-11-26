@@ -50,9 +50,21 @@ object LgKeepAwake
 	{
 		appContext = context.applicationContext
 		if(ip.isBlank() || ip == "?" || tvs.containsKey(ip)) return
+		prefs().edit().putString("last_ip", ip).apply()
 		val tv = Tv(ip)
 		tvs[ip] = tv
 		tv.connect()
+	}
+
+	/**
+	 * A press right now ("start playing in Arabic" was tapped): wakes a TV in its screen saver at once.
+	 * To every LG TV kept awake; none yet: the last one we knew is reached and pressed as soon as it answers.
+	 */
+	@Synchronized fun pressNow(context: Context)
+	{
+		appContext = context.applicationContext
+		if(tvs.isNotEmpty()) { for(tv in tvs.values) timer.execute { tv.press() }; return }
+		prefs().getString("last_ip", null)?.let { start(context, it) } // the pointer socket presses once it opens
 	}
 
 	/** no LG screen at this address any more */

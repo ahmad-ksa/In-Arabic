@@ -209,11 +209,11 @@ object LinkServer
 		broadcast(msg)
 	}
 
-	/** x, y, w, h (0..1 of the picture) and, if known, the height of one English line */
+	/** x, y, w, h (0..1 of the picture), the height of one English line and, for tilted text, its angle and own size */
 	private fun boxJson(b: FloatArray): org.json.JSONArray
 	{
 		val a = org.json.JSONArray()
-		for(i in 0 until minOf(b.size, 5)) a.put(Math.round(b[i] * 10000) / 10000.0)
+		for(i in 0 until minOf(b.size, 8)) a.put(Math.round(b[i] * 10000) / 10000.0) // [5..7]: tilt, own width and height
 		return a
 	}
 

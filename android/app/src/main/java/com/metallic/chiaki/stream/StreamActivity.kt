@@ -190,6 +190,8 @@ class StreamActivity : AppCompatActivity()
 		}
 		watchNetwork()
 		setupZoneEditor(iaPrefs)
+		// "start playing": a press on the LG TV at once (out of its screen saver), then every minute as before
+		com.inarabic.lg.LgKeepAwake.pressNow(this)
 		// In Arabic: no on-screen game buttons (you play with the controller); one clear menu button instead
 		viewModel.setOnScreenControlsEnabled(false)
 		viewModel.setTouchpadOnlyEnabled(false)

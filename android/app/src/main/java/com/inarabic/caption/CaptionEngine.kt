@@ -707,8 +707,10 @@ class CaptionEngine(
 	private fun one(crop: Bitmap, text: String, r: Rect, line: Text.Line, area: Rect, frame: Bitmap): OcrRead
 	{
 		if(r == line.boundingBox) return join(crop, listOf(line), area, frame)
+		// a piece of a line: drawn level, at the line's real letter height
+		val lineH = geometry(listOf(line))?.get(3) ?: r.height().toFloat()
 		val box = floatArrayOf((r.left + area.left) / frame.width.toFloat(), (r.top + area.top) / frame.height.toFloat(),
-			r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat(), r.height() / frame.height.toFloat())
+			r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat(), minOf(lineH, r.height().toFloat()) / frame.height.toFloat())
 		return OcrRead(text, box, white = isWhite(crop, r))
 	}
 
@@ -717,10 +719,15 @@ class CaptionEngine(
 		val texts = lines.map { line -> reread(crop, line) }
 		val r = Rect(lines[0].boundingBox ?: Rect())
 		for(l in lines) l.boundingBox?.let { r.union(it) }
-		// box[4]: the height of one English line, so the Arabic is drawn the same size
-		val lineH = lines.mapNotNull { it.boundingBox?.height() }.sorted().let { it[it.size / 2] }
-		val box = floatArrayOf((r.left + area.left) / frame.width.toFloat(), (r.top + area.top) / frame.height.toFloat(),
-			r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat(), lineH / frame.height.toFloat())
+		// box[4]: the real height of one English line (not the height of its tilted box), so the Arabic is drawn
+		// the same size; box[5..7]: when the text is tilted (a phone in the game), its angle and its own
+		// width and height (in parts of the picture's height), so the Arabic is drawn with the same tilt
+		val g = geometry(lines)
+		val lineH = g?.get(3) ?: lines.mapNotNull { it.boundingBox?.height() }.sorted().let { it[it.size / 2].toFloat() }
+		val fh = frame.height.toFloat()
+		val base = floatArrayOf((r.left + area.left) / frame.width.toFloat(), (r.top + area.top) / fh,
+			r.width() / frame.width.toFloat(), r.height() / fh, lineH / fh)
+		val box = if(g != null && kotlin.math.abs(g[0]) >= 2f) base + floatArrayOf(g[0], g[1] / fh, g[2] / fh) else base
 		// a list (menu entries, short lines under each other) stays one line each; a wrapped sentence is joined
 		// (a wrapped sentence goes on in small letters: "Where are" / "you going?"; menu entries each start with a capital)
 		val list = texts.size >= 2 && texts.all { it.trim().split(Regex("\\s+")).size <= 4 } &&
@@ -737,6 +744,27 @@ class CaptionEngine(
 			else -> texts.joinToString(" ")
 		}
 		return OcrRead(joined, box, coloredPhrases(crop, lines), isWhite(crop, r))
+	}
+
+	/**
+	 * The lines' tilt and real size from their corner points: [angle in degrees, width, height, one line's height]
+	 * (pixels; width and height measured along the tilt). Null when ML Kit gave no corners.
+	 */
+	private fun geometry(lines: List<Text.Line>): FloatArray?
+	{
+		val corners = lines.mapNotNull { l -> l.cornerPoints?.takeIf { it.size == 4 } }
+		if(corners.isEmpty()) return null
+		fun d(a: android.graphics.Point, b: android.graphics.Point) = kotlin.math.hypot((b.x - a.x).toFloat(), (b.y - a.y).toFloat())
+		val angles = corners.map { c -> Math.toDegrees(kotlin.math.atan2((c[1].y - c[0].y).toDouble(), (c[1].x - c[0].x).toDouble())).toFloat() }.sorted()
+		val angle = angles[angles.size / 2]
+		val heights = corners.map { c -> (d(c[0], c[3]) + d(c[1], c[2])) / 2 }.sorted()
+		val lineH = heights[heights.size / 2]
+		// all corners turned back level around their middle: their extent is the text's own width and height
+		val pts = corners.flatMap { it.toList() }
+		val cx = (pts.minOf { it.x } + pts.maxOf { it.x }) / 2f; val cy = (pts.minOf { it.y } + pts.maxOf { it.y }) / 2f
+		val a = Math.toRadians(-angle.toDouble()); val cs = kotlin.math.cos(a).toFloat(); val sn = kotlin.math.sin(a).toFloat()
+		val xs = pts.map { (it.x - cx) * cs - (it.y - cy) * sn }; val ys = pts.map { (it.x - cx) * sn + (it.y - cy) * cs }
+		return floatArrayOf(angle, xs.maxOf { it } - xs.minOf { it }, ys.maxOf { it } - ys.minOf { it }, lineH)
 	}
 
 	/** Runs of words drawn in the same (non-white) colour. */

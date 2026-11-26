@@ -78,6 +78,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		o[0] = 0.5f + (b[0] - 0.5f) * k; o[2] = b[2] * k
 		o[1] = 0.5f + (b[1] - 0.5f) * k + dy; o[3] = b[3] * k
 		if(o.size > 4) o[4] = b[4] * k
+		if(o.size > 7) { o[6] = b[6] * k; o[7] = b[7] * k }
 		return o
 	}
 
@@ -88,7 +89,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	 */
 	private fun sizeFor(b: FloatArray?, h: Float, def: Float, lo: Float, hi: Float, keep: FloatArray? = null): Float
 	{
-		var v = if(b != null && b.size > 4 && b[4] > 0f) (b[4] * h * 0.95f).coerceIn(h * lo, h * hi) else h * def
+		var v = if(b != null && b.size > 4 && b[4] > 0f) (b[4] * h * 0.82f).coerceIn(h * lo, h * hi) else h * def
 		val step = h * 0.004f
 		v = Math.round(v / step) * step
 		if(keep != null)
@@ -242,6 +243,96 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		StaticLayout.Builder.obtain(t, 0, t.length, textPaint, width)
 			.setAlignment(align).setTextDirection(TextDirectionHeuristics.RTL).setLineSpacing(0f, 1.1f).build()
 
+	/** what has been drawn so far in this picture (screen rectangles): nothing new may cover it */
+	private val placed = ArrayList<RectF>()
+
+	/** moves [r] down (or, at the bottom of the screen, up) until it touches nothing already placed; the offset */
+	private fun avoid(r: RectF, h: Float): Float
+	{
+		val gap = h * 0.004f
+		val y0 = r.top
+		var up = false
+		repeat(24) {
+			val hit = placed.firstOrNull { RectF.intersects(it, r) } ?: return r.top - y0
+			if(!up && hit.bottom + gap + r.height() <= h) r.offsetTo(r.left, hit.bottom + gap)
+			else { up = true; r.offsetTo(r.left, hit.top - gap - r.height()) }
+		}
+		return r.top - y0
+	}
+
+	/** the largest text size, from [start] down to [start]×[minK], whose layout fits [width]×[maxH] */
+	private fun fitLayout(t: CharSequence, start: Float, width: Int, maxH: Float, align: Layout.Alignment, minK: Float = 0.45f): StaticLayout
+	{
+		var size = start
+		while(true)
+		{
+			textPaint.textSize = size
+			val l = layout(t, width, align)
+			if(l.height <= maxH || size <= start * minK) return l
+			size *= 0.92f
+		}
+	}
+
+	/**
+	 * One text over its English one: inside the English area (smaller letters when the Arabic is longer, never
+	 * spilling onto what is below), with the English's tilt when it is tilted, and moved off anything already drawn.
+	 * [b]: x, y, w, h, line height, and for tilted text angle, own width, own height (see the phone's engine).
+	 */
+	private fun drawItem(canvas: Canvas, text: String, spans: List<IntArray>, b: FloatArray, size: Float?, fg: Int, bg: Paint, withOutline: Boolean)
+	{
+		val w = width.toFloat(); val h = height.toFloat()
+		val tilted = b.size > 7
+		val angle = if(tilted) b[5] else 0f
+		val ownW = if(tilted) b[6] * h else b[2] * w
+		val ownH = if(tilted) b[7] * h else b[3] * h
+		val lineH = if(b.size > 4 && b[4] > 0f) b[4] * h else ownH
+		val cx = (b[0] + b[2] / 2) * w
+		val cy = (b[1] + b[3] / 2) * h
+		val padX = lineH * 0.15f; val padY = lineH * 0.08f
+		// a paragraph (a message, a description): wraps inside the English width; a list or a prompt: one line each
+		val para = ownH > lineH * 1.6f && '\n' !in text
+		val start = size ?: (lineH * 0.82f * scale)
+		textPaint.color = fg
+		val inner: Int
+		val l: StaticLayout
+		if(para)
+		{
+			inner = ownW.toInt().coerceAtLeast(20)
+			l = fitLayout(styled(text, spans), start, inner, ownH + padY, Layout.Alignment.ALIGN_NORMAL)
+		}
+		else
+		{
+			// keep the English width: smaller letters first, a bit wider only if it still does not fit
+			textPaint.textSize = start
+			val tw = text.split('\n').maxOf { textPaint.measureText(it) }
+			if(tw > ownW) textPaint.textSize = start * max(0.6f, ownW / tw)
+			val tw2 = text.split('\n').maxOf { textPaint.measureText(it) }
+			inner = max(ownW, tw2 + 2f).toInt().coerceAtLeast(20)
+			l = fitLayout(styled(text, spans), textPaint.textSize, inner, max(ownH, lineH) * 1.15f + padY, Layout.Alignment.ALIGN_CENTER, 0.75f)
+		}
+		val aw = max(ownW, inner.toFloat()) + padX * 2
+		val ah = max(ownH, l.height.toFloat()) + padY * 2
+		val local = RectF(cx - aw / 2, cy - ah / 2, cx + aw / 2, cy + ah / 2)
+		// on screen: its turned outline, kept inside the picture and off what is already there
+		val bounds = RectF(local)
+		if(angle != 0f) android.graphics.Matrix().apply { setRotate(angle, cx, cy) }.mapRect(bounds)
+		var dx = 0f; var dy = 0f
+		if(bounds.left < 0) dx = -bounds.left else if(bounds.right > w) dx = w - bounds.right
+		if(bounds.top < 0) dy = -bounds.top else if(bounds.bottom > h) dy = h - bounds.bottom
+		bounds.offset(dx, dy)
+		dy += avoid(bounds, h)
+		placed += bounds
+		canvas.save()
+		canvas.translate(dx, dy)
+		if(angle != 0f) canvas.rotate(angle, cx, cy)
+		canvas.drawRoundRect(local, lineH * 0.12f, lineH * 0.12f, bg)
+		canvas.translate(cx - inner / 2f, cy - l.height / 2f)
+		val o = outline; outline = withOutline
+		drawText(l, canvas)
+		outline = o
+		canvas.restore()
+	}
+
 	override fun onDraw(canvas: Canvas)
 	{
 		val w = width.toFloat()
@@ -291,68 +382,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			textPaint.color = color
 		}
 
-		// side texts: each exactly over its English text (a bit wider if the Arabic needs it), kept on screen
-		// one size for all of them (the English of a menu or a stats panel is one size; the reading of each
-		// line's height is not exact): the middle size, kept while it stays close
-		val rawSizes = sides.map { sizeFor(fit(it.box), h, 0.03f, 0.02f, 0.045f) }
-		val mid = rawSizes.sorted().getOrNull(rawSizes.size / 2)
-		if(mid != null) { if(sideUniform <= 0f || kotlin.math.abs(mid - sideUniform) > sideUniform * 0.25f) sideUniform = mid }
-		for((si, sd) in sides.withIndex())
-		{
-			val sb = fit(sd.box)
-			val raw = rawSizes[si]
-			textPaint.textSize = if(raw in sideUniform * 0.65f..sideUniform * 1.5f) sideUniform else raw
-			val area = RectF(sb[0] * w - w * 0.004f, sb[1] * h - h * 0.004f, (sb[0] + sb[2]) * w + w * 0.004f, (sb[1] + sb[3]) * h + h * 0.004f)
-			// a paragraph (help box) keeps the English box's width and wraps; a short prompt may widen
-			// a paragraph (help box, description) keeps the English box's width and wraps; a list or a prompt does not
-			val para = sb.size > 4 && sb[4] > 0f && sb[3] > sb[4] * 1.6f && sd.text.split('\n').any { it.length > 30 }
-			val tw = if(para) area.width() else min(sd.text.split('\n').maxOf { textPaint.measureText(it) } + w * 0.012f, w * 0.6f)
-			if(area.width() < tw)
-			{
-				// grow toward the middle of the screen: right-side prompts grow left, left-side ones grow right
-				if(area.centerX() > w / 2) area.left = max(0f, area.right - tw) else area.right = min(w, area.left + tw)
-			}
-			val inner = (area.width() - w * 0.008f).toInt().coerceAtLeast(30)
-			val l = layout(styled(sd.text, sd.spans), inner, if(para) Layout.Alignment.ALIGN_NORMAL else Layout.Alignment.ALIGN_CENTER)
-			val need = l.height + h * 0.008f
-			if(area.height() < need)
-			{
-				if(para) area.bottom = area.top + need // paragraphs grow down from the box's top, like the English
-				else { val cy = area.centerY(); area.top = cy - need / 2; area.bottom = cy + need / 2 }
-			}
-			if(area.bottom > h) area.offset(0f, h - area.bottom)
-			if(area.top < 0) area.offset(0f, -area.top)
-			canvas.drawRoundRect(area, h * 0.006f, h * 0.006f, boxPaint)
-			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas); canvas.restore()
-		}
-
-		// the lens: over each English text, its own size and colours; the background fully covers the English
-		for(ln in lens)
-		{
-			val lb = fit(ln.box)
-			val lineH = if(lb.size > 4 && lb[4] > 0f) lb[4] * h else lb[3] * h
-			val area = RectF(lb[0] * w - lineH * 0.15f, lb[1] * h - lineH * 0.1f, (lb[0] + lb[2]) * w + lineH * 0.15f, (lb[1] + lb[3]) * h + lineH * 0.1f)
-			val para = lb.size > 4 && lb[4] > 0f && lb[3] > lb[4] * 1.6f && '\n' !in ln.text
-			textPaint.textSize = lineH * 0.95f * scale
-			textPaint.color = ln.color
-			textPaint.clearShadowLayer() // the game's own look: no added shadow
-			// one line: shrink a little to keep the English width, then widen if it still needs it
-			if(!para)
-			{
-				val need = ln.text.split('\n').maxOf { textPaint.measureText(it) } + lineH * 0.3f
-				if(need > area.width()) textPaint.textSize *= max(0.75f, area.width() / need)
-				val need2 = ln.text.split('\n').maxOf { textPaint.measureText(it) } + lineH * 0.3f
-				if(need2 > area.width()) { val cx = area.centerX(); area.left = max(0f, cx - need2 / 2); area.right = min(w, area.left + need2) }
-			}
-			val inner = (area.width() - lineH * 0.3f).toInt().coerceAtLeast(20)
-			val l = layout(styled(ln.text, ln.spans), inner, if(para) Layout.Alignment.ALIGN_NORMAL else Layout.Alignment.ALIGN_CENTER)
-			if(area.height() < l.height + lineH * 0.2f) area.bottom = area.top + l.height + lineH * 0.2f
-			val bp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ln.bg }
-			canvas.drawRoundRect(area, lineH * 0.12f, lineH * 0.12f, bp)
-			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); l.draw(canvas); canvas.restore()
-			textPaint.setShadowLayer(4f, 0f, 2f, Color.BLACK)
-		}
-		textPaint.color = color
+		// Nothing Arabic is ever drawn over other Arabic: each text is placed in turn (the subtitle first, then the
+		// lens, then the side texts) and moved off anything already placed.
+		placed.clear()
 
 		// subtitle
 		val t = text
@@ -375,7 +407,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				area.left = cx - minW / 2; area.right = cx + minW / 2
 			}
 			val inner = (area.width() - w * 0.02f).toInt().coerceAtLeast(50)
-			val l = layout(styled(t, textSpans), inner)
+			// at most three lines: a longer translation gets smaller letters, it never spreads over the picture
+			val l = fitLayout(styled(t, textSpans), textPaint.textSize, inner, max(area.height(), textPaint.textSize * 1.25f * 3) , Layout.Alignment.ALIGN_CENTER, 0.6f)
 			val need = l.height + h * 0.024f
 			if(area.height() < need)
 			{
@@ -389,6 +422,30 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			}
 			canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, boxPaint)
 			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas); canvas.restore()
+			placed += RectF(area)
+		}
+
+		// the lens: over each English text, its own size and colours (letters and background), its own tilt
+		for(ln in lens)
+		{
+			val bp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ln.bg }
+			textPaint.clearShadowLayer() // the game's own look: no added shadow
+			drawItem(canvas, ln.text, ln.spans, fit(ln.box), null, ln.color, bp, false)
+			textPaint.setShadowLayer(4f, 0f, 2f, Color.BLACK)
+		}
+		textPaint.color = color
+
+		// side texts: each over its English text, kept inside it. One size for all of them (the English of a menu
+		// or a stats panel is one size; the reading of each line's height is not exact): the middle size, kept
+		// while it stays close
+		val rawSizes = sides.map { sizeFor(fit(it.box), h, 0.03f, 0.02f, 0.045f) }
+		val mid = rawSizes.sorted().getOrNull(rawSizes.size / 2)
+		if(mid != null) { if(sideUniform <= 0f || kotlin.math.abs(mid - sideUniform) > sideUniform * 0.25f) sideUniform = mid }
+		for((si, sd) in sides.withIndex())
+		{
+			val raw = rawSizes[si]
+			val size = if(raw in sideUniform * 0.65f..sideUniform * 1.5f) sideUniform else raw
+			drawItem(canvas, sd.text, sd.spans, fit(sd.box), size, color, boxPaint, outline)
 		}
 
 		// panel (story summary): centred card
