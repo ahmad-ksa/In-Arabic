@@ -5,10 +5,8 @@
 //    name, a man's or a woman's voice by how high the voice in the game's sound is (VoicePitch).
 //  - each line's voice is made as soon as it is translated, several at once (Microsoft takes 1–3 s a line), and
 //    they are said in order; only a line more than a few seconds late is left out.
-//  - its length fits the original, played faster or slower (same pitch): how long the English line really lasted
-//    when that is known (a subtitle stays while it is said: by the time the voice is ready most lines are over;
-//    the game's sound: from the start of the speech to its end), else from its length at the game's speaking
-//    speed (learnt the same way); a line still on screen lasts at least that long (said slowly, relaxed).
+//  - its length fits the original: the game's speaking speed is learnt from how long its lines stay on screen,
+//    and each Arabic line is played faster or slower (same pitch) to last as long as the English one.
 //  - from the subtitles only lines with a speaker's name («Vicki: …») are said; one with no name is a task.
 //    From the game's sound («صوت اللعبة») everything heard is speech.
 //  - heard on the screens (TV, LG) or the phone, as chosen in the settings («وين تسمع الصوت»).
@@ -55,9 +53,7 @@ object Dubber
 	/** the game's speaking speed, English characters a second, learnt from how long its lines stay on screen */
 	@Volatile private var cps = 14f
 	private var lastLine: Pair<Int, Long>? = null
-	/** line id → when it began, when it ended (left the screen, or its speech ended) and its English characters */
-	private class Span(val start: Long, var end: Long = 0L, var chars: Int = 0)
-	private val spans = LinkedHashMap<Int, Span>()
+	private var lastLineChars = 0
 	/** when what is playing now ends */
 	private var busyUntil = 0L
 	/** Microsoft's voices failed: the phone's voice is used for a while before they are tried again */
@@ -71,7 +67,7 @@ object Dubber
 	/** how much of the line's sound is heard before telling a man from a woman */
 	private const val LISTEN_MS = 700L
 	/** how much faster or slower a line may be played to last as long as the English one */
-	private const val SLOWEST = 0.85f
+	private const val SLOWEST = 0.9f
 	private const val FASTEST = 1.6f
 
 	fun start(c: Context)
@@ -89,7 +85,7 @@ object Dubber
 
 	fun stop()
 	{
-		synchronized(lock) { running = false; generation++; thread = null; waiting.forEach { it.clip?.cancel(true) }; waiting.clear(); said.clear(); recent.clear(); spans.clear(); lastLine = null; lock.notifyAll() }
+		synchronized(lock) { running = false; generation++; thread = null; waiting.forEach { it.clip?.cancel(true) }; waiting.clear(); said.clear(); recent.clear(); lastLine = null; lock.notifyAll() }
 		stopPhone()
 		PhoneTts.stop()
 	}
@@ -98,39 +94,19 @@ object Dubber
 	 * The dialogue line [id] is shown as [arabic] ([english] on screen since [seenAt]). Said once: the same line
 	 * shown again (a better reading) is not said again, only lines added to it.
 	 */
-	/** the line [id] left the screen (or its speech ended) at [at]; [start]: when it began, if not seen yet */
-	fun lineEnded(id: Int, at: Long, start: Long = at)
-	{
-		if(id < 0) return
-		synchronized(lock) { ended(spans[id] ?: Span(start).also { spans[id] = it }, at) }
-	}
-
-	/** [sp] is over at [at]: the game's speaking speed learnt from it */
-	private fun ended(sp: Span, at: Long)
-	{
-		if(sp.end != 0L) return
-		sp.end = at
-		val ms = sp.end - sp.start
-		if(sp.chars >= 8 && ms in 800..12000) cps = (cps * 0.8f + (sp.chars * 1000f / ms) * 0.2f).coerceIn(6f, 22f)
-	}
-
 	fun say(id: Int, english: String, arabic: String, seenAt: Long, namedOnly: Boolean)
 	{
 		val p = prefs ?: return
 		if(!p.voiceOn || !running) return
 		val en = DubLines.lines(english); val ar = DubLines.lines(arabic)
 		synchronized(lock) {
-			// a new line: the one before it is over
-			lastLine?.let { (lid, _) -> if(lid != id) spans[lid]?.let { ended(it, seenAt) } }
-			if(lastLine?.first != id) lastLine = id to seenAt
-			val chars = en.sumOf { (if(DubLines.speaker(it) != null) it.substringAfter(':') else it).trim().length }
-			(spans[id] ?: Span(seenAt).also { spans[id] = it }).let { sp ->
-				val first = sp.chars == 0
-				sp.chars = chars
-				// its end came before its text (the game's sound): learnt now
-				if(first && sp.end != 0L) { val e = sp.end; sp.end = 0L; ended(sp, e) }
+			// the game's speaking speed: the line before this one stayed this long for its characters
+			lastLine?.let { (lid, at) ->
+				val ms = seenAt - at
+				if(lid != id && lastLineChars >= 8 && ms in 800..9000) cps = (cps * 0.8f + (lastLineChars * 1000f / ms) * 0.2f).coerceIn(8f, 22f)
 			}
-			while(spans.size > 60) spans.remove(spans.keys.first())
+			if(lastLine?.first != id) { lastLine = id to seenAt }
+			lastLineChars = en.sumOf { (if(DubLines.speaker(it) != null) it.substringAfter(':') else it).trim().length }
 			val done = said[id] ?: 0
 			// a newer reading of this line: its parts not yet said are made again from it
 			waiting.filter { it.id == id }.forEach { it.clip?.cancel(true) }
@@ -214,18 +190,9 @@ object Dubber
 			val late = now - job.seenAt
 			if(now - job.readyAt > STALE_MS) { Diag.count("dub: left out (too late)"); Diag.add("dub: LEFT OUT, ${now - job.readyAt} ms after its text was ready: ${job.info}"); continue }
 			if(gen != generation) return
-			// as long as the English line: how long it really lasted if it is over, else from its length at the
-			// game's speed (at least as long as it has been on screen: still there, it is said slowly)
+			// as long as the English line: its length at the game's speaking speed
 			val english = job.english.length.coerceAtLeast(4)
-			val sp = synchronized(lock) { spans[job.id]?.let { Triple(it.start, it.end, it.chars) } }
-			val share = if(sp != null && sp.third > 0) (english.toFloat() / sp.third).coerceAtMost(1f) else 1f
-			val estimate = english * 1000f / cps
-			val target = when
-			{
-				sp == null -> estimate
-				sp.second > 0L -> (sp.second - sp.first) * share
-				else -> maxOf(estimate, (now - sp.first) * share)
-			}.coerceAtLeast(700f)
+			val target = (english * 1000f / cps).coerceAtLeast(700f)
 			val speed = (clip.ms / target).coerceIn(SLOWEST, FASTEST)
 			Diag.count("dub: said, ms after the line began", late)
 			Diag.add("dub: $late ms after the line, speed ×${"%.2f".format(speed)} (${clip.ms} ms for ${target.toLong()} ms of English): ${job.info}")
