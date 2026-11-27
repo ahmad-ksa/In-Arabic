@@ -86,7 +86,7 @@ class CaptionEngine(
 	 * item as long as it stays in the same place, even if one read spells it a little differently; it is
 	 * translated once, and that translation stays until the item has really left the screen.
 	 */
-	private class SideItem(var st: SideText, var box: FloatArray, var colored: List<Colored>, var seen: Long)
+	private class SideItem(var st: SideText, var box: FloatArray, var colored: List<Colored>, var seen: Long, val fg: Int, val bg: Int)
 	{
 		@Volatile var arabic: String? = null
 		@Volatile var spans: List<ColorSpan> = emptyList()
@@ -107,6 +107,10 @@ class CaptionEngine(
 	private var lastScreenRead = 0L
 	/** lines found by the last read of an area (a PlayStation menu fills the screen with text) */
 	private var lastLineCount = 0
+	/** how many separate texts the dialogue frame held at the last read, and lines too small to count (for the log) */
+	private var lastGroups = 0
+	private var lastSmall = 0
+	private var diagAt = 0L
 	private var screenLineCount = 0
 	/** the PlayStation's own screens (menus, control centre) are on: translation paused */
 	@Volatile var systemUi = false
@@ -265,12 +269,14 @@ class CaptionEngine(
 			val side = ArrayList<OcrRead>()
 			var read = OcrRead("")
 			var subLines = 0
+			var subSmall = 0; var subGroups = 0 // for the log: lines too small for dialogue, separate texts read
 			for(z in zones.filter { it.dialog })
 			{
 				val r = px(z.r); if(r.width() < 16 || r.height() < 8) continue
 				val got = readArea(frame, r, 0.018f, if(prefs.centerOnly) side else null)
 				subLines += lastLineCount
-				if(read.text.isBlank() && got.text.isNotBlank()) read = got
+				subSmall += lastSmall
+				if(read.text.isBlank() && got.text.isNotBlank()) { read = got; subGroups = lastGroups }
 			}
 			// side frames (tasks, prompts, messages) and, if on, the whole picture: read less often
 			val t1 = System.currentTimeMillis()
@@ -311,7 +317,12 @@ class CaptionEngine(
 				if(busy) { synchronized(sideItems) { sideItems.clear() }; sideSent = ""; subTracker.reset(); sideTracker.reset(); currentId = -1; current = null; LinkServer.sendClear(); LinkServer.sendSideClear(); post(null) }
 				mainHandler.post { onSystemUi?.invoke(busy) }
 			}
-			if(busy) return
+			if(busy)
+			{
+				val t9 = System.currentTimeMillis()
+				if(t9 - diagAt > 1000) { diagAt = t9; Diag.add("read: موقف، الشاشة فيها قائمة بلايستيشن ($subLines سطر في الحوار، $screenLineCount في الشاشة)") }
+				return
+			}
 			if(prefs.dialogOnly) side.clear() else side.addAll(screenItems)
 			// never the same text twice: a side text lying on the subtitle (two frames over each other) is dropped
 			val sb = read.box
@@ -329,26 +340,28 @@ class CaptionEngine(
 			// what is on screen is sent again every few seconds: the TVs keep it as long as the English is there
 			if(now - refreshedAt > 4000) { refreshedAt = now; LinkServer.refresh() }
 			val ev0 = subTracker.feed(read)
+			if(now - diagAt > 1000 || ev0 != null)
+			{
+				diagAt = now
+				Diag.add("read: " + when
+				{
+					read.text.isNotBlank() -> "\"${read.text.replace('\n', '/').take(80)}\" ($subGroups نص) → " + when(ev0)
+					{
+						is TrackerEvent.NewLine -> "سطر جديد"; is TrackerEvent.Update -> "تحديث"; TrackerEvent.Clear -> "مسح"
+						else -> if(SubtitleTracker.looksLikeSubtitle(SubtitleTracker.clean(read.text))) "نفس السطر" else "مرفوض: ما يشبه حوار"
+					}
+					subSmall > 0 -> "ما فيه حوار ($subSmall سطر أصغر من حد الحوار)"
+					else -> "ما فيه كلام في مربع الحوار"
+				})
+			}
 			// the line's coloured words, gathered over all its reads (one read may miss a colour: light behind the
 			// letters, a frame in motion); a new line starts from nothing
 			if(ev0 is TrackerEvent.NewLine || ev0 == TrackerEvent.Clear) synchronized(lineColors) { lineColors.clear() }
 			if(read.text.isNotBlank()) addLineColors(read.colored)
 			if(read.text.isNotBlank()) lastSubRead = read.text
-			// «ترجمة كاملة» for the dialogue: its letters' colour, and its background's when it has one of its own
-			// (a band behind it); read once per line, from the first clear reading
+			// «تنسيق خاص» for the dialogue: its own colours, from its first clear reading of the line
 			if(ev0 is TrackerEvent.NewLine || ev0 == TrackerEvent.Clear) LinkServer.subLook = null
-			val rb = read.box
-			if(LinkServer.subLook == null && rb != null && read.text.isNotBlank())
-			{
-				val px = Rect((rb[0] * frame.width).toInt(), (rb[1] * frame.height).toInt(), ((rb[0] + rb[2]) * frame.width).toInt(), ((rb[1] + rb[3]) * frame.height).toInt())
-				val (fg0, bg) = lineColors(frame, px)
-				val plain = plainBehind(frame, px)
-				// over the scene the letters are the bright ones (game subtitles are light with a dark edge): their colour,
-				// not the dark edge's
-				val fg = if(plain) fg0 else brightLetters(frame, px)
-				// the background always comes from your settings: only the letters take the game's colour
-				LinkServer.subLook = intArrayOf(fg, bg, 0)
-			}
+			if(LinkServer.subLook == null && read.box != null && read.text.isNotBlank()) LinkServer.subLook = intArrayOf(read.fg, read.bg)
 			if(ev0 != null) Diag.add("sub ${ev0.javaClass.simpleName}: " + read.text)
 			when(val ev = ev0)
 			{
@@ -473,7 +486,7 @@ class CaptionEngine(
 					if(same.arabic == null && !same.asked && st.text.length > same.st.text.length) { same.st = st; same.box = box }
 					continue
 				}
-				sideItems += SideItem(st, box, r.colored, now)
+				sideItems += SideItem(st, box, r.colored, now, r.fg, r.bg)
 			}
 			// gone once it has been missing from two readings in a row (one missed reading is not enough: no flicker)
 			sideItems.removeAll { now - it.seen > 900 }
@@ -484,12 +497,12 @@ class CaptionEngine(
 
 	@Synchronized private fun sendSideIfChanged()
 	{
-		val ready = synchronized(sideItems) { sideItems.filter { it.arabic != null }.map { Triple(it.arabic!!, it.box, it.spans) } }
-		val sig = ready.joinToString("|") { it.first + "@" + (it.second[0] * 100).toInt() + "," + (it.second[1] * 100).toInt() }
+		val ready = synchronized(sideItems) { sideItems.filter { it.arabic != null }.map { LinkServer.SideOut(it.arabic!!, it.box, it.spans, it.fg, it.bg) } }
+		val sig = ready.joinToString("|") { it.arabic + "@" + (it.box[0] * 100).toInt() + "," + (it.box[1] * 100).toInt() + (it.spans.hashCode()) }
 		if(sig == sideSent) return
 		sideSent = sig
 		if(ready.isEmpty()) { Diag.add("side clear"); LinkServer.sendSideClear() }
-		else { Diag.add("side show: " + ready.joinToString(" | ") { it.first }); LinkServer.sendSide(ready) }
+		else { Diag.add("side show: " + ready.joinToString(" | ") { it.arabic }); LinkServer.sendSide(ready) }
 	}
 
 	/** one item, once: the fixed game word, your correction, the AI (when on) or the on-device translator */
@@ -596,10 +609,7 @@ class CaptionEngine(
 				return cx >= sub[0] - 0.02f && cx <= sub[0] + sub[2] + 0.02f && cy >= sub[1] - 0.03f && cy <= sub[1] + sub[3] + 0.03f
 			}
 			val found = reads.filter { it.box != null && it.text.any(Char::isLetter) && !onSub(it.box) }.mapTo(ArrayList()) { rd ->
-				val b = rd.box!!
-				val px = Rect((b[0] * frame.width).toInt(), (b[1] * frame.height).toInt(), ((b[0] + b[2]) * frame.width).toInt(), ((b[1] + b[3]) * frame.height).toInt())
-				val (fg, bg) = lineColors(frame, px)
-				LensItem(rd.text.trim(), b, fg, bg, rd.colored)
+				LensItem(rd.text.trim(), rd.box!!, rd.fg, rd.bg, rd.colored)
 			}
 			// a message read in pieces (its last line as a block of its own): the pieces are put together first, so the
 			// whole message is translated as one and its Arabic covers all of its English
@@ -901,6 +911,17 @@ class CaptionEngine(
 		return android.graphics.Color.HSVToColor(hsv)
 	}
 
+	/**
+	 * The game's own colours of a text (one place for all: dialogue, menus, the lens): its background is what lies
+	 * around it; its letters, on a background of its own (a band, a bubble), are the pixels farthest from it, and
+	 * over the moving scene the brightest strokes (game text is light with a dark edge).
+	 */
+	private fun letterColors(bmp: Bitmap, r: Rect): Pair<Int, Int>
+	{
+		val (fg, bg) = lineColors(bmp, r)
+		return (if(plainBehind(bmp, r)) fg else brightLetters(bmp, r)) to bg
+	}
+
 	/** the text has a background of its own (one even colour around it: a band, a box), not the moving scene */
 	private fun plainBehind(bmp: Bitmap, r: Rect): Boolean
 	{
@@ -965,7 +986,7 @@ class CaptionEngine(
 			} ?: return OcrRead("")
 			val ok = { l: Text.Line -> (l.boundingBox?.height() ?: 0) >= frame.height * minLineH } // skip tiny HUD text
 			val all = result.textBlocks.flatMap { it.lines }.filter(ok).sortedBy { it.boundingBox?.top ?: 0 }
-			if(countLines) lastLineCount = all.size
+			if(countLines) { lastLineCount = all.size; lastSmall = result.textBlocks.sumOf { it.lines.size } - all.size }
 			fun centred(l: Text.Line): Boolean
 			{
 				val b = l.boundingBox ?: return false
@@ -975,21 +996,32 @@ class CaptionEngine(
 				val cx = b.exactCenterX() / area.width()
 				return kotlin.math.abs(cx - 0.5f) < 0.15f || b.width() > area.width() * 0.6f
 			}
-			// the subtitle is one group of centred lines stacked close together: the lowest such group.
-			// Other centred lines (a screen title, a card's text) are side texts.
-			val subtitle: List<Text.Line> = if(sideOut == null) all else run {
+			// the dialogue: the centred groups of lines stacked at the bottom of the frame (a dialogue line with a task
+			// line under it, "Cal: Bodies don't…" over "Drive the boat": both). Each group is its own text, translated
+			// on its own and drawn on its own line, in the same order. A centred group far above them (a screen
+			// title, a card's text) is a side text.
+			val groups = ArrayList<ArrayList<Text.Line>>()
+			if(sideOut == null) { if(all.isNotEmpty()) groups += ArrayList(all) }
+			else
+			{
 				val c = all.filter(::centred).sortedBy { it.boundingBox!!.top }
-				if(c.isEmpty()) return@run c
-				val groups = ArrayList<ArrayList<Text.Line>>()
+				val g = ArrayList<ArrayList<Text.Line>>()
 				for(l in c)
 				{
-					val last = groups.lastOrNull()?.last()
+					val last = g.lastOrNull()?.last()
 					val gap = if(last == null) Int.MAX_VALUE else l.boundingBox!!.top - last.boundingBox!!.bottom
-					if(last != null && gap < last.boundingBox!!.height() * 1.2f) groups.last() += l else groups += arrayListOf(l)
+					if(last != null && gap < last.boundingBox!!.height() * 1.2f) g.last() += l else g += arrayListOf(l)
 				}
-				groups.last()
+				// from the lowest group up, while the next one is close above it (within 2.5 lines)
+				for(i in g.indices.reversed())
+				{
+					val first = groups.firstOrNull()?.first()
+					if(first != null && first.boundingBox!!.top - g[i].last().boundingBox!!.bottom > first.boundingBox!!.height() * 2.5f) break
+					groups.add(0, g[i])
+				}
 			}
-			val lines = subtitle
+			val subtitle = groups.flatten()
+			lastGroups = groups.size
 			if(sideOut != null)
 			{
 				// side texts by block: a help box ("Ammu-Nations will expand / their stock…") is one paragraph,
@@ -1004,8 +1036,15 @@ class CaptionEngine(
 					else sideOut.add(join(crop, bl, area, frame))
 				}
 			}
-			if(lines.isEmpty()) return OcrRead("")
-			return join(crop, lines, area, frame)
+			if(groups.isEmpty()) return OcrRead("")
+			if(groups.size == 1) return join(crop, groups[0], area, frame)
+			// several texts: one read, each on its own line, the box around all of them, the colours of the first
+			val parts = groups.map { join(crop, it, area, frame) }
+			val b = parts.mapNotNull { it.box }
+			val l = b.minOf { it[0] }; val t = b.minOf { it[1] }
+			val r = b.maxOf { it[0] + it[2] }; val btm = b.maxOf { it[1] + it[3] }
+			return OcrRead(parts.joinToString("\n") { it.text.replace('\n', ' ') }, floatArrayOf(l, t, r - l, btm - t, b[0][4]),
+				parts.flatMap { it.colored }, parts[0].fg, parts[0].bg)
 		}
 		finally { crop.recycle() }
 	}
@@ -1040,7 +1079,8 @@ class CaptionEngine(
 		val lineH = geometry(listOf(line))?.get(3) ?: r.height().toFloat()
 		val box = floatArrayOf((r.left + area.left) / frame.width.toFloat(), (r.top + area.top) / frame.height.toFloat(),
 			r.width() / frame.width.toFloat(), r.height() / frame.height.toFloat(), minOf(lineH, r.height().toFloat()) / frame.height.toFloat())
-		return OcrRead(text, box, white = isWhite(crop, r))
+		val (fg, bg) = letterColors(crop, r)
+		return OcrRead(text, box, fg = fg, bg = bg)
 	}
 
 	private fun join(crop: Bitmap, lines: List<Text.Line>, area: Rect, frame: Bitmap): OcrRead
@@ -1072,7 +1112,8 @@ class CaptionEngine(
 			heading -> texts[0] + "\n" + texts.drop(1).joinToString(" ")
 			else -> texts.joinToString(" ")
 		}
-		return OcrRead(joined, box, coloredPhrases(crop, lines), isWhite(crop, r))
+		val (fg, bg) = letterColors(crop, r)
+		return OcrRead(joined, box, coloredPhrases(crop, lines), fg, bg)
 	}
 
 	/**
@@ -1127,29 +1168,6 @@ class CaptionEngine(
 		return d < 30
 	}
 
-	/**
-	 * The colour of a word: the brightest pixels in its box are the letters (text is drawn bright over the
-	 * game); white or grey letters -> null, clearly coloured ones -> that colour, made bright enough to read.
-	 */
-	/**
-	 * Text the game draws over the picture (instructions, pop-ups) is clean white; text in the world (a
-	 * restaurant sign, a poster) is lit, shaded and coloured. The brightest pixels of the box tell which.
-	 */
-	private fun isWhite(bmp: Bitmap, r: Rect): Boolean
-	{
-		val box = Rect(r); if(!box.intersect(0, 0, bmp.width, bmp.height) || box.width() < 3 || box.height() < 3) return false
-		val sx = maxOf(1, box.width() / 32); val sy = maxOf(1, box.height() / 10)
-		val px = ArrayList<Int>(400)
-		var y = box.top
-		while(y < box.bottom) { var x = box.left; while(x < box.right) { px += bmp.getPixel(x, y); x += sx }; y += sy }
-		if(px.size < 8) return false
-		fun lum(c: Int) = 0.299 * ((c shr 16) and 255) + 0.587 * ((c shr 8) and 255) + 0.114 * (c and 255)
-		val top = px.sortedByDescending(::lum).take(maxOf(4, px.size / 6))
-		val rr = top.sumOf { (it shr 16) and 255 } / top.size
-		val gg = top.sumOf { (it shr 8) and 255 } / top.size
-		val bb = top.sumOf { it and 255 } / top.size
-		return minOf(rr, gg, bb) >= 205 && maxOf(rr, gg, bb) - minOf(rr, gg, bb) <= 28
-	}
 
 	/**
 	 * The colour of one word's letters, or null if they are white / grey / black. The background is what lies just

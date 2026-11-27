@@ -10,7 +10,9 @@ package com.inarabic.caption
 import kotlin.math.max
 import kotlin.math.min
 
-data class OcrRead(val text: String, val box: FloatArray? = null, val colored: List<Colored> = emptyList(), val white: Boolean = false)
+/** one read text: its words, its place, its coloured words, and the game's own colours for it (letters, background) */
+data class OcrRead(val text: String, val box: FloatArray? = null, val colored: List<Colored> = emptyList(),
+	val fg: Int = -1 /* white */, val bg: Int = -16777216 /* black */)
 
 sealed class TrackerEvent
 {
@@ -83,7 +85,9 @@ class SubtitleTracker(
 	{
 		private val spaces = Regex("\\s+")
 
-		fun clean(s: String): String = s.replace('\n', ' ').replace(spaces, " ").trim()
+		private val blanks = Regex("[ \t]+")
+		/** spaces tidied; the line breaks between separate texts (a dialogue line over a task line) are kept */
+		fun clean(s: String): String = s.split('\n').map { it.replace(blanks, " ").trim() }.filter { it.isNotEmpty() }.joinToString("\n")
 
 		/** At least a few letters, not just UI noise ("A", "x2", "100%"). */
 		fun looksLikeSubtitle(s: String): Boolean

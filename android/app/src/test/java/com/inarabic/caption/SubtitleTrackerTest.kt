@@ -52,6 +52,12 @@ class SubtitleTrackerTest
 		assertEquals(TrackerEvent.Clear, t.feed(OcrRead("")))
 	}
 
+	@Test fun separateTextsKeepTheirLines()
+	{
+		// a dialogue line over a task line: each stays its own line (translated on its own)
+		assertEquals("Cal: Bodies don't just disappear. Okay?\nDrive the boat", SubtitleTracker.clean("Cal:  Bodies don't just disappear. Okay?\n  Drive the boat "))
+	}
+
 	@Test fun hudNoiseIgnored()
 	{
 		assertFalse(SubtitleTracker.looksLikeSubtitle("x2"))

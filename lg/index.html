@@ -124,7 +124,9 @@
   }
   drawQr('');
   function wsUrl(ip) { return 'ws://' + ip + ':' + PORT + '/?token=' + cfg.token + '&code=' + encodeURIComponent(cfg.code); }
-  var style = { scale: 1, cover: true, opacity: 0.85, color: '#FFFFFF', pos: 'auto', bold: true };
+  // the look of the dialogue (dlook) and of the menus (mlook), one choice each, the letters always the game's own:
+  // 'special' (تنسيق خاص) the game's own background too, 'box' a background of your colour, 'outline' a black edge
+  var style = { scale: 1, pos: 'auto', dlook: 'box', dbg: '#D9000000', mlook: 'box', mbg: '#D9000000' };
 
   // ---------- the HDMI input inside the app (webOS external input source)
   // the same page runs on Samsung (Tizen): there the HDMI picture is the TV window behind the page
@@ -149,12 +151,16 @@
   // ---------- caption
   var hideTimer = 0;
   // the TV may enlarge the HDMI picture (overscan): the phone sends zoom / dy to match
-  function bg() {
-    var h = (style.boxColor || '#000000').replace('#', ''), r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), b = parseInt(h.substr(4, 2), 16);
-    return 'rgba(' + r + ',' + g + ',' + b + ',' + style.opacity + ')';
+  /** #AARRGGBB (from the phone) or #RRGGBB → a CSS colour */
+  function css(c) {
+    var h = (c || '#000000').replace('#', ''), a = 1;
+    if (h.length === 8) { a = parseInt(h.substr(0, 2), 16) / 255; h = h.substr(2); }
+    return 'rgba(' + parseInt(h.substr(0, 2), 16) + ',' + parseInt(h.substr(2, 2), 16) + ',' + parseInt(h.substr(4, 2), 16) + ',' + a + ')';
   }
-  function outline(el) {
-    el.style.textShadow = style.outline ? '-3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 3px 0 #000, 0 -3px 0 #000, 3px 0 0 #000, -3px 0 0 #000' : '0 2px 4px #000';
+  /** a text's background for its look: the game's own (special), yours (box), or none (outline) */
+  function lookBg(look, mine, game) { return look === 'special' ? css(game) : look === 'box' ? css(mine) : 'transparent'; }
+  function outline(el, on) {
+    el.style.textShadow = on ? '-3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000, 3px 3px 0 #000, 0 3px 0 #000, 0 -3px 0 #000, 3px 0 0 #000, -3px 0 0 #000' : '0 2px 4px #000';
   }
   // move: the dialogue line, which the up/down setting moves; side texts stay on their English
   function fit(b, move) {
@@ -185,7 +191,9 @@
     });
     if (at < text.length) el.appendChild(document.createTextNode(text.slice(at)));
   }
+  var lastCap = null;
   function caption(text, box, spans, fg, bgc) {
+    lastCap = text ? [text, box, spans, fg, bgc] : null;
     box = fit(box, true);
     var c = $('cap');
     clearTimeout(hideTimer);
@@ -195,7 +203,7 @@
       area = { x: W * 0.1, y: H * 0.05, w: W * 0.8, h: H * 0.12, top: true };
     } else if (style.pos === 'bottom') {
       area = { x: W * 0.1, y: H * 0.79, w: W * 0.8, h: H * 0.12 };
-    } else if (box && style.cover) {
+    } else if (box) {
       area = { x: box[0] * W - 28, y: box[1] * H - 12, w: box[2] * W + 56, h: box[3] * H + 24 };
     } else {
       area = { x: W * 0.1, y: H * 0.79, w: W * 0.8, h: H * 0.12 };
@@ -203,14 +211,14 @@
     var minW = W * 0.2;
     if (area.w < minW) { var cx = Math.min(Math.max(area.x + area.w / 2, minW / 2), W - minW / 2); area.x = cx - minW / 2; area.w = minW; }
     c.style.fontSize = sizeFor(box, 0.042, 0.026, 0.055) + 'px';
-    // «ترجمة كاملة»: the dialogue's own colours (from the game's line); its background only when it has one
-    c.style.background = bgc || bg();
-    c.style.color = fg || style.color;
-    c.style.fontWeight = (fg || style.bold) ? '700' : '400';
+    // its look: the game's own letters always; the background as chosen
+    c.style.background = lookBg(style.dlook, style.dbg, bgc);
+    c.style.color = fg || '#FFFFFF';
+    c.style.fontWeight = '700';
     c.style.left = area.x + 'px';
     c.style.width = area.w + 'px';
     c.style.minHeight = area.h + 'px';
-    paint(c, text, spans); outline(c);
+    paint(c, text, spans); outline(c, style.dlook === 'outline');
     c.style.display = 'block';
     // at most three lines: a longer translation gets smaller letters, it never spreads over the picture
     var fs = parseFloat(c.style.fontSize), fs0 = fs;
@@ -230,8 +238,8 @@
     b.style.left = box[0] * 1920 + 'px'; b.style.top = box[1] * 1080 + 'px';
     b.style.width = box[2] * 1920 + 'px'; b.style.minHeight = box[3] * 1080 + 'px';
     b.style.fontSize = Math.round(1080 * 0.028 * style.scale) + 'px';
-    b.style.background = bg();
-    b.style.color = style.color;
+    b.style.background = css(style.dbg);
+    b.style.color = '#FFFFFF';
     b.textContent = text; b.style.display = 'block';
   }
   var sideTimer = 0, sideUniform = 0;
@@ -251,7 +259,7 @@
     var d = document.createElement('div');
     d.className = 'item';
     paint(d, ar, spans);
-    if (withOutline) outline(d); else d.style.textShadow = 'none';
+    if (withOutline) outline(d, true); else d.style.textShadow = 'none';
     d.style.color = fg; d.style.background = bgc;
     d.style.padding = padY + 'px ' + padX + 'px';
     var start = size || lineH * 0.82 * style.scale, s = start;
@@ -293,7 +301,9 @@
     items.forEach(function (it) {
       var bx = menuBox(it.box); if (!it.ar || !bx) return;
       var sz = sizeFor(bx, 0.03, 0.02, 0.045, mk);
-      placeItem(host, it.ar, it.spans, bx, sz >= sideUniform * 0.65 && sz <= sideUniform * 1.5 ? sideUniform : sz, style.color, bg(), true);
+      // its look: the game's own letters always; the background as chosen for the menus
+      placeItem(host, it.ar, it.spans, bx, sz >= sideUniform * 0.65 && sz <= sideUniform * 1.5 ? sideUniform : sz,
+        it.fg || '#FFFFFF', lookBg(style.mlook, style.mbg, it.bg), style.mlook === 'outline');
     });
     relayout();
     sideTimer = setTimeout(function () { host.style.display = 'none'; }, 15000);
@@ -424,12 +434,13 @@
       else if (o.t === 'zones') zones(o.zones);
       else if (o.t === 'panel') panel(o.title, o.text, o.ttl);
       else if (o.t === 'style') {
-        style.scale = +o.scale || 1; style.cover = o.cover !== false; style.opacity = o.opacity == null ? 0.85 : +o.opacity;
-        style.color = o.color || '#FFFFFF'; style.pos = o.pos || 'auto'; style.bold = o.bold !== false;
+        style.scale = +o.scale || 1; style.pos = o.pos || 'auto';
+        style.dlook = o.dlook || 'box'; style.dbg = o.dbg || '#D9000000'; style.mlook = o.mlook || 'box'; style.mbg = o.mbg || '#D9000000';
         style.zoom = +o.zoom || 0; style.dy = +o.dy || 0;
         style.mscale = o.mscale == null ? 1 : +o.mscale; style.mdy = +o.mdy || 0; // the menus' own size and height
-        if (lastSide) side(lastSide); // drawn again at once: you see the size and height change as you set them
-        style.outline = !!o.outline; style.boxColor = o.boxColor || '#000000';
+        // drawn again at once: you see a look, a size or a height change as you set it
+        if (lastSide) side(lastSide);
+        if (lastCap && $('cap').style.display === 'block') caption.apply(null, lastCap);
       }
     };
     ws.onclose = function (e) {

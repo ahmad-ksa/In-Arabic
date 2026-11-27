@@ -20,25 +20,28 @@
             app:title="اعرض الترجمة على الجوال بعد" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="٣. شكل الحوار" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="4">
-        <Preference app:key="ia_dialog_look_info" app:iconSpaceReserved="false" app:selectable="false"
-            app:summary="الحروف تاخذ ألوان اللعبة نفسها (ترجمة كاملة)، والخلفية من هنا" />
+    <PreferenceCategory app:title="٣. شكل الحوار" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="5">
+        <ListPreference app:key="ia_dialog_look" app:title="تنسيق الحوار" app:defaultValue="box" app:iconSpaceReserved="false"
+            app:entries="@array/ia_look_names" app:entryValues="@array/ia_look_values" app:useSimpleSummaryProvider="true" />
+        <ListPreference app:key="ia_box_color" app:title="لون خلفية الحوار" app:defaultValue="#000000" app:iconSpaceReserved="false"
+            app:entries="@array/ia_box_color_names" app:entryValues="@array/ia_box_color_values" app:useSimpleSummaryProvider="true" />
+        <SeekBarPreference app:key="ia_box_opacity" app:title="عتامة خلفية الحوار (%)" app:iconSpaceReserved="false"
+            app:defaultValue="85" android:max="100" app:min="10" app:showSeekBarValue="true" />
         <SeekBarPreference app:key="ia_text_scale" app:title="حجم خط الحوار (100 = نفس حجم الإنجليزي)" app:iconSpaceReserved="false"
             app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
         <SeekBarPreference app:key="ia_tv_shift" app:title="ارفع أو نزّل الحوار (%)" app:iconSpaceReserved="false"
             app:defaultValue="0" android:max="10" app:min="-10" app:showSeekBarValue="true" />
-        <ListPreference app:key="ia_box_color" app:title="لون خلفية الحوار" app:defaultValue="#000000" app:iconSpaceReserved="false"
-            app:entries="@array/ia_box_color_names" app:entryValues="@array/ia_box_color_values" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference app:key="ia_box_opacity" app:title="عتامة خلفية الحوار (%)" app:iconSpaceReserved="false"
-            app:defaultValue="85" android:max="100" app:min="0" app:showSeekBarValue="true" />
-        <SwitchPreference app:key="ia_outline" app:defaultValue="false" app:title="حدّ أسود حول الحروف" app:iconSpaceReserved="false" />
         <ListPreference app:key="ia_position" app:title="مكان الحوار" app:defaultValue="auto" app:iconSpaceReserved="false"
             app:entries="@array/ia_pos_names" app:entryValues="@array/ia_pos_values" app:useSimpleSummaryProvider="true" />
-        <SwitchPreference app:key="ia_cover" app:defaultValue="true" app:iconSpaceReserved="false"
-            app:title="غطِّ الحوار الإنجليزي" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="٤. شكل القوائم" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="2">
+    <PreferenceCategory app:title="٤. شكل القوائم" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="5">
+        <ListPreference app:key="ia_menu_look" app:title="تنسيق القوائم" app:defaultValue="box" app:iconSpaceReserved="false"
+            app:entries="@array/ia_look_names" app:entryValues="@array/ia_look_values" app:useSimpleSummaryProvider="true" />
+        <ListPreference app:key="ia_menu_box_color" app:title="لون خلفية القوائم" app:defaultValue="#000000" app:iconSpaceReserved="false"
+            app:entries="@array/ia_box_color_names" app:entryValues="@array/ia_box_color_values" app:useSimpleSummaryProvider="true" />
+        <SeekBarPreference app:key="ia_menu_box_opacity" app:title="عتامة خلفية القوائم (%)" app:iconSpaceReserved="false"
+            app:defaultValue="85" android:max="100" app:min="10" app:showSeekBarValue="true" />
         <SeekBarPreference app:key="ia_menu_scale" app:title="حجم خط القوائم (100 = نفس حجم الإنجليزي)" app:iconSpaceReserved="false"
             app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
         <SeekBarPreference app:key="ia_menu_shift" app:title="ارفع أو نزّل القوائم (%)" app:iconSpaceReserved="false"

@@ -41,13 +41,29 @@ class InArabicSettingsActivity : AppCompatActivity()
 	class Fragment : PreferenceFragmentCompat(), SharedPreferences.OnSharedPreferenceChangeListener
 	{
 		private var applying = false
-		private val styleKeys = setOf("ia_text_scale", "ia_cover", "ia_box_opacity", "ia_color", "ia_position", "ia_bold", "ia_tv_zoom", "ia_tv_shift", "ia_outline", "ia_box_color", "ia_menu_scale", "ia_menu_shift")
+		private val styleKeys = setOf("ia_text_scale", "ia_position", "ia_tv_zoom", "ia_tv_shift", "ia_menu_scale", "ia_menu_shift",
+			"ia_dialog_look", "ia_box_color", "ia_box_opacity", "ia_menu_look", "ia_menu_box_color", "ia_menu_box_opacity")
+
+		/** each look shows only its own settings: a background's colour and opacity only for «خلفية» */
+		private fun showLookSettings()
+		{
+			val p = InArabicPrefs(requireContext())
+			val d = p.dialogLook == "box"; val m = p.menuLook == "box"
+			findPreference<androidx.preference.Preference>("ia_box_color")?.isVisible = d
+			findPreference<androidx.preference.Preference>("ia_box_opacity")?.isVisible = d
+			findPreference<androidx.preference.Preference>("ia_menu_box_color")?.isVisible = m
+			findPreference<androidx.preference.Preference>("ia_menu_box_opacity")?.isVisible = m
+			// the list shows the chosen look even for a setting saved the old way
+			findPreference<androidx.preference.ListPreference>("ia_dialog_look")?.let { if(it.value != p.dialogLook) it.value = p.dialogLook }
+			findPreference<androidx.preference.ListPreference>("ia_menu_look")?.let { if(it.value != p.menuLook) it.value = p.menuLook }
+		}
 
 		override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?)
 		{
 			setPreferencesFromResource(R.xml.inarabic_prefs, rootKey)
 			val ctx = requireContext()
 			val prefs = InArabicPrefs(ctx)
+			showLookSettings()
 			TranslationMemory.load(ctx)
 			findPreference<Preference>("ia_address")?.summary = addressText(prefs)
 			findPreference<Preference>("ia_test")?.setOnPreferenceClickListener {
@@ -113,9 +129,7 @@ class InArabicSettingsActivity : AppCompatActivity()
 			val prefs = InArabicPrefs(requireContext())
 			if(key == "ia_clock") com.inarabic.link.LinkServer.sendClock() // shown or hidden on the TV at once
 			if(key in styleKeys) LinkServer.sendStyle(prefs)
-			if(key in styleKeys)
-				findPreference<androidx.preference.Preference>("ia_box_opacity")?.summary =
-					if(prefs.lowContrast) "⚠ النص صعب يتقرا بدون خلفية. فعّل «حدّ أسود حول الحروف» أو زِد العتامة" else null
+			if(key == "ia_dialog_look" || key == "ia_menu_look") showLookSettings()
 		}
 
 		private fun pairedText(): String

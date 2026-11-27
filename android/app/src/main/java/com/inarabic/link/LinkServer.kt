@@ -103,18 +103,15 @@ object LinkServer
 		catch(e: Exception) { Log.w(TAG, "nsd", e) }
 	}
 
-	/** the dialogue line's own look on screen: letters' colour, background's colour, 1 if it has a background of its own */
+	/** the dialogue line's own colours on screen: letters, background */
 	@Volatile var subLook: IntArray? = null
 
 	fun sendSub(id: Int, arabic: String, english: String, final: Boolean, box: FloatArray?, spans: List<com.inarabic.caption.ColorSpan> = emptyList())
 	{
 		val o = JSONObject().put("t", "sub").put("id", id).put("ar", arabic).put("en", english).put("final", final)
 		if(box != null) o.put("box", boxJson(box))
-		// «ترجمة كاملة»: the Arabic in the dialogue's own colours (its background only if it has one)
-		subLook?.let { l ->
-			o.put("fg", String.format("#%06X", l[0] and 0xFFFFFF))
-			if(l[2] == 1) o.put("bg", String.format("#%06X", l[1] and 0xFFFFFF))
-		}
+		// the dialogue's own colours (for «تنسيق خاص»): letters and the background around them
+		subLook?.let { l -> o.put("fg", hex(l[0])).put("bg", hex(l[1])) }
 		if(spans.isNotEmpty()) o.put("spans", spansJson(spans))
 		val msg = o.toString()
 		lastSub = msg
@@ -142,11 +139,17 @@ object LinkServer
 	}
 
 	/** texts off to the side of the subtitle (mission titles, button prompts): each drawn over its English one */
-	fun sendSide(items: List<Triple<String, FloatArray, List<com.inarabic.caption.ColorSpan>>>)
+	/** one menu text: its Arabic, its English box, coloured words, and the game's own colours for it (letters, background) */
+	class SideOut(val arabic: String, val box: FloatArray, val spans: List<com.inarabic.caption.ColorSpan>, val fg: Int, val bg: Int)
+
+	private fun hex(c: Int) = String.format("#%06X", c and 0xFFFFFF)
+
+	fun sendSide(items: List<SideOut>)
 	{
 		val arr = org.json.JSONArray()
-		for((ar, box, spans) in items)
-			arr.put(JSONObject().put("ar", ar).put("box", boxJson(box)).apply { if(spans.isNotEmpty()) put("spans", spansJson(spans)) })
+		for(it in items)
+			arr.put(JSONObject().put("ar", it.arabic).put("box", boxJson(it.box)).put("fg", hex(it.fg)).put("bg", hex(it.bg))
+				.apply { if(it.spans.isNotEmpty()) put("spans", spansJson(it.spans)) })
 		val msg = JSONObject().put("t", "side").put("items", arr).toString()
 		lastSide = msg
 		broadcast(msg)
@@ -182,7 +185,7 @@ object LinkServer
 		val arr = org.json.JSONArray()
 		for(it in items)
 			arr.put(JSONObject().put("ar", it.arabic).put("box", boxJson(it.box))
-				.put("color", String.format("#%06X", it.color and 0xFFFFFF)).put("bg", String.format("#%06X", it.bg and 0xFFFFFF))
+				.put("color", hex(it.color)).put("bg", hex(it.bg))
 				.apply { if(it.spans.isNotEmpty()) put("spans", spansJson(it.spans)) })
 		val msg = JSONObject().put("t", "lens").put("items", arr).toString()
 		lastLens = msg
@@ -236,9 +239,9 @@ object LinkServer
 
 	fun sendStyle(p: com.inarabic.InArabicPrefs)
 	{
-		val msg = JSONObject().put("t", "style").put("scale", p.textScale.toDouble()).put("cover", p.coverOriginal)
-			.put("opacity", p.boxOpacity.toDouble()).put("color", p.textColor).put("pos", p.position).put("bold", p.bold)
-			.put("outline", p.outline).put("boxColor", p.boxColor)
+		// the look of the dialogue and of the menus: one choice each ("special" / "box" / "outline") and its background
+		val msg = JSONObject().put("t", "style").put("scale", p.textScale.toDouble()).put("pos", p.position)
+			.put("dlook", p.dialogLook).put("dbg", p.dialogBg).put("mlook", p.menuLook).put("mbg", p.menuBg)
 			.put("zoom", p.tvZoom.toDouble()).put("dy", p.tvShift.toDouble())
 			.put("mscale", p.menuScale.toDouble()).put("mdy", p.menuShift.toDouble()).toString()
 		lastStyle = msg

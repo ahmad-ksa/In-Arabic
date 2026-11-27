@@ -107,32 +107,38 @@ class InArabicPrefs(context: Context)
 	/** (no AI any more) */
 	val aiEnabled get() = false
 
-	/** Caption look on the TV. */
+	// ---- the look: one choice for the dialogue, one for the menus; each choice decides everything about it, so
+	// nothing stacks on anything else. The letters always keep the game's own colours.
+	//   "special" (تنسيق خاص): the game's own letters and background, as in the game
+	//   "box": the game's letters on a background of your colour and opacity
+	//   "outline": the game's letters with a black edge, no background
+	val dialogLook get() = look("ia_dialog_look")
+	val dialogBg get() = bg("ia_box_color", "ia_box_opacity")
+	val menuLook get() = look("ia_menu_look")
+	val menuBg get() = bg("ia_menu_box_color", "ia_menu_box_opacity")
+	private fun look(key: String): String = p.getString(key, null)?.takeIf { it in setOf("special", "box", "outline") }
+		// before: "a black edge" with no background was its own switch
+		?: if(p.getBoolean("ia_outline", false) && p.getInt("ia_box_opacity", 85) < 30) "outline" else "box"
+	/** #AARRGGBB: the chosen colour at the chosen opacity */
+	private fun bg(colorKey: String, opKey: String): String
+	{
+		val c = (p.getString(colorKey, "#000000") ?: "#000000").removePrefix("#").takeLast(6)
+		val a = (p.getInt(opKey, 85).coerceIn(0, 100) * 255 / 100)
+		return "#" + String.format("%02X", a) + c
+	}
+
 	val textScale get() = p.getInt("ia_text_scale", 100) / 100f
-	val coverOriginal get() = p.getBoolean("ia_cover", true)
-	val boxOpacity get() = p.getInt("ia_box_opacity", 85) / 100f
-	/** the letters: always the game's own colours («ترجمة كاملة»); white where the game gives none */
-	val textColor get() = "#FFFFFF"
-	/** auto = over the English line, bottom / top = fixed */
-	val position get() = p.getString("ia_position", "auto") ?: "auto"
+	/** where the dialogue goes: "auto" = over its English, "bottom" / "top" = fixed (before: «cover» off meant bottom) */
+	val position get() = (p.getString("ia_position", "auto") ?: "auto").let { if(it == "auto" && !p.getBoolean("ia_cover", true)) "bottom" else it }
 	/** TV picture fit: the TV may enlarge the HDMI picture (overscan) or move it */
 	val tvZoom get() = p.getInt("ia_tv_zoom", 0) / 100f
 	val tvShift get() = p.getInt("ia_tv_shift", 0) / 100f
-	/** the menus (side texts) have their own look, apart from the dialogue: size (1 = the English size) and height */
 	/** the phone's clock shown small at the top left of the TV (off until you turn it on) */
 	val showClock get() = p.getBoolean("ia_clock", false)
+	/** the menus' own size (1 = the English size) and height, apart from the dialogue's */
 	val menuScale get() = p.getInt("ia_menu_scale", 100) / 100f
 	val menuShift get() = p.getInt("ia_menu_shift", 0) / 100f
 	fun setMenuLook(scalePct: Int, shiftPct: Int) = p.edit().putInt("ia_menu_scale", scalePct).putInt("ia_menu_shift", shiftPct).apply()
-	val outline get() = p.getBoolean("ia_outline", false)
-	val boxColor get() = p.getString("ia_box_color", "#000000") ?: "#000000"
-
-	/** a ready look: writes the single settings it is made of */
-
-
-	/** hard to read: no box and no outline */
-	val lowContrast get() = boxOpacity < 0.3f && !outline
-	val bold get() = true
 
 	/** The game being played (filled from the PS5 when it says, or typed): helps the AI keep names right. */
 	/** camera mode: the TV's corners in the camera picture */

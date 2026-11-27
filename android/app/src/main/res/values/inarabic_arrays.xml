@@ -1,22 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string-array name="ia_color_names">
-        <item>أبيض</item><item>أصفر</item><item>سماوي</item><item>أخضر فاتح</item>
-    </string-array>
-    <string-array name="ia_color_values" translatable="false">
-        <item>#FFFFFF</item><item>#FFE066</item><item>#7FE3F0</item><item>#B6F2A2</item>
-    </string-array>
     <string-array name="ia_pos_names">
-        <item>فوق الترجمة الإنجليزية</item><item>أسفل الشاشة</item><item>أعلى الشاشة</item>
+        <item>مكان الإنجليزي (يغطيه)</item><item>أسفل الشاشة</item><item>أعلى الشاشة</item>
     </string-array>
     <string-array name="ia_pos_values" translatable="false">
         <item>auto</item><item>bottom</item><item>top</item>
-    </string-array>
-    <string-array name="ia_preset_names">
-        <item>عادي</item><item>سينما (أصفر بدون خلفية)</item><item>الصالة (كبير وواضح للبعيد)</item><item>شفاف (حد أسود فقط)</item><item>مخصص</item>
-    </string-array>
-    <string-array name="ia_preset_values" translatable="false">
-        <item>normal</item><item>cinema</item><item>lounge</item><item>clear</item><item>custom</item>
     </string-array>
     <string-array name="ia_box_color_names">
         <item>أسود</item><item>كحلي</item><item>أخضر غامق</item><item>رمادي</item>
@@ -29,5 +17,16 @@
     </string-array>
     <string-array name="ia_mode_values" translatable="false">
         <item>dialog</item><item>zones</item><item>popups</item><item>menus</item><item>all</item>
+    </string-array>
+    <!-- the look of the dialogue / the menus: one choice decides it all (the letters keep the game's colours) -->
+    <string-array name="ia_look_names">
+        <item>تنسيق خاص: نفس ألوان اللعبة وخلفيتها</item>
+        <item>خلفية: لونها وعتامتها من تحت</item>
+        <item>بدون خلفية: حد أسود حول الحروف</item>
+    </string-array>
+    <string-array name="ia_look_values">
+        <item>special</item>
+        <item>box</item>
+        <item>outline</item>
     </string-array>
 </resources>
