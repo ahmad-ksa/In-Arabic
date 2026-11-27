@@ -183,7 +183,9 @@ class CaptionEngine(
 			{
 				val t0 = System.currentTimeMillis()
 				try { step() } catch(e: CancellationException) { throw e } catch(e: Exception) { Log.w(TAG, "step", e) }
-				delay((prefs.readEveryMs - (System.currentTimeMillis() - t0)).coerceAtLeast(40))
+				// while there is dialogue (a line now or in the last 3 s): every 0.2 s at least, so a fast line is caught
+				val every = if(current != null || System.currentTimeMillis() - lastLineAt < 3000) minOf(prefs.readEveryMs, 200L) else prefs.readEveryMs
+				delay((every - (System.currentTimeMillis() - t0)).coerceAtLeast(40))
 			}
 		}
 	}
@@ -382,8 +384,9 @@ class CaptionEngine(
 			if(done) TranslationMemory.put(english, ar, TranslationMemory.Source.QUICK)
 			if(currentId != id)
 			{
-				// the dialogue moved on before the answer came: still shown if nothing newer is on screen yet
-				if(lastShownId > id) return@launch
+				// the dialogue moved on before the answer came: still shown if nothing newer is on screen yet; else
+				// it is kept in the session log (never lost)
+				if(lastShownId > id) { SessionLog.add(english, com.inarabic.translate.Glossary.arabicNames(ar)); return@launch }
 				showLate(id, english, ar)
 				return@launch
 			}
@@ -406,6 +409,7 @@ class CaptionEngine(
 		lastShownId = id
 		val a = com.inarabic.translate.Glossary.arabicNames(arabic)
 		LinkServer.sendSub(id, a, english, true, box, spans(english, a, subColored))
+		SessionLog.add(english, a)
 		post(a)
 		// on screen long enough to read, then gone if nothing newer came
 		scope.launch {

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
-// Decides when the subtitle on screen has really changed: OCR reads are noisy and subtitles often
-// "type in", so a line is only committed once two reads agree, and cleared after it is gone for a while.
+// Decides when the subtitle on screen has really changed. A new line is reported from its first reading (a fast
+// line may be gone before a second one); a line typing in reports its growth; a line whose end changed (the second
+// half of a two-line subtitle replaced) is reported once two readings agree on the change (OCR noise is not).
+// Cleared after it is gone for a while.
 // Pure Kotlin (no Android), so it is unit-tested.
 
 package com.inarabic.caption
@@ -54,23 +56,27 @@ class SubtitleTracker(
 		emptyReads = 0
 		val prev = pending
 		pending = text
-		// wait until two consecutive reads agree (the subtitle is stable and OCR is consistent); a line that is
-		// still typing in does not agree with its next, longer read, so it waits until the text stops growing
-		if(prev == null || similarity(prev, text, prefixBonus = false) < agreeSimilarity)
-			return null
+		val agree = prev != null && similarity(prev, text, prefixBonus = false) >= agreeSimilarity
 		val last = committed
-		if(last != null && similarity(last, text) >= sameLineSimilarity)
+		if(last == null || similarity(last, text) < sameLineSimilarity)
 		{
-			// same subtitle: only report when it got longer (typing in), not for OCR noise in the same line
-			if(SubtitleTracker.key(text).length > SubtitleTracker.key(last).length + 2)
-			{
-				committed = text
-				return TrackerEvent.Update(text, read.box)
-			}
-			return null
+			// another line: shown from its first reading (a fast line would be gone before a second one)
+			committed = text
+			return TrackerEvent.NewLine(text, read.box)
 		}
-		committed = text
-		return TrackerEvent.NewLine(text, read.box)
+		// the same subtitle, longer: typing in
+		if(key(text).length > key(last).length + 2)
+		{
+			committed = text
+			return TrackerEvent.Update(text, read.box)
+		}
+		// the same subtitle with part of it changed (not just a letter or two of OCR noise), seen twice
+		if(agree && levenshtein(key(last), key(text)) >= 4)
+		{
+			committed = text
+			return TrackerEvent.Update(text, read.box)
+		}
+		return null
 	}
 
 	companion object
@@ -103,7 +109,7 @@ class SubtitleTracker(
 			return 1.0 - d.toDouble() / max(x.length, y.length)
 		}
 
-		private fun levenshtein(a: String, b: String): Int
+		internal fun levenshtein(a: String, b: String): Int
 		{
 			var prev = IntArray(b.length + 1) { it }
 			var cur = IntArray(b.length + 1)
