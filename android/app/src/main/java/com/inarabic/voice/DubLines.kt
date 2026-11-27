@@ -32,13 +32,13 @@ object DubLines
 	/**
 	 * The parts to speak of the lines [en] with their translations [ar] (a line of its own may be another
 	 * person). Lines of the same speaker one after the other are said together; [Part.end] is how many of the
-	 * lines are said once that part is. [namesUsed]: the game writes who speaks, so a line with no name is not
-	 * speech (a task: «Return to Jason with the pills») and is not said.
+	 * lines are said once that part is. [namedOnly]: only lines with a speaker's name are speech (subtitles: a
+	 * line with no name is a task, «Return to Jason with the pills»); false: everything is (the game's sound).
 	 */
-	fun parts(en: List<String>, ar: List<String>, namesUsed: Boolean = false): List<Part>
+	fun parts(en: List<String>, ar: List<String>, namedOnly: Boolean): List<Part>
 	{
 		if(en.isEmpty() || ar.isEmpty()) return emptyList()
-		val names = namesUsed || en.any { speaker(it) != null }
+		val names = namedOnly
 		if(en.size != ar.size)
 		{
 			// the lines do not match one to one: said as one (by the first line's speaker)

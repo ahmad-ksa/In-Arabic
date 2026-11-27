@@ -412,25 +412,45 @@ class CaptionEngine(
 	{
 		currentId = id
 		lastLineAt = seenAt
+		if(tries == 0) Diag.count("lines")
 		scope.launch {
 			val known0 = TranslationMemory.get(english)
 			// the fixed game words win over anything translated before (not over your own corrections)
 			val fixed = if(known0?.source == TranslationMemory.Source.USER) null else com.inarabic.translate.Glossary.lookup(english)
-			if(fixed != null) { show(id, english, fixed, true, box, seenAt); return@launch }
+			if(fixed != null) { Diag.count("translated: game words"); show(id, english, fixed, true, box, seenAt); return@launch }
 			// a line seen before: from memory at once. Your corrections always; anything else only if it is complete
 			// (an old translation with English left in it is asked again)
 			val known = known0?.takeIf { it.source == TranslationMemory.Source.USER || com.inarabic.translate.Translator.complete(it.arabic) }
-			if(known != null) { show(id, english, known.arabic, true, box, seenAt); return@launch }
+			if(known != null) { Diag.count("translated: from memory"); show(id, english, known.arabic, true, box, seenAt); return@launch }
+			val t0 = System.currentTimeMillis()
 			val ar = translator.quick(english)
-			if(ar == null) { if(currentId == id) aiFailed(translator.lastAiError ?: "Google Translate ما رد"); return@launch }
+			val took = System.currentTimeMillis() - t0
+			if(ar == null)
+			{
+				Diag.count("translation failed")
+				Diag.add("translate #$id FAILED after $took ms: ${translator.lastAiError}: $english")
+				if(currentId == id) aiFailed(translator.lastAiError ?: "Google Translate ما رد")
+				return@launch
+			}
 			val done = com.inarabic.translate.Translator.complete(ar)
+			Diag.count("translated: google", took)
+			// how long after the line came its translation is ready, and whether English is left in it
+			Diag.add("translate #$id: $took ms (line seen ${System.currentTimeMillis() - seenAt} ms ago)" + if(done) "" else " INCOMPLETE, English left: $ar")
+			if(!done) Diag.count("translation incomplete (English left)")
 			// only a complete translation is remembered: an incomplete one would come back every time
 			if(done) TranslationMemory.put(english, ar, TranslationMemory.Source.QUICK)
 			if(currentId != id)
 			{
 				// the dialogue moved on before the answer came: still shown if nothing newer is on screen yet; else
 				// it is kept in the session log (never lost)
-				if(lastShownId > id) { SessionLog.add(english, com.inarabic.translate.Glossary.arabicNames(ar)); return@launch }
+				if(lastShownId > id)
+				{
+					Diag.count("translation MISSED (newer line already shown)")
+					Diag.add("MISSED #$id: its translation came after a newer line was shown, never on screen: $english")
+					SessionLog.add(english, com.inarabic.translate.Glossary.arabicNames(ar)); return@launch
+				}
+				Diag.count("translation late (line already gone)")
+				Diag.add("LATE #$id: shown after its line left the screen: $english")
 				showLate(id, english, ar, seenAt)
 				return@launch
 			}
@@ -454,7 +474,7 @@ class CaptionEngine(
 		val a = com.inarabic.translate.Glossary.arabicNames(arabic)
 		LinkServer.sendSub(id, a, english, true, box, spans(english, a, subColored))
 		SessionLog.add(english, a)
-		com.inarabic.voice.Dubber.say(id, english, a, seenAt)
+		com.inarabic.voice.Dubber.say(id, english, a, seenAt, namedOnly = !fromSound)
 		post(a)
 		// on screen long enough to read, then gone if nothing newer came
 		scope.launch {
@@ -472,7 +492,7 @@ class CaptionEngine(
 		Diag.add("show #$id ${if(final) "final" else "first"}: $english → $arabic")
 		current = Current(id, english, arabic, box)
 		LinkServer.sendSub(id, arabic, english, final, box, spans(english, arabic, subColored))
-		if(final) { SessionLog.add(english, arabic); com.inarabic.voice.Dubber.say(id, english, arabic, seenAt) }
+		if(final) { SessionLog.add(english, arabic); com.inarabic.voice.Dubber.say(id, english, arabic, seenAt, namedOnly = !fromSound) }
 		post(arabic)
 	}
 

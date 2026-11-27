@@ -14,7 +14,7 @@
 //   {"t":"lensmove","dx":0.004,"dy":-0.002,"a":1.5,"cx":0.5,"cy":0.5}   the lens's text moved (shaking): follow it
 //   {"t":"lens","items":[{"ar":"…","box":[x,y,w,h,lineH],"color":"#RRGGBB","bg":"#RRGGBB","spans":[…]}]} / {"t":"lensclear"}
 //   {"t":"panel","title":"…","text":"…","ttl":30000}                     e.g. the story summary
-//   {"t":"voice","mime":"audio/mpeg","data":"<base64>"}                   a dubbed line: played at once
+//   {"t":"voice","mime":"audio/mpeg","speed":1.2,"data":"<base64>"}       a dubbed line: played at once, that much faster
 //   {"t":"style","scale":1.0,"cover":true,"opacity":0.85,"color":"#FFFFFF","pos":"auto|bottom|top","bold":true}
 // TV -> phone: {"t":"hello","kind":"androidtv|lg","name":"…"}, {"t":"voiceerr","e":"…"} (a dubbed line did not play)
 
@@ -216,10 +216,11 @@ object LinkServer
 
 	/** a short notice shown on the TVs (top of the screen) */
 	/** a dubbed line for the screens to play now ([mime] audio/mpeg or audio/wav) */
-	fun sendVoice(mime: String, bytes: ByteArray)
+	fun sendVoice(mime: String, bytes: ByteArray, speed: Float = 1f)
 	{
 		// to the screens only: the phone plays its own copy (Dubber), its caption view has nothing to draw
-		val msg = JSONObject().put("t", "voice").put("mime", mime).put("data", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)).toString()
+		val msg = JSONObject().put("t", "voice").put("mime", mime).put("speed", Math.round(speed * 100) / 100.0)
+			.put("data", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)).toString()
 		try { server?.broadcast(msg) } catch(e: Exception) { Log.w(TAG, "voice", e) }
 	}
 

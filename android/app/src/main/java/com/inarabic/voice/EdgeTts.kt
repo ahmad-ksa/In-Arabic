@@ -29,6 +29,12 @@ object EdgeTts
 	/** why the last line failed (for the log) */
 	@Volatile var lastError: String? = null
 
+	/** where the time of one line went: connecting, until the first sound, all of it (ms) */
+	class Timing(val connect: Long, val firstAudio: Long, val total: Long)
+	{
+		override fun toString() = "connect $connect, first sound $firstAudio, all $total ms"
+	}
+
 	private fun id() = UUID.randomUUID().toString().replace("-", "")
 
 	private fun date(): String
@@ -46,9 +52,15 @@ object EdgeTts
 		}
 	}.joinToString("")
 
-	/** [voice] says [text] ([rate] e.g. "+10%"); the MP3, or null */
-	fun say(text: String, voice: String, rate: String = "+0%", timeoutMs: Long = 8000): ByteArray?
+	/**
+	 * [voice] says [text] ([volume] e.g. "+15%"); the MP3 and where its time went, or null. Interrupted (the line
+	 * was replaced): null, and the thread stays interrupted so the caller knows it was not a failure.
+	 */
+	fun say(text: String, voice: String, volume: String = "+0%", timeoutMs: Long = 8000): Pair<ByteArray, Timing>?
 	{
+		val t0 = System.currentTimeMillis()
+		var opened = 0L
+		var first = 0L
 		val url = "$URL&ConnectionId=${id()}&Sec-MS-GEC=${EdgeToken.token()}&Sec-MS-GEC-Version=${EdgeToken.VERSION}"
 		val headers = mapOf(
 			"Pragma" to "no-cache",
@@ -64,11 +76,12 @@ object EdgeTts
 		val name = voice.split('-').drop(2).joinToString("-")
 		val ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>" +
 			"<voice name='Microsoft Server Speech Text to Speech Voice ($lang, $name)'>" +
-			"<prosody pitch='+0Hz' rate='$rate' volume='+0%'>${escape(text)}</prosody></voice></speak>"
+			"<prosody pitch='+0Hz' rate='+0%' volume='$volume'>${escape(text)}</prosody></voice></speak>"
 		val ws = object : WebSocketClient(URI(url), Draft_6455(), headers, timeoutMs.toInt())
 		{
 			override fun onOpen(h: ServerHandshake?)
 			{
+				opened = System.currentTimeMillis()
 				send("X-Timestamp:${date()}\r\nContent-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n" +
 					"{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"true\",\"wordBoundaryEnabled\":\"false\"}," +
 					"\"outputFormat\":\"audio-24khz-48kbitrate-mono-mp3\"}}}}\r\n")
@@ -85,7 +98,10 @@ object EdgeTts
 				val hl = ((b[0].toInt() and 255) shl 8) or (b[1].toInt() and 255)
 				if(hl + 2 > b.size) return
 				val head = String(b, 2, hl, Charsets.UTF_8)
-				if(head.contains("Path:audio") && head.contains("Content-Type:audio/mpeg")) synchronized(audio) { audio.write(b, hl + 2, b.size - hl - 2) }
+				if(head.contains("Path:audio") && head.contains("Content-Type:audio/mpeg")) synchronized(audio) {
+					if(first == 0L) first = System.currentTimeMillis()
+					audio.write(b, hl + 2, b.size - hl - 2)
+				}
 			}
 			override fun onClose(code: Int, reason: String?, remote: Boolean) { if(!ended) lastError = "closed $code ${reason ?: ""}"; done.countDown() }
 			override fun onError(ex: Exception?) { lastError = ex?.toString(); done.countDown() }
@@ -95,9 +111,11 @@ object EdgeTts
 			ws.connect()
 			if(!done.await(timeoutMs, TimeUnit.MILLISECONDS)) lastError = "timeout"
 		}
+		catch(e: InterruptedException) { Thread.currentThread().interrupt() }
 		catch(e: Exception) { lastError = e.toString() }
 		finally { try { ws.close() } catch(e: Exception) { } }
 		val out = synchronized(audio) { audio.toByteArray() }
-		return if(ended && out.isNotEmpty()) out else null
+		val t = System.currentTimeMillis()
+		return if(ended && out.isNotEmpty()) out to Timing(opened - t0, (if(first > 0) first else t) - t0, t - t0) else null
 	}
 }

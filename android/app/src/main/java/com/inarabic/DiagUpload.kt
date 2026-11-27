@@ -73,8 +73,9 @@ object DiagUpload
 		val head = "${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} · app $version\n" +
 			"mode=${sp.getString("ia_mode", "menus")} source=${sp.getString("ia_dialog_source", "screen")} voice=${p.voiceOn} out=${p.voiceOut} " +
 			"who=${p.voiceWho} dialect=${p.voiceDialect} dlook=${p.dialogLook} mlook=${p.menuLook}"
+		val counts = Diag.takeCounts().ifBlank { "-" }
 		// a comment holds 65536 characters: the newest part of a very long log
-		return head + "\n```\n" + text.takeLast(60000) + "\n```"
+		return head + "\n\n**summary**\n```\n" + counts + "\n```\n```\n" + text.takeLast(58000) + "\n```"
 	}
 
 	private fun comment(c: Context, token: String, body: String)

@@ -12,7 +12,8 @@ class VoicePlayer(private val context: Context)
 {
 	private var player: MediaPlayer? = null
 
-	@Synchronized fun play(mime: String, data: String, failed: (String) -> Unit)
+	/** [speed]: faster or slower to last as long as the English line, the pitch kept */
+	@Synchronized fun play(mime: String, data: String, speed: Float, failed: (String) -> Unit)
 	{
 		try { player?.release() } catch(e: Exception) { }
 		player = null
@@ -23,7 +24,9 @@ class VoicePlayer(private val context: Context)
 			player = MediaPlayer().apply {
 				setDataSource(f.path)
 				setOnCompletionListener { synchronized(this@VoicePlayer) { it.release(); if(player === it) player = null } }
-				prepare(); start()
+				prepare()
+				if(speed != 1f) playbackParams = android.media.PlaybackParams().setSpeed(speed).setPitch(1f)
+				start()
 			}
 		}
 		catch(e: Exception) { failed(e.toString()) }
