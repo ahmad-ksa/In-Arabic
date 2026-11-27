@@ -71,7 +71,7 @@ class Link(private val context: Context, private val onMessage: (JSONObject) -> 
 			{
 				val o = try { JSONObject(text) } catch(e: Exception) { return }
 				// a dubbed line: heard here, nothing to draw
-				if(o.optString("t") == "voice") { voice.play(o.optString("mime"), o.optString("data"), o.optDouble("speed", 1.0).toFloat()) { e -> webSocket.send(JSONObject().put("t", "voiceerr").put("e", e).toString()) }; return }
+				if(o.optString("t") == "voice") { voice.play(o.optString("mime"), o.optString("data")) { e -> webSocket.send(JSONObject().put("t", "voiceerr").put("e", e).toString()) }; return }
 				main.post { onMessage(o) }
 			}
 

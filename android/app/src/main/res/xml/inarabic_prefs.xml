@@ -55,6 +55,8 @@
             app:title="صوت الترجمة" app:summary="يقول الحوار بالعربي أول ما يترجمه. نزّل صوت الحوار في إعدادات اللعبة شوي (لا تقفله)" />
         <ListPreference app:key="ia_voice_out" app:title="وين تسمع الصوت" app:defaultValue="tv" app:iconSpaceReserved="false"
             app:entries="@array/ia_voice_out_names" app:entryValues="@array/ia_voice_out_values" app:useSimpleSummaryProvider="true" />
+        <SeekBarPreference app:key="ia_voice_rate" app:title="سرعة الدبلجة (100 = عادي)" app:iconSpaceReserved="false"
+            app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
         <ListPreference app:key="ia_voice_who" app:title="الأصوات" app:defaultValue="auto" app:iconSpaceReserved="false"
             app:entries="@array/ia_voice_who_names" app:entryValues="@array/ia_voice_who_values" app:useSimpleSummaryProvider="true" />
         <ListPreference app:key="ia_voice_dialect" app:title="لهجة الكلام" app:defaultValue="sa" app:iconSpaceReserved="false"

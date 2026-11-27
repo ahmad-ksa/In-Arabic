@@ -145,6 +145,8 @@ class InArabicPrefs(context: Context)
 	val voiceOut get() = p.getString("ia_voice_out", "tv") ?: "tv"
 	/** how the dubbing talks (voice/Dialect.kt) and whose voices come first: fusha, sa, gulf, eg, sham */
 	val voiceDialect get() = p.getString("ia_voice_dialect", "sa") ?: "sa"
+	/** how fast the dubbing talks, % of normal (the voices' own speed, not a speeded-up recording) */
+	val voiceRate get() = p.getInt("ia_voice_rate", 100).coerceIn(50, 200)
 	/** "auto": a voice for each character (a man's or a woman's); "male" / "female": one voice for everyone */
 	val voiceWho get() = p.getString("ia_voice_who", "auto") ?: "auto"
 	/** the menus' own size (1 = the English size) and height, apart from the dialogue's */

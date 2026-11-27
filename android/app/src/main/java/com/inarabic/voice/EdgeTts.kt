@@ -53,10 +53,12 @@ object EdgeTts
 	}.joinToString("")
 
 	/**
-	 * [voice] says [text] ([volume] e.g. "+15%"); the MP3 and where its time went, or null. Interrupted (the line
-	 * was replaced): null, and the thread stays interrupted so the caller knows it was not a failure.
+	 * [voice] says [text] ([rate], [volume] e.g. "+15%"); the MP3 and where its time went, or null. [onAudio] gets
+	 * each piece of it as it comes (it can be played before the rest has come). Interrupted (the line was
+	 * replaced): null, and the thread stays interrupted so the caller knows it was not a failure.
 	 */
-	fun say(text: String, voice: String, volume: String = "+0%", timeoutMs: Long = 8000): Pair<ByteArray, Timing>?
+	fun say(text: String, voice: String, rate: String = "+0%", volume: String = "+0%", timeoutMs: Long = 8000,
+		onAudio: (ByteArray) -> Unit = {}): Pair<ByteArray, Timing>?
 	{
 		val t0 = System.currentTimeMillis()
 		var opened = 0L
@@ -76,7 +78,7 @@ object EdgeTts
 		val name = voice.split('-').drop(2).joinToString("-")
 		val ssml = "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>" +
 			"<voice name='Microsoft Server Speech Text to Speech Voice ($lang, $name)'>" +
-			"<prosody pitch='+0Hz' rate='+0%' volume='$volume'>${escape(text)}</prosody></voice></speak>"
+			"<prosody pitch='+0Hz' rate='$rate' volume='$volume'>${escape(text)}</prosody></voice></speak>"
 		val ws = object : WebSocketClient(URI(url), Draft_6455(), headers, timeoutMs.toInt())
 		{
 			override fun onOpen(h: ServerHandshake?)
@@ -98,9 +100,14 @@ object EdgeTts
 				val hl = ((b[0].toInt() and 255) shl 8) or (b[1].toInt() and 255)
 				if(hl + 2 > b.size) return
 				val head = String(b, 2, hl, Charsets.UTF_8)
-				if(head.contains("Path:audio") && head.contains("Content-Type:audio/mpeg")) synchronized(audio) {
-					if(first == 0L) first = System.currentTimeMillis()
-					audio.write(b, hl + 2, b.size - hl - 2)
+				if(head.contains("Path:audio") && head.contains("Content-Type:audio/mpeg"))
+				{
+					val piece = b.copyOfRange(hl + 2, b.size)
+					synchronized(audio) {
+						if(first == 0L) first = System.currentTimeMillis()
+						audio.write(piece)
+					}
+					onAudio(piece)
 				}
 			}
 			override fun onClose(code: Int, reason: String?, remote: Boolean) { if(!ended) lastError = "closed $code ${reason ?: ""}"; done.countDown() }

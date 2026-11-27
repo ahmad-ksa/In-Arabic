@@ -35,8 +35,8 @@ object PhoneTts
 
 	@Synchronized fun stop() { try { tts?.shutdown() } catch(e: Exception) { }; tts = null; ready = false }
 
-	/** a WAV of [text] said by a man or a woman; [variant] picks one of the phone's Arabic voices */
-	fun say(context: Context, text: String, male: Boolean, variant: Int): ByteArray?
+	/** a WAV of [text] said by a man or a woman; [variant] picks one of the phone's Arabic voices; [rate] 1 = normal */
+	fun say(context: Context, text: String, male: Boolean, variant: Int, rate: Float = 1f): ByteArray?
 	{
 		val t = synchronized(this) { tts } ?: return null
 		if(!ready) return null
@@ -51,6 +51,7 @@ object PhoneTts
 			t.language = Locale("ar")
 			if(!voices.isNullOrEmpty()) t.voice = voices[Math.floorMod(variant, voices.size)]
 			t.setPitch(if(male) 0.85f else 1.25f)
+			t.setSpeechRate(rate)
 			if(t.synthesizeToFile(text, Bundle(), file, id) != TextToSpeech.SUCCESS) { synchronized(waits) { waits.remove(id) }; return null }
 		}
 		if(!latch.await(8, TimeUnit.SECONDS)) { file.delete(); return null }
