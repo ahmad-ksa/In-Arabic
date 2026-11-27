@@ -299,4 +299,24 @@
         android:focusable="false"
         android:visibility="gone"/>
 
+    <!-- send the diagnostic log now (under «تصحيح», while the translation runs) -->
+    <TextView
+        android:id="@+id/iaLogUpload"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginTop="100dp"
+        android:layout_marginStart="14dp"
+        android:background="#99000000"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="3dp"
+        android:paddingBottom="3dp"
+        android:text="⬆ ارفع السجل"
+        android:textColor="#CCFFFFFF"
+        android:textSize="12sp"
+        android:clickable="true"
+        android:focusable="false"
+        android:visibility="gone"/>
+
 </FrameLayout>

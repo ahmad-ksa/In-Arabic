@@ -32,6 +32,8 @@ class SubtitleTracker(
 {
 	private var pending: String? = null
 	private var committed: String? = null
+	/** the line on screen now (null: none) */
+	val current: String? get() = committed
 	private var emptyReads = 0
 
 	fun reset()

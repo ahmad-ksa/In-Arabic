@@ -285,7 +285,7 @@ class CaptionEngine(
 			for(z in zones.filter { it.dialog && !fromSound })
 			{
 				val r = px(z.r); if(r.width() < 16 || r.height() < 8) continue
-				val got = readArea(frame, r, 0.018f, if(prefs.centerOnly) side else null)
+				val got = readArea(frame, r, 0.018f, if(prefs.centerOnly) side else null, keep = subTracker.current)
 				subLines += lastLineCount
 				subSmall += lastSmall
 				if(read.text.isBlank() && got.text.isNotBlank()) { read = got; subGroups = lastGroups }
@@ -1025,7 +1025,12 @@ class CaptionEngine(
 	 * With [sideOut]: only lines centred on the picture are the subtitle; the others (a mission title or a button
 	 * prompt in a corner) are put in [sideOut], one read per line, so they neither mix into the subtitle nor move it.
 	 */
-	private suspend fun readArea(frame: Bitmap, area: Rect, minLineH: Float, sideOut: MutableList<OcrRead>? = null, everyLine: Boolean = false, countLines: Boolean = true): OcrRead
+	/**
+	 * [keep]: the line on screen now. Its letters read a little smaller in one picture than the next (a task line
+	 * is about the size limit): while it is on screen it is still taken down to 70 % of [minLineH], so it does not
+	 * vanish and come back (blinking, and translated and said again).
+	 */
+	private suspend fun readArea(frame: Bitmap, area: Rect, minLineH: Float, sideOut: MutableList<OcrRead>? = null, everyLine: Boolean = false, countLines: Boolean = true, keep: String? = null): OcrRead
 	{
 		if(countLines) lastLineCount = 0
 		val crop = Bitmap.createBitmap(frame, area.left, area.top, area.width(), area.height())
@@ -1036,7 +1041,13 @@ class CaptionEngine(
 					.addOnSuccessListener { if(c.isActive) c.resume(it) }
 					.addOnFailureListener { if(c.isActive) c.resume(null) }
 			} ?: return OcrRead("")
-			val ok = { l: Text.Line -> (l.boundingBox?.height() ?: 0) >= frame.height * minLineH } // skip tiny HUD text
+			val keepKey = keep?.let { SubtitleTracker.key(it) }
+			val ok = { l: Text.Line ->
+				val h = l.boundingBox?.height() ?: 0
+				// skip tiny HUD text; the line on screen keeps a little slack
+				h >= frame.height * minLineH || (keepKey != null && h >= frame.height * minLineH * 0.7f &&
+					SubtitleTracker.key(l.text).let { k -> k.length >= 4 && keepKey.contains(k) })
+			}
 			val all = result.textBlocks.flatMap { it.lines }.filter(ok).sortedBy { it.boundingBox?.top ?: 0 }
 			if(countLines) { lastLineCount = all.size; lastSmall = result.textBlocks.sumOf { it.lines.size } - all.size }
 			fun centred(l: Text.Line): Boolean

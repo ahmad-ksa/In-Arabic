@@ -86,6 +86,11 @@ class StreamActivity : AppCompatActivity()
 		}
 		binding.iaLens.rect?.let { captionEngine?.setLens(it) }
 		// tap the Arabic line on the phone to correct it: remembered, and replaced on the TV at once
+		binding.iaLogUpload.visibility = View.VISIBLE
+		binding.iaLogUpload.setOnClickListener {
+			notice("أرفع السجل…", 2000)
+			com.inarabic.DiagUpload.now(this) { msg -> runOnUiThread { notice(msg, 4000) } }
+		}
 		binding.iaCaption.setOnClickListener {
 			val cur = captionEngine?.current ?: return@setOnClickListener
 			val edit = EditText(this).apply { setText(cur.arabic); setSelection(text.length) }
@@ -106,6 +111,7 @@ class StreamActivity : AppCompatActivity()
 		captionEngine = null
 		com.inarabic.link.LinkServer.local = null
 		binding.iaCaption.visibility = View.GONE
+		binding.iaLogUpload.visibility = View.GONE
 	}
 
 	override fun onCreate(savedInstanceState: Bundle?)
@@ -287,6 +293,7 @@ class StreamActivity : AppCompatActivity()
 		val v = if(inPip) View.GONE else View.VISIBLE
 		binding.iaMenu.visibility = v
 		binding.iaLens.visibility = v
+		if(captionEngine != null) binding.iaLogUpload.visibility = v
 		binding.iaOverlay.visibility = if(inPip || !com.inarabic.InArabicPrefs(this).showOnPhone) View.GONE else View.VISIBLE
 		if(inPip) { binding.iaCaption.visibility = View.GONE; binding.iaNotice.visibility = View.GONE; binding.overlay.isVisible = false }
 		else { hideSystemUI(); viewModel.session.resume() }
@@ -677,7 +684,7 @@ class StreamActivity : AppCompatActivity()
 	{
 		if(binding.iaZone.visibility == View.VISIBLE) return true
 		// (the overlay itself fills the screen: only its bar of switches counts)
-		for(v in listOf<View>(binding.iaMenu, binding.iaCaption, binding.iaZoneBar, binding.iaNotice, binding.iaAudioSwitch.parent as View))
+		for(v in listOf<View>(binding.iaMenu, binding.iaCaption, binding.iaLogUpload, binding.iaZoneBar, binding.iaNotice, binding.iaAudioSwitch.parent as View))
 		{
 			if(v.visibility != View.VISIBLE || !v.isShown) continue
 			val at = IntArray(2); v.getLocationOnScreen(at)
