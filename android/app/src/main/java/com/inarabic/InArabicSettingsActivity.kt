@@ -58,12 +58,50 @@ class InArabicSettingsActivity : AppCompatActivity()
 			findPreference<androidx.preference.ListPreference>("ia_menu_look")?.let { if(it.value != p.menuLook) it.value = p.menuLook }
 		}
 
+		/** the voice settings show only when the voice is on; «الشخصيات» only when each character has its own */
+		private fun showVoiceSettings()
+		{
+			val p = InArabicPrefs(requireContext())
+			for(k in listOf("ia_voice_out", "ia_voice_who", "ia_voice_accent")) findPreference<Preference>(k)?.isVisible = p.voiceOn
+			findPreference<Preference>("ia_voice_people")?.apply {
+				isVisible = p.voiceOn && p.voiceWho == "auto"
+				val n = com.inarabic.voice.Voices.people(requireContext()).size
+				summary = if(n == 0) "تنضاف لحالها أول ما تتكلم (إذا اللعبة تكتب اسم المتكلم)" else "$n شخصية — اضغط لتغيير صوت أي وحدة"
+			}
+		}
+
+		/** the characters heard so far: tap one to hear and choose its voice, or remove it */
+		private fun peopleDialog()
+		{
+			val ctx = requireContext()
+			val people = com.inarabic.voice.Voices.people(ctx)
+			if(people.isEmpty()) { Toast.makeText(ctx, "ما فيه شخصيات للحين: العب والصوت شغال وتنضاف لحالها", Toast.LENGTH_LONG).show(); return }
+			val rows = people.map { pp -> pp.name + " — " + (com.inarabic.voice.Voices.byId(pp.voice)?.label ?: "؟") + (if(pp.fixed) " ✓" else "") }
+			AlertDialog.Builder(ctx).setTitle("الشخصيات وأصواتها")
+				.setItems(rows.toTypedArray()) { _, i -> voiceDialog(people[i]) }
+				.setNegativeButton("إغلاق", null).show()
+		}
+
+		private fun voiceDialog(person: com.inarabic.voice.Voices.Person)
+		{
+			val ctx = requireContext()
+			val all = com.inarabic.voice.Voices.all
+			var chosen = all.indexOfFirst { it.id == person.voice }
+			AlertDialog.Builder(ctx).setTitle("صوت " + person.name + " (اضغط تسمعه)")
+				.setSingleChoiceItems(all.map { it.label }.toTypedArray(), chosen) { _, i -> chosen = i; com.inarabic.voice.Dubber.preview(ctx, all[i]) }
+				.setPositiveButton("احفظ") { _, _ -> if(chosen >= 0) com.inarabic.voice.Voices.set(ctx, person.key, all[chosen].id); showVoiceSettings() }
+				.setNeutralButton("احذف الشخصية") { _, _ -> com.inarabic.voice.Voices.remove(ctx, person.key); showVoiceSettings() }
+				.setNegativeButton("إلغاء", null).show()
+		}
+
 		override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?)
 		{
 			setPreferencesFromResource(R.xml.inarabic_prefs, rootKey)
 			val ctx = requireContext()
 			val prefs = InArabicPrefs(ctx)
 			showLookSettings()
+			showVoiceSettings()
+			findPreference<Preference>("ia_voice_people")?.setOnPreferenceClickListener { peopleDialog(); true }
 			TranslationMemory.load(ctx)
 			findPreference<Preference>("ia_address")?.summary = addressText(prefs)
 			findPreference<Preference>("ia_test")?.setOnPreferenceClickListener {
@@ -130,6 +168,7 @@ class InArabicSettingsActivity : AppCompatActivity()
 			if(key == "ia_clock") com.inarabic.link.LinkServer.sendClock() // shown or hidden on the TV at once
 			if(key in styleKeys) LinkServer.sendStyle(prefs)
 			if(key == "ia_dialog_look" || key == "ia_menu_look") showLookSettings()
+			if(key == "ia_voice" || key == "ia_voice_who") showVoiceSettings()
 		}
 
 		private fun pairedText(): String

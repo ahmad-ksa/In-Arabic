@@ -10,6 +10,7 @@
 #include <chiaki/discoveryservice.h>
 #include <chiaki/regist.h>
 
+#include <stdlib.h>
 #include <string.h>
 #include <linux/in.h>
 #include <linux/in6.h>
@@ -409,6 +410,22 @@ extern volatile int android_chiaki_audio_muted;
 JNIEXPORT void JNICALL JNI_FCN(setAudioMuted)(JNIEnv *env, jobject obj, jboolean muted)
 {
 	android_chiaki_audio_muted = muted ? 1 : 0;
+}
+
+/** the newest game sound into [out] (one channel); returns its sample rate, 0 when nothing came yet */
+JNIEXPORT jint JNICALL JNI_FCN(recentAudio)(JNIEnv *env, jobject obj, jshortArray out)
+{
+	jsize n = E->GetArrayLength(env, out);
+	int16_t *tmp = malloc(sizeof(int16_t) * (n > 0 ? n : 1));
+	if(!tmp)
+		return 0;
+	uint32_t rate = 0;
+	size_t got = android_chiaki_audio_recent(tmp, (size_t)n, &rate);
+	if(got < (size_t)n)
+		memset(tmp + got, 0, sizeof(int16_t) * ((size_t)n - got));
+	E->SetShortArrayRegion(env, out, 0, n, (const jshort *)tmp);
+	free(tmp);
+	return got == (size_t)n ? (jint)rate : 0;
 }
 
 /** [measured bitrate in Mbit/s, packet loss 0..1] */

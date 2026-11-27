@@ -181,6 +181,7 @@ class CaptionEngine(
 		SessionLog.begin(context, prefs.gameName)
 		LinkServer.start(context)
 		LinkServer.sendStyle(prefs)
+		com.inarabic.voice.Dubber.start(context)
 		if(prefs.secondReader) scope.launch { paddle = PaddleReader.open(context) }
 		loop = scope.launch {
 			while(isActive)
@@ -198,6 +199,7 @@ class CaptionEngine(
 	{
 		loop?.cancel()
 		loop = null
+		com.inarabic.voice.Dubber.stop()
 		lensJob?.cancel(); lensRect = null
 		LinkServer.sendLensClear()
 		LinkServer.sendClear()
@@ -380,16 +382,17 @@ class CaptionEngine(
 	private fun translate(id: Int, english: String, box: FloatArray?, tries: Int = 0)
 	{
 		currentId = id
-		lastLineAt = System.currentTimeMillis()
+		val seenAt = System.currentTimeMillis()
+		lastLineAt = seenAt
 		scope.launch {
 			val known0 = TranslationMemory.get(english)
 			// the fixed game words win over anything translated before (not over your own corrections)
 			val fixed = if(known0?.source == TranslationMemory.Source.USER) null else com.inarabic.translate.Glossary.lookup(english)
-			if(fixed != null) { show(id, english, fixed, true, box); return@launch }
+			if(fixed != null) { show(id, english, fixed, true, box, seenAt); return@launch }
 			// a line seen before: from memory at once. Your corrections always; anything else only if it is complete
 			// (an old translation with English left in it is asked again)
 			val known = known0?.takeIf { it.source == TranslationMemory.Source.USER || com.inarabic.translate.Translator.complete(it.arabic) }
-			if(known != null) { show(id, english, known.arabic, true, box); return@launch }
+			if(known != null) { show(id, english, known.arabic, true, box, seenAt); return@launch }
 			val ar = translator.quick(english)
 			if(ar == null) { if(currentId == id) aiFailed(translator.lastAiError ?: "Google Translate ما رد"); return@launch }
 			val done = com.inarabic.translate.Translator.complete(ar)
@@ -400,10 +403,10 @@ class CaptionEngine(
 				// the dialogue moved on before the answer came: still shown if nothing newer is on screen yet; else
 				// it is kept in the session log (never lost)
 				if(lastShownId > id) { SessionLog.add(english, com.inarabic.translate.Glossary.arabicNames(ar)); return@launch }
-				showLate(id, english, ar)
+				showLate(id, english, ar, seenAt)
 				return@launch
 			}
-			show(id, english, ar, true, box)
+			show(id, english, ar, true, box, seenAt)
 			// English left in it: translated again from the next readings (a cleaner reading usually fixes it), 3 times at most
 			if(!done && tries < 3)
 			{
@@ -416,13 +419,14 @@ class CaptionEngine(
 	@Volatile private var lastShownId = -1
 
 	/** a translation that came after its line left: shown where the current line is, until the next one */
-	private suspend fun showLate(id: Int, english: String, arabic: String)
+	private suspend fun showLate(id: Int, english: String, arabic: String, seenAt: Long)
 	{
 		val box = current?.box ?: lastBox
 		lastShownId = id
 		val a = com.inarabic.translate.Glossary.arabicNames(arabic)
 		LinkServer.sendSub(id, a, english, true, box, spans(english, a, subColored))
 		SessionLog.add(english, a)
+		com.inarabic.voice.Dubber.say(id, english, a, seenAt)
 		post(a)
 		// on screen long enough to read, then gone if nothing newer came
 		scope.launch {
@@ -432,7 +436,7 @@ class CaptionEngine(
 	}
 	@Volatile private var lastBox: FloatArray? = null
 
-	private suspend fun show(id: Int, english: String, arabic0: String, final: Boolean, box: FloatArray?)
+	private suspend fun show(id: Int, english: String, arabic0: String, final: Boolean, box: FloatArray?, seenAt: Long)
 	{
 		if(id > lastShownId) lastShownId = id
 		if(box != null) lastBox = box
@@ -440,7 +444,7 @@ class CaptionEngine(
 		Diag.add("show #$id ${if(final) "final" else "first"}: $english → $arabic")
 		current = Current(id, english, arabic, box)
 		LinkServer.sendSub(id, arabic, english, final, box, spans(english, arabic, subColored))
-		if(final) SessionLog.add(english, arabic)
+		if(final) { SessionLog.add(english, arabic); com.inarabic.voice.Dubber.say(id, english, arabic, seenAt) }
 		post(arabic)
 	}
 

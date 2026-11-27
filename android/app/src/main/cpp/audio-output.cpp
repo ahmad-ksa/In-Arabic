@@ -9,6 +9,7 @@
 
 #include <oboe/Oboe.h>
 #include <cstring>
+#include <mutex>
 
 #define BUFFER_CHUNK_SIZE 1024
 #define BUFFER_CHUNKS_COUNT 32
@@ -58,6 +59,12 @@ extern "C" void android_chiaki_audio_output_free(void *audio_output)
 extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t rate, void *audio_output)
 {
 	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+	{
+		std::lock_guard<std::mutex> lock(tap_mutex);
+		tap_channels = channels;
+		tap_rate = rate;
+		tap_filled = 0;
+	}
 
 	oboe::AudioStreamBuilder builder;
 	builder.setPerformanceMode(oboe::PerformanceMode::LowLatency)
@@ -83,9 +90,55 @@ extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t
 // In Arabic: game sound on the phone can be switched off (the TV plays it anyway)
 extern "C" { volatile int android_chiaki_audio_muted = 0; }
 
+// In Arabic: the last seconds of the game's sound (one channel, a quarter of the rate), kept even when the phone
+// is muted: the dubbing tells a man's voice from a woman's by it (see caption/VoicePitch.kt)
+#define TAP_LEN 36000
+#define TAP_DECIMATE 4
+static std::mutex tap_mutex;
+static int16_t tap_buf[TAP_LEN];
+static size_t tap_pos = 0, tap_filled = 0;
+static uint32_t tap_channels = 2, tap_rate = 48000;
+static int32_t tap_acc = 0;
+static int tap_n = 0;
+
+static void tap_push(const int16_t *buf, size_t samples_count)
+{
+	uint32_t ch = tap_channels ? tap_channels : 1;
+	std::lock_guard<std::mutex> lock(tap_mutex);
+	for(size_t i = 0; i + ch <= samples_count; i += ch)
+	{
+		int32_t v = 0;
+		for(uint32_t c = 0; c < ch; c++)
+			v += buf[i + c];
+		tap_acc += v / (int32_t)ch;
+		if(++tap_n < TAP_DECIMATE)
+			continue;
+		tap_buf[tap_pos] = (int16_t)(tap_acc / TAP_DECIMATE);
+		tap_pos = (tap_pos + 1) % TAP_LEN;
+		if(tap_filled < TAP_LEN)
+			tap_filled++;
+		tap_acc = 0;
+		tap_n = 0;
+	}
+}
+
+/** copies the newest [n] samples (oldest first) into [out]; returns how many, and their rate in [rate] */
+extern "C" size_t android_chiaki_audio_recent(int16_t *out, size_t n, uint32_t *rate)
+{
+	std::lock_guard<std::mutex> lock(tap_mutex);
+	*rate = tap_rate / TAP_DECIMATE;
+	if(n > tap_filled)
+		n = tap_filled;
+	size_t start = (tap_pos + TAP_LEN - n) % TAP_LEN;
+	for(size_t i = 0; i < n; i++)
+		out[i] = tap_buf[(start + i) % TAP_LEN];
+	return n;
+}
+
 extern "C" void android_chiaki_audio_output_frame(int16_t *buf, size_t samples_count, void *audio_output)
 {
 	auto ao = reinterpret_cast<AudioOutput *>(audio_output);
+	tap_push(buf, samples_count);
 	if(android_chiaki_audio_muted)
 		memset(buf, 0, samples_count * sizeof(int16_t));
 

@@ -36,6 +36,7 @@ class Link(private val context: Context, private val onMessage: (JSONObject) -> 
 	private var nsd: NsdManager? = null
 	private var discovery: NsdManager.DiscoveryListener? = null
 	private var multicast: WifiManager.MulticastLock? = null
+	private val voice = VoicePlayer(context)
 
 	fun start()
 	{
@@ -69,6 +70,8 @@ class Link(private val context: Context, private val onMessage: (JSONObject) -> 
 			override fun onMessage(webSocket: WebSocket, text: String)
 			{
 				val o = try { JSONObject(text) } catch(e: Exception) { return }
+				// a dubbed line: heard here, nothing to draw
+				if(o.optString("t") == "voice") { voice.play(o.optString("mime"), o.optString("data")) { e -> webSocket.send(JSONObject().put("t", "voiceerr").put("e", e).toString()) }; return }
 				main.post { onMessage(o) }
 			}
 

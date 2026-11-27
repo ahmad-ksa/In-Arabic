@@ -29,4 +29,44 @@
         <item>box</item>
         <item>outline</item>
     </string-array>
+
+    <!-- dubbing: where it is heard, whose voices, who speaks -->
+    <string-array name="ia_voice_out_names">
+        <item>من الشاشة</item>
+        <item>من الجوال (أو سماعته)</item>
+        <item>من الاثنين</item>
+    </string-array>
+    <string-array name="ia_voice_out_values">
+        <item>tv</item>
+        <item>phone</item>
+        <item>both</item>
+    </string-array>
+    <string-array name="ia_voice_accent_names">
+        <item>سعودي</item>
+        <item>خليجي</item>
+        <item>مصري</item>
+        <item>شامي</item>
+        <item>عراقي</item>
+        <item>يمني</item>
+        <item>مغربي</item>
+    </string-array>
+    <string-array name="ia_voice_accent_values">
+        <item>sa</item>
+        <item>gulf</item>
+        <item>eg</item>
+        <item>sham</item>
+        <item>iq</item>
+        <item>ye</item>
+        <item>maghreb</item>
+    </string-array>
+    <string-array name="ia_voice_who_names">
+        <item>تلقائي: صوت لكل شخصية</item>
+        <item>صوت رجل للكل</item>
+        <item>صوت امرأة للكل</item>
+    </string-array>
+    <string-array name="ia_voice_who_values">
+        <item>auto</item>
+        <item>male</item>
+        <item>female</item>
+    </string-array>
 </resources>

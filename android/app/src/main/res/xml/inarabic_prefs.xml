@@ -48,7 +48,19 @@
             app:defaultValue="0" android:max="10" app:min="-10" app:showSeekBarValue="true" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="٥. عام" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="2">
+    <PreferenceCategory app:title="٥. صوت الترجمة (دبلجة)" app:iconSpaceReserved="false">
+        <SwitchPreference app:key="ia_voice" app:defaultValue="false" app:iconSpaceReserved="false"
+            app:title="صوت الترجمة" app:summary="يقول الحوار بالعربي أول ما يترجمه. نزّل صوت الحوار في إعدادات اللعبة شوي (لا تقفله)" />
+        <ListPreference app:key="ia_voice_out" app:title="وين تسمع الصوت" app:defaultValue="tv" app:iconSpaceReserved="false"
+            app:entries="@array/ia_voice_out_names" app:entryValues="@array/ia_voice_out_values" app:useSimpleSummaryProvider="true" />
+        <ListPreference app:key="ia_voice_who" app:title="الأصوات" app:defaultValue="auto" app:iconSpaceReserved="false"
+            app:entries="@array/ia_voice_who_names" app:entryValues="@array/ia_voice_who_values" app:useSimpleSummaryProvider="true" />
+        <ListPreference app:key="ia_voice_accent" app:title="نبرة الصوت" app:defaultValue="sa" app:iconSpaceReserved="false"
+            app:entries="@array/ia_voice_accent_names" app:entryValues="@array/ia_voice_accent_values" app:useSimpleSummaryProvider="true" />
+        <Preference app:key="ia_voice_people" app:title="الشخصيات وأصواتها" app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="٦. عام" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="2">
         <SwitchPreference app:key="ia_clock" app:defaultValue="false" app:iconSpaceReserved="false"
             app:title="اعرض الساعة في اللعبة" app:summary="ساعة جوالك، صغيرة فوق يسار على التلفزيون" />
         <Preference app:key="ia_zones_info" app:title="مربعات القراءة" app:iconSpaceReserved="false"
@@ -58,7 +70,7 @@
             app:defaultValue="0" android:max="15" app:min="0" app:showSeekBarValue="true" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="٦. الجلسات والذاكرة" app:iconSpaceReserved="false">
+    <PreferenceCategory app:title="٧. الجلسات والذاكرة" app:iconSpaceReserved="false">
         <Preference app:key="ia_summary" app:title="سجل الجلسات والملخص" app:iconSpaceReserved="false"
             app:summary="حوار كل جلسة، وملخص يذكّرك وين وقفت" />
         <Preference app:key="ia_memory" app:title="ذاكرة الترجمة" app:iconSpaceReserved="false" />
