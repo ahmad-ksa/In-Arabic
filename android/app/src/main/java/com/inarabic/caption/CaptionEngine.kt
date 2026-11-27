@@ -379,9 +379,9 @@ class CaptionEngine(
 			if(ev0 != null) Diag.add("sub ${ev0.javaClass.simpleName}: " + read.text)
 			when(val ev = ev0)
 			{
-				is TrackerEvent.NewLine -> translate(++nextId, ev.text, ev.box)
+				is TrackerEvent.NewLine -> { com.inarabic.voice.Dubber.lineCame(); translate(++nextId, ev.text, ev.box) }
 				is TrackerEvent.Update -> translate(currentId.takeIf { it >= 0 } ?: ++nextId, ev.text, ev.box)
-				TrackerEvent.Clear -> { currentId = -1; current = null; LinkServer.sendClear(); post(null) }
+				TrackerEvent.Clear -> { com.inarabic.voice.Dubber.lineLeft(now); currentId = -1; current = null; LinkServer.sendClear(); post(null) }
 				null -> {}
 			}
 		}

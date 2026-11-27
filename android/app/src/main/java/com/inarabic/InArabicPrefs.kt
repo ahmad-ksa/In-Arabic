@@ -147,6 +147,11 @@ class InArabicPrefs(context: Context)
 	val voiceDialect get() = p.getString("ia_voice_dialect", "sa") ?: "sa"
 	/** how fast the dubbing talks, % of normal (the voices' own speed, not a speeded-up recording) */
 	val voiceRate get() = p.getInt("ia_voice_rate", 100).coerceIn(50, 200)
+	/** «ضبط السرعة تلقائي»: each line as fast as makes it last as long as the English one ([voiceRate] not used) */
+	val voiceAutoRate get() = p.getBoolean("ia_voice_auto_rate", false)
+	/** the game's sound on the phone: off while the dubbing comes from the phone («الجوال للدبلجة، التلفزيون لصوت
+	 * اللعبة»), else the switch «صوت اللعبة» */
+	val gameSoundOnPhone get() = !(voiceOn && voiceOut == "phone") && phoneAudio
 	/** "auto": a voice for each character (a man's or a woman's); "male" / "female": one voice for everyone */
 	val voiceWho get() = p.getString("ia_voice_who", "auto") ?: "auto"
 	/** the menus' own size (1 = the English size) and height, apart from the dialogue's */

@@ -192,11 +192,12 @@ class StreamActivity : AppCompatActivity()
 		//viewModel.session.attachToTextureView(textureView)
 		// In Arabic: game sound on the phone on/off
 		val iaPrefs = com.inarabic.InArabicPrefs(this)
-		com.metallic.chiaki.lib.Session.setAudioMuted(!iaPrefs.phoneAudio)
-		binding.iaAudioSwitch.isChecked = iaPrefs.phoneAudio
+		applyGameSound()
 		binding.iaAudioSwitch.setOnCheckedChangeListener { _, on ->
+			// set here from the settings (not by you): nothing to save
+			if(applyingSound) return@setOnCheckedChangeListener
 			iaPrefs.phoneAudio = on
-			com.metallic.chiaki.lib.Session.setAudioMuted(!on)
+			applyGameSound()
 			showOverlay()
 		}
 		watchNetwork()
@@ -247,9 +248,25 @@ class StreamActivity : AppCompatActivity()
 		}
 	}
 
+	/**
+	 * The game's sound on the phone, from the settings (InArabicPrefs.gameSoundOnPhone): again each time you come
+	 * back (the settings may have changed meanwhile). With the dubbing from the phone it is off and its switch hidden.
+	 */
+	private var applyingSound = false
+	private fun applyGameSound()
+	{
+		val p = com.inarabic.InArabicPrefs(this)
+		com.metallic.chiaki.lib.Session.setAudioMuted(!p.gameSoundOnPhone)
+		applyingSound = true
+		binding.iaAudioSwitch.isEnabled = !(p.voiceOn && p.voiceOut == "phone")
+		binding.iaAudioSwitch.isChecked = p.gameSoundOnPhone
+		applyingSound = false
+	}
+
 	override fun onResume()
 	{
 		super.onResume()
+		applyGameSound()
 		hideSystemUI()
 		viewModel.session.resume()
 	}
@@ -452,7 +469,12 @@ class StreamActivity : AppCompatActivity()
 		val items = arrayOf(
 			"📐  مربعات القراءة (وين أقرأ الترجمة)",
 			"🔤  وش أترجم: " + (modeNames[prefs.mode] ?: ""),
-			(if(prefs.phoneAudio) "🔊  صوت اللعبة في الجوال: شغال" else "🔇  صوت اللعبة في الجوال: مطفي"),
+			when
+			{
+				prefs.voiceOn && prefs.voiceOut == "phone" -> "🔇  صوت اللعبة في الجوال: مطفي (الجوال للدبلجة)"
+				prefs.phoneAudio -> "🔊  صوت اللعبة في الجوال: شغال"
+				else -> "🔇  صوت اللعبة في الجوال: مطفي"
+			},
 			"✎  صحّح الترجمة اللي على الشاشة",
 			"⚙  إعدادات الترجمة",
 			"⏹  أوقف البث واطلع")
@@ -462,7 +484,8 @@ class StreamActivity : AppCompatActivity()
 				{
 					0 -> binding.iaZoneButton.performClick()
 					1 -> binding.iaModeButton.performClick()
-					2 -> binding.iaAudioSwitch.isChecked = !binding.iaAudioSwitch.isChecked
+					2 -> if(binding.iaAudioSwitch.isEnabled) binding.iaAudioSwitch.isChecked = !binding.iaAudioSwitch.isChecked
+						else notice("الدبلجة من الجوال: صوت اللعبة يطلع من التلفزيون. غيّرها من «وين تسمع الصوت»", 4000)
 					3 -> if(captionEngine?.current == null) notice("ما فيه ترجمة على الشاشة الحين", 2500) else binding.iaCaption.performClick()
 					4 -> startActivity(Intent(this, com.inarabic.InArabicSettingsActivity::class.java))
 					5 -> finish()

@@ -6,7 +6,9 @@
 //  - each line's voice is made as soon as it is translated, several at once, and they are said in order; only a
 //    line more than a few seconds late is left out.
 //  - on the phone it starts at the first piece of Microsoft's voice, not when the whole line has come (Sound.kt).
-//  - how fast it talks is yours: «سرعة الدبلجة» in the settings.
+//  - how fast it talks: «سرعة الدبلجة» in the settings, or «ضبط السرعة تلقائي»: each line asked from Microsoft at
+//    the speed that makes it last as long as the English one (the game's speaking speed is learnt from how long its
+//    lines stay on screen, the voice's from the lines it has said).
 //  - from the subtitles only lines with a speaker's name («Vicki: …») are said; one with no name is a task.
 //    From the game's sound («صوت اللعبة») everything heard is speech.
 //  - heard on the screens (TV, LG) or the phone, as chosen in the settings («وين تسمع الصوت»).
@@ -25,7 +27,8 @@ import java.util.concurrent.TimeUnit
 object Dubber
 {
 	/** [seenAt]: when the line began (the sound heard then tells who speaks); [readyAt]: when its text was ready */
-	private class Job(val id: Int, val part: DubLines.Part, val seenAt: Long)
+	/** [enChars]: the length of its English (for «ضبط السرعة تلقائي») */
+	private class Job(val id: Int, val part: DubLines.Part, val seenAt: Long, val enChars: Int)
 	{
 		val readyAt = System.currentTimeMillis()
 		/** its voice, being made (the work, and the sound as it comes) */
@@ -52,6 +55,11 @@ object Dubber
 	private var prefs: InArabicPrefs? = null
 	/** what was said lately (a line that leaves the screen and comes back is not said twice): text → its line, when */
 	private val recent = LinkedHashMap<String, Pair<Int, Long>>()
+	/** the game's speaking speed (English characters a second) and the voices' (Arabic characters a second at 100 %) */
+	@Volatile private var gameCps = 14f
+	@Volatile private var voiceCps = 13f
+	/** the line on screen now: its id, when it came, its English characters (how long lines last: [gameCps]) */
+	private var onScreen: Triple<Int, Long, Int>? = null
 	/** when what the screens play now ends */
 	private var busyUntil = 0L
 	/** Microsoft's voices failed: the phone's voice is used for a while before they are tried again */
@@ -72,6 +80,7 @@ object Dubber
 			if(thread != null) return
 			running = true
 			PhoneTts.start(c)
+			if(InArabicPrefs(c).voiceOn) EdgeTts.warm(2)
 			val gen = ++generation
 			thread = Thread({ loop(gen) }, "dub").also { it.isDaemon = true; it.start() }
 		}
@@ -79,7 +88,7 @@ object Dubber
 
 	fun stop()
 	{
-		synchronized(lock) { running = false; generation++; thread = null; waiting.forEach { it.work?.cancel(true) }; waiting.clear(); said.clear(); recent.clear(); lock.notifyAll() }
+		synchronized(lock) { running = false; generation++; thread = null; waiting.forEach { it.work?.cancel(true) }; waiting.clear(); said.clear(); recent.clear(); onScreen = null; lock.notifyAll() }
 		PhoneTts.stop()
 	}
 
@@ -87,12 +96,34 @@ object Dubber
 	 * The dialogue line [id] is shown as [arabic] ([english] on screen since [seenAt]). Said once: the same line
 	 * shown again (a better reading) is not said again, only lines added to it.
 	 */
+	/** a new line came on screen: connections to the voices are made ready while it is translated */
+	fun lineCame()
+	{
+		if(prefs?.voiceOn == true && running) EdgeTts.warm(2)
+	}
+
+	/** the line on screen left at [at] (or another took its place): how long the game took to say it */
+	fun lineLeft(at: Long)
+	{
+		synchronized(lock) {
+			val (_, start, chars) = onScreen ?: return
+			onScreen = null
+			val ms = at - start
+			if(chars >= 8 && ms in 700..12000) gameCps = (gameCps * 0.8f + chars * 1000f / ms * 0.2f).coerceIn(6f, 24f)
+		}
+	}
+
 	fun say(id: Int, english: String, arabic: String, seenAt: Long, namedOnly: Boolean)
 	{
 		val p = prefs ?: return
 		if(!p.voiceOn || !running) return
 		val en = DubLines.lines(english); val ar = DubLines.lines(arabic)
 		synchronized(lock) {
+			if(onScreen?.first != id)
+			{
+				if(onScreen != null) lineLeft(seenAt)
+				onScreen = Triple(id, seenAt, en.filter { !namedOnly || DubLines.speaker(it) != null }.sumOf { it.substringAfter(':').trim().length })
+			}
 			val done = said[id] ?: 0
 			// a newer reading of this line: its parts not yet said are made again from it
 			waiting.filter { it.id == id }.forEach { it.work?.cancel(true) }
@@ -102,8 +133,12 @@ object Dubber
 			if(done >= en.size) return
 			val now = System.currentTimeMillis()
 			recent.entries.removeAll { now - it.value.second > REPEAT_MS }
+			var from = done
 			for(pt in DubLines.parts(en.drop(done), ar.drop(done), namedOnly))
 			{
+				// its English (a task line among it does not count)
+				val enChars = en.subList(from, done + pt.end).filter { !namedOnly || DubLines.speaker(it) != null }.sumOf { it.substringAfter(':').trim().length }
+				from = done + pt.end
 				val key = (pt.speaker ?: "") + ":" + pt.arabic
 				// the same words from another line (it left the screen and came back): said once
 				val before = recent[key]
@@ -113,7 +148,7 @@ object Dubber
 					continue
 				}
 				recent[key] = id to now
-				val j = Job(id, DubLines.Part(pt.speaker, pt.arabic, done + pt.end), seenAt)
+				val j = Job(id, DubLines.Part(pt.speaker, pt.arabic, done + pt.end), seenAt, enChars)
 				waiting.addLast(j)
 				j.work = makers.submit { try { make(j) } finally { j.started.countDown() } }
 			}
@@ -139,8 +174,20 @@ object Dubber
 				else Voices.order(p.voiceDialect, heard != 'f').first()
 		}
 		val text = Dialect.say(job.part.arabic, p.voiceDialect)
-		val made = speak(c, text, voice, p.voiceRate) { job.sound = it; job.started.countDown() }
-		job.info = "${job.part.speaker ?: "?"} heard=${heard ?: '-'} → ${voice.label} ($made): ${text.take(50)}"
+		// «ضبط السرعة تلقائي»: as fast as makes it last as long as the English
+		val rate = if(p.voiceAutoRate && job.enChars >= 4)
+			(100f * (text.length / voiceCps) / (job.enChars / gameCps)).toInt().coerceIn(80, 180) else p.voiceRate
+		job.info = "${job.part.speaker ?: "?"} heard=${heard ?: '-'} → ${voice.label} ${rate}%: ${text.take(50)}"
+		var sound: Sound? = null
+		val made = speak(c, text, voice, rate) { sound = it; job.sound = it; job.started.countDown() }
+		Diag.add("dub: made ($made): ${text.take(30)}")
+		// the voice's own speed, learnt from what it said
+		val s = sound
+		if(s != null && s.ok && s.mime == "audio/mpeg" && text.length >= 8)
+		{
+			val ms = s.ms()
+			if(ms > 300) voiceCps = (voiceCps * 0.8f + text.length * 1000f / ms * (100f / rate) * 0.2f).coerceIn(6f, 30f)
+		}
 	}
 
 	/** says the lines in order, each when the one before it is over */
