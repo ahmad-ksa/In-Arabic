@@ -208,7 +208,7 @@ fun importSettingsFromUri(activity: Activity, uri: Uri, scope: CoroutineScope)
 			.setNegativeButton(R.string.action_import_cancel) { _, _ ->  }
 			.setPositiveButton(R.string.action_import_import) { _, _ ->
 				scope.launch(Dispatchers.IO) {
-					getDatabase(activity).importDao().import(settings)
+					getDatabase(activity).importDao().importSettings(settings)
 				}
 			}
 			.create()
@@ -241,7 +241,7 @@ abstract class ImportDao
 	abstract fun registeredHostsByMac(macs: List<MacAddress>): List<IdWithMac>
 
 	@Transaction
-	fun import(settings: SerializedSettings)
+	open fun importSettings(settings: SerializedSettings)
 	{
 		insertRegisteredHosts(
 			settings.registeredHosts.map {
