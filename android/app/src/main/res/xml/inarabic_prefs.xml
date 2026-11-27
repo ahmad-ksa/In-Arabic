@@ -20,6 +20,7 @@
         <ListPreference app:key="ia_new_translator" app:title="مترجم النظام الجديد" app:defaultValue="haiku" app:iconSpaceReserved="false"
             app:entries="@array/ia_new_translator_names" app:entryValues="@array/ia_new_translator_values" app:useSimpleSummaryProvider="true" />
         <EditTextPreference app:key="ia_haiku_key" app:title="مفتاح Haiku" app:iconSpaceReserved="false" />
+        <EditTextPreference app:key="ia_gemini_key" app:title="مفتاح Gemini (من Google AI Studio)" app:iconSpaceReserved="false" />
         <EditTextPreference app:key="ia_google_key" app:title="مفتاح قوقل الرسمي" app:iconSpaceReserved="false" />
     </PreferenceCategory>
 

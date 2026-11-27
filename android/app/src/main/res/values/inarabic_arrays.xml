@@ -76,7 +76,7 @@
     </string-array>
     <string-array name="ia_system_names">
         <item>القديم: قوقل المجاني وملف اللعبة</item>
-        <item>الجديد: مترجم واحد (Haiku أو قوقل الرسمي)</item>
+        <item>الجديد: مترجم واحد (Haiku أو Gemini أو قوقل الرسمي)</item>
     </string-array>
     <string-array name="ia_system_values">
         <item>old</item>
@@ -84,10 +84,12 @@
     </string-array>
     <string-array name="ia_new_translator_names">
         <item>Haiku: يفهم الحوار والضمائر ويشكّل للدبلجة</item>
+        <item>Gemini Flash: يفهم الحوار والضمائر ويشكّل للدبلجة</item>
         <item>قوقل الرسمي: ترجمة مباشرة</item>
     </string-array>
     <string-array name="ia_new_translator_values">
         <item>haiku</item>
+        <item>gemini</item>
         <item>google</item>
     </string-array>
 </resources>

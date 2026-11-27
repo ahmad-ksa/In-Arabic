@@ -456,7 +456,7 @@ class CaptionEngine(
 			val done = com.inarabic.translate.Translator.complete(ar)
 			Diag.count(if(old) "translated: google" else "translated: new system, ${prefs.newTranslator}", took)
 			// how long after the line came its translation is ready, and whether English is left in it
-			Diag.add("translate #$id: $took ms (line seen ${System.currentTimeMillis() - seenAt} ms ago)" + if(done) "" else " INCOMPLETE, English left: $ar")
+			Diag.add("translate #$id${if(old) "" else " [" + prefs.newTranslator + "]"}: $took ms (line seen ${System.currentTimeMillis() - seenAt} ms ago)" + if(done) "" else " INCOMPLETE, English left: $ar")
 			if(!done) Diag.count("translation incomplete (English left)")
 			// only a complete translation is remembered: an incomplete one would come back every time (and not a
 			// corrected one: it depends on whom it is said to)

@@ -11,13 +11,13 @@ object SystemChoice
 	fun ask(a: Activity)
 	{
 		val p = InArabicPrefs(a)
-		val names = arrayOf("القديم: قوقل المجاني وملف اللعبة", "الجديد: " + if(p.newTranslator == "google") "قوقل الرسمي" else "Haiku")
+		val names = arrayOf("القديم: قوقل المجاني وملف اللعبة", "الجديد: " + when(p.newTranslator) { "google" -> "قوقل الرسمي"; "gemini" -> "Gemini"; else -> "Haiku" })
 		AlertDialog.Builder(a).setTitle("أي نظام ترجمة؟")
 			.setSingleChoiceItems(names, if(p.newSystem) 1 else 0) { d, i ->
 				p.newSystem = i == 1
 				d.dismiss()
 				// the new system needs its key
-				val key = if(p.newTranslator == "google") p.googleKey else p.haikuKey
+				val key = when(p.newTranslator) { "google" -> p.googleKey; "gemini" -> p.geminiKey; else -> p.haikuKey }
 				if(p.newSystem && key.isBlank())
 					AlertDialog.Builder(a).setMessage("النظام الجديد يحتاج مفتاح المترجم: الإعدادات ← «النظام الجديد»")
 						.setPositiveButton("تمام", null).show()

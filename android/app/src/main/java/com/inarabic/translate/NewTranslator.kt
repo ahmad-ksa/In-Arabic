@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 // «النظام الجديد»: one translator, chosen in the settings, as if it were a new app: nothing of the old system goes
 // into it or comes after it (no game file, no names, no corrections, no reading fixes, no memory).
-//  - Haiku (Claude): shown the dialogue so far, to work out by itself who speaks to whom; it writes the Arabic
+//  - Haiku (Claude) or Gemini Flash (Google), told the same: shown the dialogue so far, to work out by itself who speaks to whom; it writes the Arabic
 //    with all its vowel marks (the voice reads them; the screen shows the text without them: [plain]), in the
 //    dialect chosen;
 //  - Google's official Cloud Translation: each line as it comes.
@@ -48,10 +48,15 @@ object NewTranslator
 				if(prefs.googleKey.isBlank()) { lastError = "حط مفتاح قوقل الرسمي في الإعدادات"; return null }
 				OnlineEngines.googleOfficial(lines, prefs.googleKey)
 			}
+			"gemini" ->
+			{
+				if(prefs.geminiKey.isBlank()) { lastError = "حط مفتاح Gemini في الإعدادات"; return null }
+				ai(lines, prefs) { system, user -> OnlineEngines.gemini(system, user, prefs.geminiKey) }
+			}
 			else ->
 			{
 				if(prefs.haikuKey.isBlank()) { lastError = "حط مفتاح Haiku في الإعدادات"; return null }
-				haiku(lines, prefs)
+				ai(lines, prefs) { system, user -> OnlineEngines.haiku(system, user, prefs.haikuKey) }
 			}
 		}
 		if(out == null) { lastError = OnlineEngines.lastError ?: "المترجم ما رد"; return null }
@@ -67,12 +72,13 @@ object NewTranslator
 		return ar
 	}
 
-	private fun haiku(lines: List<String>, prefs: InArabicPrefs): List<String>?
+	/** Haiku or Gemini ([ask]: system, user → its answer): the lines, with the dialogue before them */
+	private fun ai(lines: List<String>, prefs: InArabicPrefs, ask: (String, String) -> String?): List<String>?
 	{
 		val before = synchronized(this) { history.joinToString("\n") { (en, ar) -> "$en\n→ ${plain(ar)}" } }
 		val user = (if(before.isBlank()) "" else "الحوار اللي قبل (للفهم فقط، لا تترجمه):\n$before\n\n") +
 			"ترجم هذه الأسطر (${lines.size}):\n" + lines.joinToString("\n")
-		val got = OnlineEngines.haiku(system(prefs.voiceDialect), user, prefs.haikuKey) ?: return null
+		val got = ask(system(prefs.voiceDialect), user) ?: return null
 		val out = got.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
 		// the lines did not come back one for one: said as one text
 		return if(out.size == lines.size) out else listOf(out.joinToString(" "))

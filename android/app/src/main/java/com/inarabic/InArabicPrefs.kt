@@ -102,10 +102,11 @@ class InArabicPrefs(context: Context)
 	var newSystem: Boolean
 		get() = p.getString("ia_system", "old") == "new"
 		set(v) { p.edit().putString("ia_system", if(v) "new" else "old").apply() }
-	/** the new system's translator: "haiku" or "google" (Google's official, keyed) */
+	/** the new system's translator: "haiku", "gemini" or "google" (Google's official, keyed) */
 	val newTranslator get() = p.getString("ia_new_translator", "haiku") ?: "haiku"
 	val haikuKey get() = p.getString("ia_haiku_key", "")?.trim().orEmpty()
 	val googleKey get() = p.getString("ia_google_key", "")?.trim().orEmpty()
+	val geminiKey get() = p.getString("ia_gemini_key", "")?.trim().orEmpty()
 
 	/** the old system's translation source: Google Translate's free service */
 	val engine: String get() = "google"

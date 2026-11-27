@@ -85,6 +85,21 @@ object OnlineEngines
 	}
 	catch(e: Exception) { lastError = "قوقل الرسمي ما رجّع ترجمة"; null }
 
+	/** Gemini Flash (your key from Google AI Studio): its answer to [user], told [system], without thinking (faster) */
+	fun gemini(system: String, user: String, key: String): String? = try
+	{
+		val req = JSONObject()
+			.put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system))))
+			.put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", user)))))
+			.put("generationConfig", JSONObject().put("temperature", 0).put("thinkingConfig", JSONObject().put("thinkingBudget", 0)))
+		val r = http("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", "POST", req.toString(),
+			mapOf("x-goog-api-key" to key))
+		r?.let { JSONObject(it).getJSONArray("candidates").getJSONObject(0).getJSONObject("content").getJSONArray("parts") }
+			?.let { p -> (0 until p.length()).joinToString("") { p.getJSONObject(it).optString("text") } }
+			?.trim()?.ifBlank { null }.also { if(it == null && r != null) lastError = "Gemini ما رجّع ترجمة" }
+	}
+	catch(e: Exception) { lastError = "Gemini ما رجّع ترجمة"; null }
+
 	/** Claude Haiku (your key): its answer to [user], told [system]; null if it failed ([lastError] says why) */
 	fun haiku(system: String, user: String, key: String): String? = try
 	{
