@@ -162,18 +162,30 @@ object Dubber
 		val c = context ?: return
 		val p = prefs ?: return
 		// the game's own people have their voice (unless you chose another one for them in the settings)
-		val known = com.inarabic.translate.Games.person(job.part.speaker)?.takeIf { job.part.speaker?.let { Voices.fixed(c, it) } != true }
+		val games = com.inarabic.translate.Games
+		val known = games.person(job.part.speaker)?.takeIf { job.part.speaker?.let { Voices.fixed(c, it) } != true }
+		// a passer-by («Local»): someone else each line, a man or a woman as heard; no voice kept for them
+		val crowd = games.crowd(job.part.speaker)
+		val named = if(crowd) games.crowdGender(job.part.speaker) else null
 		// who speaks is not known yet: enough of the line heard to tell a man from a woman
-		val listen = p.voiceWho == "auto" && known == null && (job.part.speaker == null || !Voices.settled(c, job.part.speaker))
+		val listen = p.voiceWho == "auto" && known == null &&
+			(if(crowd) named == null else job.part.speaker == null || !Voices.settled(c, job.part.speaker))
 		val wait = job.seenAt + LISTEN_MS - System.currentTimeMillis()
 		if(listen && wait > 0) Thread.sleep(wait)
-		val heard = if(listen) VoicePitch.gender(heardPitch(job.seenAt)) else null
+		val heard = named ?: if(listen) VoicePitch.gender(heardPitch(job.seenAt)) else null
 		val voice = when(p.voiceWho)
 		{
 			"male" -> Voices.order(p.voiceDialect, true).first()
 			"female" -> Voices.order(p.voiceDialect, false).first()
-			else -> known?.voice?.let { Voices.byId(it) } ?: if(job.part.speaker != null) Voices.voiceOf(c, job.part.speaker, heard, p.voiceDialect)
-				else Voices.order(p.voiceDialect, heard != 'f').first()
+			else -> known?.voice?.let { Voices.byId(it) } ?: when
+			{
+				// any voice of theirs but the game's people's
+				crowd -> Voices.order(p.voiceDialect, heard != 'f').let { all ->
+					val taken = games.active?.people?.values?.mapNotNull { it.voice }.orEmpty()
+					all.filter { it.id !in taken }.ifEmpty { all }.random() }
+				job.part.speaker != null -> Voices.voiceOf(c, job.part.speaker, heard, p.voiceDialect)
+				else -> Voices.order(p.voiceDialect, heard != 'f').first()
+			}
 		}
 		// names said right (vowel marks for the voice only: the screen shows them plain)
 		val text = com.inarabic.translate.Games.forVoice(Dialect.say(job.part.arabic, p.voiceDialect))

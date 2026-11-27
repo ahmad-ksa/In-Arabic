@@ -41,23 +41,32 @@ class Translator(@Suppress("unused") private val prefs: InArabicPrefs)
 	suspend fun quick(english0: String, to: List<Char?> = emptyList()): String?
 	{
 		Games.fix(english0.trim(), to.firstOrNull())?.takeIf { '\n' !in english0.trim() }?.let { return it }
+		// «Local: …»: the name written as the game's (Google made «محلي» of it), only the words after it translated
+		if('\n' !in english0.trim()) Games.label(english0.trim())?.let { (name, text) -> return said(text)?.let { "$name: $it" } }
 		Glossary.lookup(english0)?.let { return it }
 		// a list: the lines in one request, kept under each other (Google keeps the lines of one request)
 		if('\n' in english0)
 		{
 			val lines = english0.split('\n').filter { it.isNotBlank() }
-			val fixed = lines.mapIndexed { i, l -> Games.fix(l, to.getOrNull(i)) ?: Glossary.lookup(l) }
-			val todo = lines.filterIndexed { i, _ -> fixed[i] == null }
-			val got = if(todo.isEmpty()) emptyList() else google(todo.joinToString("\n") { Games.english(Glossary.sentenceCase(it)) })
+			val label = lines.map { Games.label(it) }
+			val fixed = lines.mapIndexed { i, l -> Games.fix(l, to.getOrNull(i)) ?: if(label[i] == null) Glossary.lookup(l) else null }
+			val todo = lines.indices.filter { fixed[it] == null }
+			val got = if(todo.isEmpty()) emptyList() else google(todo.joinToString("\n") { Games.english(Glossary.sentenceCase(label[it]?.second ?: lines[it])) })
 				?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() }
 			if(got != null && got.size == todo.size)
 			{
 				var j = 0
-				return lines.indices.joinToString("\n") { i -> fixed[i] ?: Glossary.arabicNames(got[j++]) }
+				return lines.indices.joinToString("\n") { i -> fixed[i] ?: Glossary.arabicNames(got[j++]).let { a -> label[i]?.let { "${it.first}: $a" } ?: a } }
 			}
 			// the lines did not come back one for one: each on its own
 			return lines.mapIndexed { i, l -> fixed[i] ?: quick(l) ?: l }.joinToString("\n")
 		}
+		return said(english0)
+	}
+
+	/** [english0] by Google (a game's words are not looked up in the Glossary: «Help!» said is not the button «ساعد») */
+	private suspend fun said(english0: String): String?
+	{
 		val english = Glossary.sentenceCase(english0)
 		val k = SubtitleTracker.key(english)
 		cache.get(k)?.let { return it }

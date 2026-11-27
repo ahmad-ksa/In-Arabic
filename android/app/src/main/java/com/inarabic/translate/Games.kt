@@ -28,6 +28,9 @@ object Games
 	class Game(
 		val title: String,
 		val people: Map<String, Person>,
+		/** the passers-by the game names by what they are («Local»), not who: each line is someone else, so none
+		 * keeps a voice; a man or a woman by how the voice sounds ('m'/'f' when the name says it, null: heard) */
+		val crowd: Map<String, Char?>,
 		/** names in Arabic letters (people, places; lowercase English): Google leaves them in English or spells
 		 * them its own way; the speaker's name before a corrected line («Vicki:») too */
 		val names: Map<String, String>,
@@ -54,9 +57,10 @@ object Games
 			"boobie" to Person(false, "ar-OM-AbdullahNeural"), "raul" to Person(false, "ar-LB-RamiNeural"),
 			"layla" to Person(true, "ar-AE-FatimaNeural"), "dancer" to Person(true, "ar-QA-AmalNeural"),
 			"bartender" to Person(false, "ar-IQ-BasselNeural")),
+		crowd = mapOf("local" to null),
 		names = linkedMapOf(
 			"vice city" to "فايس سيتي", "leonida keys" to "جزر ليونيدا", "leonida" to "ليونيدا", "port gellhorn" to "بورت جيلهورن",
-			"gellhorn" to "جيلهورن", "grassrivers" to "غراس ريفرز", "ambrosia" to "أمبروسيا", "mount kalaga" to "جبل كالاغا",
+			"gellhorn" to "جيلهورن", "vice-dale county" to "مقاطعة فايس-ديل", "grassrivers" to "غراس ريفرز", "ambrosia" to "أمبروسيا", "mount kalaga" to "جبل كالاغا",
 			"key lento" to "كي لينتو", "tanglewood" to "تانغلوود", "delights" to "ديلايتس", "kolts" to "الكولتس",
 			"jason" to "جيسون", "lucia" to "لوسيا", "kenton" to "كينتون", "cal" to "كال", "boobie" to "بوبي", "raul" to "راؤول",
 			"brian" to "براين", "real dimez" to "ريل دايمز", "dre'quan" to "دريكوان", "drequan" to "دريكوان",
@@ -143,6 +147,12 @@ object Games
 			"freak" to Fix("مجنون..", "مجنونة..", 'f'),
 			"anywaybacktoit" to Fix("على أي حال... نعود للعمل.."),
 			"wantedacloserlook" to Fix("أردت أن تنظر عن قرب؟", "أردتِ أن تنظري عن قرب؟", 'f'),
+			"nobodypanic" to Fix("لا داعي للذعر."),
+			"notyetworkingonit" to Fix("ليس بعد، أعمل على ذلك."),
+			"neverminddidyougetyourpills" to Fix("لا يهم. هل حصلت على حبوبك؟", "لا يهم. هل حصلتِ على حبوبكِ؟", 'f'),
+			"comeonin" to Fix("ادخل!", "ادخلي!", 'f'),
+			"urghdidyougetacat" to Fix("أف، هل اقتنيت قطة؟", "أف، هل اقتنيتِ قطة؟"),
+			"billwiththepill" to Fix("بيل صاحب الحبوب!"),
 			// tasks
 			"gotodelights" to Fix("اذهب إلى ديلايتس"),
 			"gotodunkstrailer" to Fix("اذهب إلى مقطورة دنك"),
@@ -156,7 +166,9 @@ object Games
 			Regex("\\bto(?=[A-Z][a-z])") to "to ",
 			Regex("(?<=[A-Za-z])'s(?=(car|room|trailer|office|place|house)\\b)") to "'s ",
 			// «I» read as «l» or «|»
-			Regex("\\bl'(m|ll|d|ve)\\b") to "I'$1", Regex("(?<=^|\\s)\\|(?=\\s)") to "I"),
+			Regex("\\bl'(m|ll|d|ve)\\b") to "I'$1", Regex("(?<=^|\\s)\\|(?=\\s)") to "I",
+			// a letter lost at the end of a name
+			Regex("\\bDr\\. Bil\\b") to "Dr. Bill"),
 		english = listOf(
 			// «tip out» (pay the staff their share) is «tip»: Google read it as «guide», «inform», «take out»
 			Regex("\\b(tip|tipping|tipped|tips)\\s+(him|her|them|me|you|us)\\s+out\\b", RegexOption.IGNORE_CASE) to "$1 $2",
@@ -189,6 +201,20 @@ object Games
 
 	/** the person [name] (lowercase), if the game knows them */
 	fun person(name: String?): Person? = name?.let { active?.people?.get(it.lowercase()) }
+
+	/** [name] is a passer-by of the game («Local»): no voice of its own */
+	fun crowd(name: String?): Boolean = name != null && active?.crowd?.containsKey(name.lowercase()) == true
+
+	/** a passer-by's man ('m') or woman ('f') when the name says it; null: heard from the voice */
+	fun crowdGender(name: String?): Char? = name?.let { active?.crowd?.get(it.lowercase()) }
+
+	/** «Local: text» → («أحد السكان», text): a speaker's name the game knows is not translated, it is written */
+	fun label(line: String): Pair<String, String>?
+	{
+		val g = active ?: return null
+		val (who, text) = split(ocr(line))
+		return (g.names[who ?: return null] ?: return null) to text
+	}
 
 	/** a corrected line for [line] said to a man ('m') or a woman ('f'), with its speaker's name; or null */
 	fun fix(line: String, to: Char?): String?

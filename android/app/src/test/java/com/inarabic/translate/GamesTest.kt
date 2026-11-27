@@ -16,6 +16,7 @@ class GamesTest
 	@Test fun englishFixesChangeOnlyTheirLines()
 	{
 		val expected = mapOf(
+			"Dunk: We just gotta call Dr. Bil!" to "Dunk: We just gotta call Dr. Bill!",
 			"Dunk: Right, right. l'm Dunk." to "Dunk: Right, right. I'm Dunk.",
 			"Frankie: Look, just tip him out now, okay?" to "Frankie: Look, just tip him now, okay?",
 			"Frankie: Martin said that you didn't tip him out last night." to "Frankie: Martin said that you didn't tip him last night.",
@@ -62,6 +63,21 @@ class GamesTest
 		assertEquals("دنك: صحيح. أنا دنك.", Glossary.arabicNames("دونك: صحيح. أنا دانك."))
 		assertEquals("اذهب إلى ديلايتس", Glossary.arabicNames("اذهب إلى المسرات"))
 		assertEquals("قال جيسون", Glossary.arabicNames("قال جايسون"))
+	}
+
+	@Test fun speakerNameWrittenNotTranslated()
+	{
+		assertEquals("أحد السكان" to "Hey, find me later.", Games.label("Local: Hey, find me later."))
+		assertEquals("دنك" to "No, why?", Games.label("Dunk: No, why?"))
+		// a name the game does not know: the whole line goes to Google
+		assertNull(Games.label("LRI Dunk: We just gotta call Dr. Bill!"))
+		assertNull(Games.label("Go to Delights"))
+	}
+
+	@Test fun passersByHaveNoVoiceOfTheirOwn()
+	{
+		org.junit.Assert.assertTrue(Games.crowd("Local") && !Games.crowd("Lucia") && !Games.crowd(null))
+		assertNull(Games.crowdGender("Local"))
 	}
 
 	@Test fun namesSaidWithVowelMarks() = assertEquals("أنا دَنْك", Games.forVoice("أنا دنك"))
