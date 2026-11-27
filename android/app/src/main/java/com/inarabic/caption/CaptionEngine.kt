@@ -381,7 +381,7 @@ class CaptionEngine(
 			{
 				is TrackerEvent.NewLine -> translate(++nextId, ev.text, ev.box)
 				is TrackerEvent.Update -> translate(currentId.takeIf { it >= 0 } ?: ++nextId, ev.text, ev.box)
-				TrackerEvent.Clear -> { currentId = -1; current = null; LinkServer.sendClear(); post(null) }
+				TrackerEvent.Clear -> { com.inarabic.voice.Dubber.lineEnded(currentId, now); currentId = -1; current = null; LinkServer.sendClear(); post(null) }
 				null -> {}
 			}
 		}
@@ -399,6 +399,8 @@ class CaptionEngine(
 	private fun heard(english: String, startedAt: Long)
 	{
 		val id = ++nextId
+		// its speech is over now: the dubbing lasts as long
+		com.inarabic.voice.Dubber.lineEnded(id, System.currentTimeMillis(), startedAt)
 		translate(id, english, null, seenAt = startedAt)
 		// a spoken line has no end on screen: it stays long enough to read, then goes if nothing newer came
 		scope.launch {
