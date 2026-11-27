@@ -927,11 +927,22 @@ class CaptionEngine(
 		// the whole line in one colour: colour all of it
 		if(mine.size == 1 && mine[0].english.length >= english.trim { !it.isLetterOrDigit() }.length - 1)
 			return listOf(ColorSpan(0, arabic.length, mine[0].color))
-		val phrases = mine.mapNotNull { c ->
-			val ar = TranslationMemory.get(c.english)?.arabic ?: translator.quick(c.english) ?: return@mapNotNull null
-			ar to c.color
+		val out = ArrayList<ColorSpan>()
+		for(c in mine)
+		{
+			fun free(sp: ColorSpan) = out.none { sp.start < it.end && sp.end > it.start }
+			// its own translation first ("bag" → حقيبة)
+			val first = TranslationMemory.get(c.english)?.arabic ?: translator.quick(c.english)
+			var got = first?.let { ColorText.place(arabic, listOf(it to c.color)).filter(::free) }.orEmpty()
+			// not in the sentence as such (the sentence says شنطة where the word alone gave كيس): Google's other words for it
+			if(got.isEmpty()) for(alt in translator.alternatives(c.english))
+			{
+				got = ColorText.place(arabic, listOf(alt to c.color)).filter(::free)
+				if(got.isNotEmpty()) break
+			}
+			out += got
 		}
-		return ColorText.place(arabic, phrases)
+		return out.sortedBy { it.start }
 	}
 
 	private fun post(text: String?) { mainHandler.post { if(prefs.showOnPhone) onCaption(text) else onCaption(null) } }
@@ -1140,25 +1151,42 @@ class CaptionEngine(
 		return minOf(rr, gg, bb) >= 205 && maxOf(rr, gg, bb) - minOf(rr, gg, bb) <= 28
 	}
 
+	/**
+	 * The colour of one word's letters, or null if they are white / grey / black. The background is what lies just
+	 * around the word; the letters are the pixels farthest from it (every pixel of the word is looked at, so thin
+	 * strokes are not missed, and a bright wall or sky behind the word is not taken for its colour). Of those, the
+	 * most coloured half decides (a dark edge around pink letters is not their colour).
+	 */
 	private fun colorOf(bmp: Bitmap, r: Rect): Int?
 	{
 		val box = Rect(r); if(!box.intersect(0, 0, bmp.width, bmp.height) || box.width() < 3 || box.height() < 3) return null
-		val sx = maxOf(1, box.width() / 28); val sy = maxOf(1, box.height() / 10)
-		val px = ArrayList<Int>(300)
+		fun ch(c: Int, s: Int) = (c shr s) and 255
+		val pad = maxOf(2, box.height() / 4)
+		val ring = Rect(box.left - pad, box.top - pad, box.right + pad, box.bottom + pad)
+		ring.intersect(0, 0, bmp.width, bmp.height)
+		val edge = ArrayList<Int>()
+		for(x in ring.left until ring.right step maxOf(1, ring.width() / 40)) { edge += bmp.getPixel(x, ring.top); edge += bmp.getPixel(x, ring.bottom - 1) }
+		for(y in ring.top until ring.bottom step maxOf(1, ring.height() / 10)) { edge += bmp.getPixel(ring.left, y); edge += bmp.getPixel(ring.right - 1, y) }
+		fun med(l: List<Int>, s: Int) = l.map { ch(it, s) }.sorted()[l.size / 2]
+		val bg = intArrayOf(med(edge, 16), med(edge, 8), med(edge, 0))
+		// every pixel (at most ~2400)
+		val step = maxOf(1, kotlin.math.sqrt(box.width() * box.height() / 2400.0).toInt())
+		val px = ArrayList<Int>()
 		var y = box.top
-		while(y < box.bottom) { var x = box.left; while(x < box.right) { px += bmp.getPixel(x, y); x += sx }; y += sy }
+		while(y < box.bottom) { var x = box.left; while(x < box.right) { px += bmp.getPixel(x, y); x += step }; y += step }
 		if(px.size < 8) return null
-		fun lum(c: Int) = 0.299 * ((c shr 16) and 255) + 0.587 * ((c shr 8) and 255) + 0.114 * (c and 255)
-		val top = px.sortedByDescending(::lum).take(maxOf(4, px.size / 5))
-		val rr = top.sumOf { (it shr 16) and 255 } / top.size
-		val gg = top.sumOf { (it shr 8) and 255 } / top.size
-		val bb = top.sumOf { it and 255 } / top.size
+		fun dist(c: Int) = kotlin.math.abs(ch(c, 16) - bg[0]) + kotlin.math.abs(ch(c, 8) - bg[1]) + kotlin.math.abs(ch(c, 0) - bg[2])
+		val far = px.sortedByDescending(::dist).take(maxOf(6, px.size / 7))
+		if(dist(far[0]) < 70) return null // no letters stand out
 		val hsv = FloatArray(3)
-		android.graphics.Color.RGBToHSV(rr, gg, bb, hsv)
+		fun sat(c: Int): Float { android.graphics.Color.RGBToHSV(ch(c, 16), ch(c, 8), ch(c, 0), hsv); return hsv[1] * minOf(1f, hsv[2] * 1.5f) }
+		val colored = far.sortedByDescending(::sat).take(maxOf(3, far.size / 2))
+		android.graphics.Color.RGBToHSV(med(colored, 16), med(colored, 8), med(colored, 0), hsv)
 		if(hsv[1] < 0.35f || hsv[2] < 0.4f) return null
 		hsv[1] = minOf(1f, hsv[1] * 1.1f); hsv[2] = maxOf(hsv[2], 0.9f)
 		return android.graphics.Color.HSVToColor(hsv)
 	}
+
 
 	/** ML Kit's text, or PaddleOCR's when ML Kit is unsure and Paddle is surer. */
 	private fun reread(crop: Bitmap, line: Text.Line): String

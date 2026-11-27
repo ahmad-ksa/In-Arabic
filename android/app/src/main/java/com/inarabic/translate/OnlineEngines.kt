@@ -51,4 +51,26 @@ object OnlineEngines
 		}
 	}
 	catch(e: Exception) { lastError = "Google ما رجّع ترجمة"; null }
+
+	/**
+	 * Every Arabic Google offers for a word or a short phrase: its translation, the other translations and the
+	 * dictionary's words ("bag" → كيس، حقيبة، شنطة…). Used to find a coloured word inside the sentence's Arabic.
+	 */
+	fun googleAll(text: String): List<String> = try
+	{
+		val r = http("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ar&dt=t&dt=bd&dt=at&ie=UTF-8&oe=UTF-8&q=" + enc(text),
+			headers = mapOf("User-Agent" to "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/130 Mobile Safari/537.36"))
+		val out = LinkedHashSet<String>()
+		if(r != null)
+		{
+			val a = JSONArray(r)
+			a.optJSONArray(0)?.let { p -> buildString { for(i in 0 until p.length()) append(p.optJSONArray(i)?.optString(0) ?: "") }.trim().takeIf { it.isNotEmpty() }?.let { out += it } }
+			// the dictionary: [[part of speech, [words…], …], …]
+			a.optJSONArray(1)?.let { d -> for(i in 0 until d.length()) d.optJSONArray(i)?.optJSONArray(1)?.let { w -> for(j in 0 until w.length()) w.optString(j).trim().takeIf { it.isNotEmpty() }?.let { out += it } } }
+			// the other translations: [[english, …, [[arabic, …], …], …], …]
+			a.optJSONArray(5)?.let { al -> for(i in 0 until al.length()) al.optJSONArray(i)?.optJSONArray(2)?.let { c -> for(j in 0 until c.length()) c.optJSONArray(j)?.optString(0)?.trim()?.takeIf { it.isNotEmpty() }?.let { out += it } } }
+		}
+		out.toList()
+	}
+	catch(e: Exception) { emptyList() }
 }

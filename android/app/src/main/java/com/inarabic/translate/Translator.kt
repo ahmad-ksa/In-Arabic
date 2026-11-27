@@ -65,6 +65,18 @@ class Translator(@Suppress("unused") private val prefs: InArabicPrefs)
 		withTimeoutOrNull(9000) { withContext(Dispatchers.IO) { OnlineEngines.google(text) } }
 			.also { lastAiError = if(it == null) (OnlineEngines.lastError ?: "Google Translate ما رد. تأكد من الإنترنت") else null }
 
+	private val altCache = LruCache<String, List<String>>(300)
+
+	/** every Arabic Google offers for a word or short phrase (to find it inside a sentence's Arabic) */
+	suspend fun alternatives(english: String): List<String>
+	{
+		val k = SubtitleTracker.key(english)
+		altCache.get(k)?.let { return it }
+		val got = withTimeoutOrNull(6000) { withContext(Dispatchers.IO) { OnlineEngines.googleAll(english) } } ?: return emptyList()
+		if(got.isNotEmpty()) altCache.put(k, got)
+		return got
+	}
+
 	/** (the AI sources are gone: kept so the callers stay simple) */
 	suspend fun better(@Suppress("UNUSED_PARAMETER") english: String): String? = null
 	suspend fun review(@Suppress("UNUSED_PARAMETER") lines: List<Pair<String, String>>): Map<String, String> = emptyMap()
