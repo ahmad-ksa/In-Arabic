@@ -91,7 +91,7 @@ class InArabicSettingsActivity : AppCompatActivity()
 			var chosen = all.indexOfFirst { it.id == person.voice }
 			AlertDialog.Builder(ctx).setTitle("صوت " + person.name + " (اضغط تسمعه)")
 				.setSingleChoiceItems(all.map { it.label }.toTypedArray(), chosen) { _, i -> chosen = i; com.inarabic.voice.Dubber.preview(ctx, all[i]) }
-				.setPositiveButton("احفظ") { _, _ -> if(chosen >= 0) com.inarabic.voice.Voices.set(ctx, person.key, all[chosen].id); showVoiceSettings() }
+				.setPositiveButton("احفظ") { _, _ -> if(chosen >= 0) com.inarabic.voice.Voices.set(ctx, person.key, person.name, all[chosen].id); showVoiceSettings() }
 				.setNeutralButton("احذف الشخصية") { _, _ -> com.inarabic.voice.Voices.remove(ctx, person.key); showVoiceSettings() }
 				.setNegativeButton("إلغاء", null).show()
 		}

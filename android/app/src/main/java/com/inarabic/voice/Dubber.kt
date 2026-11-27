@@ -179,9 +179,9 @@ object Dubber
 			"female" -> Voices.order(p.voiceDialect, false).first()
 			else -> known?.voice?.let { Voices.byId(it) } ?: when
 			{
-				// any voice of theirs but the game's people's
+				// any voice of theirs but a character's
 				crowd -> Voices.order(p.voiceDialect, heard != 'f').let { all ->
-					val taken = games.active?.people?.values?.mapNotNull { it.voice }.orEmpty()
+					val taken = Voices.taken(c)
 					all.filter { it.id !in taken }.ifEmpty { all }.random() }
 				job.part.speaker != null -> Voices.voiceOf(c, job.part.speaker, heard, p.voiceDialect)
 				else -> Voices.order(p.voiceDialect, heard != 'f').first()

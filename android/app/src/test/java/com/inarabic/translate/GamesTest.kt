@@ -26,6 +26,7 @@ class GamesTest
 			"Lucia: If I was you, l'd just quit." to "Lucia: If I was you, I'd just quit.",
 			"Lucia: | try not to in public." to "Lucia: I try not to in public.",
 			"Return toVicki'sroom" to "Return to Vicki's room",
+			"Lucia: Did you not hear me say l'm taking this?" to "Lucia: Did you not hear me say I'm taking this?",
 			"Vagrants: Could l get some change, Miss Lady?" to "Vagrants: Could I get some change, Miss Lady?",
 			"Vagrants: Man, l'm crashing and got the IAA all over me." to "Vagrants: Man, I'm crashing and got the IAA all over me.",
 			"Vicki: After l'm done tipping out Martin's useless ass," to "Vicki: After I'm done tipping Martin's useless ass,",
@@ -42,6 +43,8 @@ class GamesTest
 	{
 		assertEquals("لوسيا: مرحبًا. كيف تشعر؟", Games.fix("Lucia: Hey. How you feeling?", 'm'))
 		assertEquals("لوسيا: مرحبًا. كيف تشعرين؟", Games.fix("Lucia: Hey. How you feeling?", 'f'))
+		// «Hey!» calling out, not «مهلا»; the passer-by's name written
+		assertEquals("أحد السكان: هيه! انتبه.", Games.fix("Local: Hey! Watch it!", 'm'))
 		// not known to whom: the usual one
 		assertEquals("دنك: هل ما زلتِ ستوصلينني إلى البيت؟", Games.fix("Dunk: Are you still taking me home?", null))
 		// glued words read apart first

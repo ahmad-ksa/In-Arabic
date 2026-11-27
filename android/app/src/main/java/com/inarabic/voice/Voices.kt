@@ -52,20 +52,33 @@ object Voices
 	private fun load(c: Context): JSONObject = try { JSONObject(PreferenceManager.getDefaultSharedPreferences(c).getString(KEY, "{}") ?: "{}") } catch(e: Exception) { JSONObject() }
 	private fun save(c: Context, o: JSONObject) = PreferenceManager.getDefaultSharedPreferences(c).edit().putString(KEY, o.toString()).apply()
 
+	/** the characters: the game's own people (Games, their voice there unless you chose another) and the others heard */
 	@Synchronized fun people(c: Context): List<Person>
 	{
 		val o = load(c)
-		return o.keys().asSequence().mapNotNull { k -> o.optJSONObject(k)?.let { Person(k, it.optString("name", k), it.optString("voice"), it.optBoolean("fixed"), it.optInt("m"), it.optInt("f")) } }
-			.sortedBy { it.name.lowercase() }.toList()
+		val heard = o.keys().asSequence().mapNotNull { k -> o.optJSONObject(k)?.let { Person(k, it.optString("name", k), it.optString("voice"), it.optBoolean("fixed"), it.optInt("m"), it.optInt("f")) } }.toList()
+		val game = com.inarabic.translate.Games.active?.people.orEmpty()
+			.filter { (k, gp) -> gp.voice != null && heard.none { it.key == k && it.fixed } }
+			.map { (k, gp) -> Person(k, k.replaceFirstChar { it.uppercase() }, gp.voice!!, false, 0, 0) }
+		return (game + heard.filter { h -> game.none { it.key == h.key } }).sortedBy { it.name.lowercase() }
 	}
 
-	/** you chose [voice] for this character: it stays */
-	@Synchronized fun set(c: Context, key: String, voice: String)
+	/** you chose [voice] for the character [key] (one of the game's people too): it stays */
+	@Synchronized fun set(c: Context, key: String, name: String, voice: String)
 	{
 		val o = load(c)
-		val p = o.optJSONObject(key) ?: return
+		val p = o.optJSONObject(key) ?: JSONObject().put("name", name)
 		p.put("voice", voice).put("fixed", true)
+		o.put(key, p)
 		save(c, o)
+	}
+
+	/** the voices that belong to a character (the game's people and the others), but [except]'s own */
+	@Synchronized fun taken(c: Context, except: String? = null): Map<String, Int>
+	{
+		val used = HashMap<String, Int>()
+		for(p in people(c)) if(p.key != except) used[p.voice] = (used[p.voice] ?: 0) + 1
+		return used
 	}
 
 	/** this character's man/woman is known for good (you chose it, or enough of its lines were heard) */
@@ -96,9 +109,8 @@ object Voices
 		var v = byId(p.optString("voice"))
 		if(v == null || (!p.optBoolean("fixed") && v.male != male))
 		{
-			// the voices already given to the others
-			val used = HashMap<String, Int>()
-			for(k in o.keys()) if(k != key) o.optJSONObject(k)?.optString("voice")?.let { used[it] = (used[it] ?: 0) + 1 }
+			// the voices already given to the others (the game's people too: theirs stays theirs)
+			val used = taken(c, key)
 			val list = order(accent, male)
 			v = list.firstOrNull { it.id !in used } ?: list.minByOrNull { used[it.id] ?: 0 }!!
 			p.put("voice", v.id)
