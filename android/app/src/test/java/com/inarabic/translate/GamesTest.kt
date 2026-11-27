@@ -89,6 +89,7 @@ class GamesTest
 		assertEquals("دنك: صحيح. أنا دنك.", Glossary.arabicNames("دونك: صحيح. أنا دانك."))
 		assertEquals("اذهب إلى ديلايتس", Glossary.arabicNames("اذهب إلى المسرات"))
 		assertEquals("قال جيسون", Glossary.arabicNames("قال جايسون"))
+		assertEquals("موزس: هل هذه سيارتك؟", Glossary.arabicNames("موسى: هل هذه سيارتك؟"))
 	}
 
 	@Test fun speakerNameWrittenNotTranslated()

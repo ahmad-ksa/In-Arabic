@@ -76,7 +76,7 @@ object Games
 			"jordy" to "جوردي", "tommy" to "تومي", "dancer" to "الراقصة", "bartender" to "النادل", "local" to "أحد السكان", "locals" to "سكان",
 			"stranger" to "غريب", "staff member" to "موظف", "vagrants" to "متشردون", "cop" to "شرطي", "kolt & associates" to "كولت وشركاه",
 			"driver" to "سائق", "drivers" to "سائقون", "tourists" to "سياح", "resident" to "أحد السكان", "worker" to "عامل", "workers" to "عمال",
-			"stylist" to "مصفف الشعر", "zach" to "زاك", "moses" to "موسى", "mo" to "مو", "danny" to "داني",
+			"stylist" to "مصفف الشعر", "zach" to "زاك", "moses" to "موزس", "mo" to "مو", "danny" to "داني",
 			"ammu-nation" to "أمونيشن", "ammu-nations" to "أمونيشن", "los santos" to "لوس سانتوس", "liberty city" to "ليبرتي سيتي"),
 		lines = linkedMapOf(
 			// «Hey» is a greeting, not «wait»
@@ -251,7 +251,7 @@ object Games
 				RegexOption.IGNORE_CASE) to "$1 car"),
 		arabic = listOf(
 			// one spelling for each name
-			w("دونك") to "دنك", w("دانك") to "دنك", w("جايسون") to "جيسون", w("المسرات") to "ديلايتس"),
+			w("دونك") to "دنك", w("دانك") to "دنك", w("جايسون") to "جيسون", w("المسرات") to "ديلايتس", w("موسى") to "موزس"),
 		words = listOf(
 			// a lone «Hey» (a greeting or a call) is never «مهلا» (wait): «Hey!» is a call, «Hey.» «Hey,» a greeting;
 			// «Hey, hey, hey! Easy» and «Hey, wait» do mean «مهلا» and stay
@@ -260,7 +260,7 @@ object Games
 				Regex("مهل(?:ًا|اً|ا)"), "أهلًا")),
 		voice = mapOf(
 			"دنك" to "دَنْك", "فيكي" to "فِيكِي", "لوسيا" to "لُوسِيَا", "جيسون" to "جَيْسُون", "فرانكي" to "فْرانْكِي",
-			"مارتن" to "مارْتِن", "براين" to "بْرايِن", "ديلايتس" to "دِيلايْتْس", "جيلهورن" to "جِيلْهُورْن", "ليلى" to "لَيْلى"))
+			"مارتن" to "مارْتِن", "براين" to "بْرايِن", "ديلايتس" to "دِيلايْتْس", "جيلهورن" to "جِيلْهُورْن", "ليلى" to "لَيْلى", "موزس" to "مُوزِس"))
 
 	/** the game being played (GTA VI also when no game is chosen: the only one so far) */
 	@Volatile var active: Game? = GTA6
