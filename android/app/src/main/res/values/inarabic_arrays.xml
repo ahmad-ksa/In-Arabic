@@ -33,7 +33,7 @@
     <!-- dubbing: where it is heard, whose voices, who speaks -->
     <string-array name="ia_voice_out_names">
         <item>من الشاشة</item>
-        <item>من الجوال (أو سماعته)</item>
+        <item>من الجوال، وصوت اللعبة من التلفزيون</item>
         <item>من الاثنين</item>
     </string-array>
     <string-array name="ia_voice_out_values">

@@ -179,6 +179,13 @@ class InArabicSettingsActivity : AppCompatActivity()
 			if(key in styleKeys) LinkServer.sendStyle(prefs)
 			if(key == "ia_dialog_look" || key == "ia_menu_look") showLookSettings()
 			if(key == "ia_voice" || key == "ia_voice_who") showVoiceSettings()
+			// the dubbing from the phone: the phone plays the dubbing only, the game's sound stays on the TV. The game
+			// sound on the phone keeps its one switch («صوت اللعبة»): it is only turned off here, once
+			if(key == "ia_voice_out" && prefs.voiceOut == "phone" && prefs.phoneAudio)
+			{
+				prefs.phoneAudio = false
+				Toast.makeText(requireContext(), "طفيت صوت اللعبة في الجوال: الجوال للدبلجة، والتلفزيون لصوت اللعبة", Toast.LENGTH_LONG).show()
+			}
 			// «صوت اللعبة»: Android's speech recognition needs the microphone permission (the mic itself stays off)
 			if(key == "ia_dialog_source" && prefs.dialogFromSound &&
 				requireContext().checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED)
