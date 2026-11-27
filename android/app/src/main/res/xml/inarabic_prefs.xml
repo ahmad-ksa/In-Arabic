@@ -78,9 +78,12 @@
         <Preference app:key="ia_memory" app:title="ذاكرة الترجمة" app:iconSpaceReserved="false" />
         <Preference app:key="ia_diag" app:title="شارك سجل التشخيص" app:iconSpaceReserved="false"
             app:summary="وش قرأ البرنامج ووش عرض آخر دقائق. أرسله إذا شفت ترجمة غريبة" />
+        <Preference app:key="ia_diag_upload" app:title="ارفع السجل الحين" app:iconSpaceReserved="false"
+            app:summary="يرتفع لحاله كل ١٠ دقايق وأنت تلعب، ولمن يقفل البث" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="متقدم" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="0">
+        <EditTextPreference app:key="ia_diag_token" app:title="مفتاح رفع السجل (قيت هب)" app:iconSpaceReserved="false" />
         <Preference app:key="ia_address" app:title="بدون باركود: عنوان الجوال ورمز الاقتران" app:summary=" " app:iconSpaceReserved="false" />
         <Preference app:key="ia_pair_forget" app:title="ألغِ ربط كل الشاشات" app:iconSpaceReserved="false" />
         <SeekBarPreference app:key="ia_read_every" app:title="سرعة القراءة (ملّي ثانية)" app:iconSpaceReserved="false"

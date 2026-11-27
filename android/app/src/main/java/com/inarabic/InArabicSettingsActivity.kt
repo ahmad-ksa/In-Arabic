@@ -117,6 +117,16 @@ class InArabicSettingsActivity : AppCompatActivity()
 					.setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, t), "شارك سجل التشخيص"))
 				true
 			}
+			findPreference<Preference>("ia_diag_upload")?.setOnPreferenceClickListener {
+				Toast.makeText(ctx, "أرفع السجل…", Toast.LENGTH_SHORT).show()
+				DiagUpload.now(ctx) { msg -> activity?.runOnUiThread { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() } }
+				true
+			}
+			// the key is never shown: only whether one is set
+			findPreference<EditTextPreference>("ia_diag_token")?.apply {
+				setOnBindEditTextListener { it.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
+				summaryProvider = Preference.SummaryProvider<EditTextPreference> { p -> if(p.text.isNullOrBlank()) "ما فيه مفتاح: السجل ما يرتفع" else "✓ فيه مفتاح، السجل يرتفع لحاله" }
+			}
 			findPreference<Preference>("ia_summary")?.setOnPreferenceClickListener { SessionsUi.show(ctx, lifecycleScope, prefs); true }
 			findPreference<Preference>("ia_game_pick")?.apply {
 				summary = prefs.gameName.ifBlank { "أي لعبة (تُعرف تلقائيًا إذا كانت شغالة)" }

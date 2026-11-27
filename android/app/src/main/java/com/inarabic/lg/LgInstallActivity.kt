@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
 // Installs the LG app straight from the phone, no computer: the TV's free "Developer Mode" app gives a key
-// server (port 9991) and SSH (port 9922). We fetch the key with the passphrase shown on the TV, download the
-// latest LG app from GitHub, copy it to the TV and ask the TV to install and open it.
+// server (port 9991) and SSH (port 9922). We fetch the key with the passphrase shown on the TV, copy the LG app
+// that comes inside this phone app (assets/lg/InArabic-lg.ipk, put there by the build: the same version as the
+// phone) to the TV and ask the TV to install and open it. Nothing is downloaded: the project is private.
 
 package com.inarabic.lg
 
@@ -32,7 +33,7 @@ class LgInstallActivity : AppCompatActivity()
 {
 	companion object
 	{
-		const val IPK_URL = "https://github.com/ahmad-ksa/In-Arabic/releases/latest/download/InArabic-lg.ipk"
+		const val IPK_ASSET = "lg/InArabic-lg.ipk"
 		const val APP_ID = "com.inarabic.lg"
 	}
 
@@ -136,12 +137,10 @@ class LgInstallActivity : AppCompatActivity()
 			connectTimeout = 5000; readTimeout = 5000
 			inputStream.readBytes()
 		}
-		say("٢) أنزّل آخر نسخة من تطبيق LG…")
+		say("٢) أجهّز تطبيق LG (نفس نسخة الجوال)…")
 		val ipk = File(cacheDir, "InArabic-lg.ipk")
-		(URL(IPK_URL).openConnection() as HttpURLConnection).run {
-			instanceFollowRedirects = true; connectTimeout = 10000; readTimeout = 30000
-			inputStream.use { i -> ipk.outputStream().use { o -> i.copyTo(o) } }
-		}
+		try { assets.open(IPK_ASSET).use { i -> ipk.outputStream().use { o -> i.copyTo(o) } } }
+		catch(e: java.io.IOException) { throw Exception("تطبيق LG مو موجود داخل هذي النسخة من تطبيق الجوال") }
 		say("٣) أتصل بالتلفزيون…")
 		val jsch = JSch()
 		jsch.addIdentity("webos", key, null, passphrase.toByteArray())

@@ -182,6 +182,7 @@ class CaptionEngine(
 		LinkServer.start(context)
 		LinkServer.sendStyle(prefs)
 		com.inarabic.voice.Dubber.start(context)
+		com.inarabic.DiagUpload.start(context)
 		// «صوت اللعبة»: the dialogue comes from the game's speech, not from the subtitles
 		fromSound = prefs.dialogFromSound
 		if(fromSound)
@@ -208,6 +209,7 @@ class CaptionEngine(
 		loop = null
 		com.inarabic.voice.Dubber.stop()
 		sound?.stop(); sound = null
+		com.inarabic.DiagUpload.stop(context)
 		lensJob?.cancel(); lensRect = null
 		LinkServer.sendLensClear()
 		LinkServer.sendClear()
