@@ -64,10 +64,6 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-        freeCompilerArgs += "-opt-in=kotlin.ExperimentalUnsignedTypes"
-    }
 
     externalNativeBuild {
         cmake {
@@ -108,6 +104,13 @@ android {
 
 ksp {
     arg("room.schemaLocation", "$projectDir/schemas")
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        freeCompilerArgs.add("-opt-in=kotlin.ExperimentalUnsignedTypes")
+    }
 }
 
 dependencies {
