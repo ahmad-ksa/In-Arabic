@@ -86,7 +86,7 @@ class CaptionEngine(
 	 * item as long as it stays in the same place, even if one read spells it a little differently; it is
 	 * translated once, and that translation stays until the item has really left the screen.
 	 */
-	private class SideItem(var st: SideText, var box: FloatArray, var colored: List<Colored>, var seen: Long, val fg: Int, val bg: Int)
+	private class SideItem(var st: SideText, var box: FloatArray, var colored: List<Colored>, var seen: Int, val fg: Int, val bg: Int)
 	{
 		@Volatile var arabic: String? = null
 		@Volatile var spans: List<ColorSpan> = emptyList()
@@ -105,6 +105,8 @@ class CaptionEngine(
 	private var loop: Job? = null
 	private var lastBox2Read = 0L
 	private var lastScreenRead = 0L
+	/** how many times the side frames and the screen were read (an item is gone after two reads without it) */
+	private var screenReads = 0
 	/** lines found by the last read of an area (a PlayStation menu fills the screen with text) */
 	private var lastLineCount = 0
 	/** how many separate texts the dialogue frame held at the last read, and lines too small to count (for the log) */
@@ -296,6 +298,7 @@ class CaptionEngine(
 			if(t1 - lastScreenRead > 400)
 			{
 				lastScreenRead = t1
+				screenReads++
 				val all = ArrayList<OcrRead>()
 				for(z in zones.filter { !it.dialog && !prefs.dialogOnly })
 				{
@@ -538,7 +541,7 @@ class CaptionEngine(
 				val same = sideItems.firstOrNull { overlap(it.box, box) > 0.5f }
 				if(same != null)
 				{
-					same.seen = now
+					same.seen = screenReads
 					// a coloured word this read saw and the earlier ones missed: the item is coloured again
 					val more = r.colored.filter { c -> same.colored.none { it.english.equals(c.english, true) } }
 					if(more.isNotEmpty())
@@ -551,10 +554,11 @@ class CaptionEngine(
 					if(same.arabic == null && !same.asked && st.text.length > same.st.text.length) { same.st = st; same.box = box }
 					continue
 				}
-				sideItems += SideItem(st, box, r.colored, now, r.fg, r.bg)
+				sideItems += SideItem(st, box, r.colored, screenReads, r.fg, r.bg)
 			}
-			// gone once it has been missing from two readings in a row (one missed reading is not enough: no flicker)
-			sideItems.removeAll { now - it.seen > 900 }
+			// gone once it has been missing from two readings in a row (one missed reading is not enough: no flicker).
+			// Counted in readings, not time: a full screen takes a second or more to read
+			sideItems.removeAll { screenReads - it.seen >= 2 }
 			for(it in sideItems) if(!it.asked && now >= it.retryAt) { it.asked = true; translateItem(it) }
 		}
 		sendSideIfChanged()
