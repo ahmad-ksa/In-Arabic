@@ -20,11 +20,13 @@
             app:title="اعرض الترجمة على الجوال بعد" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="٣. شكل الترجمة" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="4">
+    <PreferenceCategory app:title="٣. شكل الترجمة" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="5">
         <ListPreference app:key="ia_preset" app:title="شكل جاهز" app:defaultValue="normal" app:iconSpaceReserved="false"
             app:entries="@array/ia_preset_names" app:entryValues="@array/ia_preset_values" app:useSimpleSummaryProvider="true" />
         <SeekBarPreference app:key="ia_text_scale" app:title="حجم خط الحوار (100 = نفس حجم الإنجليزي)" app:iconSpaceReserved="false"
             app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
+        <SwitchPreference app:key="ia_clock" app:defaultValue="false" app:iconSpaceReserved="false"
+            app:title="اعرض الساعة في اللعبة" app:summary="ساعة جوالك، صغيرة فوق يسار على التلفزيون" />
         <SeekBarPreference app:key="ia_menu_scale" app:title="حجم خط القوائم (100 = نفس حجم الإنجليزي)" app:iconSpaceReserved="false"
             app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
         <SeekBarPreference app:key="ia_menu_shift" app:title="ارفع أو نزّل القوائم (%)" app:iconSpaceReserved="false"

@@ -10,6 +10,7 @@
 //   {"t":"sub","id":7,"ar":"…","en":"…","final":false,"box":[x,y,w,h]}   box: original subtitle, 0..1 of the picture
 //   {"t":"clear"}
 //   {"t":"box2","ar":"…","box":[x,y,w,h]} / {"t":"box2clear"}           side texts (objectives, messages)
+//   {"t":"clock","text":"٢:٣٠ ص"}   the phone's clock, small at the top left of the TV ("" = hidden)
 //   {"t":"lensmove","dx":0.004,"dy":-0.002,"a":1.5,"cx":0.5,"cy":0.5}   the lens's text moved (shaking): follow it
 //   {"t":"lens","items":[{"ar":"…","box":[x,y,w,h,lineH],"color":"#RRGGBB","bg":"#RRGGBB","spans":[…]}]} / {"t":"lensclear"}
 //   {"t":"panel","title":"…","text":"…","ttl":30000}                     e.g. the story summary
@@ -69,6 +70,8 @@ object LinkServer
 		s.connectionLostTimeout = 10
 		try { s.start() } catch(e: Exception) { Log.e(TAG, "server start", e); return }
 		server = s
+		// the phone's clock on the TV: sent every 20 s (it changes once a minute) while it is turned on
+		clockTimer.scheduleAtFixedRate({ try { sendClock() } catch(e: Exception) { } }, 1, 20, java.util.concurrent.TimeUnit.SECONDS)
 		register(context.applicationContext)
 	}
 
@@ -158,6 +161,20 @@ object LinkServer
 	/** one text inside the lens: the Arabic, its English box, letter and background colours, coloured words */
 	class LensOut(val arabic: String, val box: FloatArray, val color: Int, val bg: Int, val spans: List<com.inarabic.caption.ColorSpan>)
 	@Volatile private var lastLens: String? = null
+
+	private val clockTimer = java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
+
+	/** the clock message: the phone's time in its own format (e.g. "٢:٣٠ ص"), or empty text when it is turned off */
+	private fun clockMsg(): String
+	{
+		val c = appContext ?: return "{\"t\":\"clock\",\"text\":\"\"}"
+		val on = com.inarabic.InArabicPrefs(c).showClock
+		val text = if(on) android.text.format.DateFormat.getTimeFormat(c).format(java.util.Date()) else ""
+		return JSONObject().put("t", "clock").put("text", text).toString()
+	}
+
+	/** the clock now (also when it is turned on or off in the settings) */
+	fun sendClock() = broadcast(clockMsg())
 
 	/** the lens's translations: each drawn over its English, same size and colours */
 	fun sendLens(items: List<LensOut>)
@@ -283,6 +300,7 @@ object LinkServer
 			lastBox2?.let { conn.send(it) }
 			lastSide?.let { conn.send(it) }
 			lastLens?.let { conn.send(it) }
+			conn.send(clockMsg())
 		}
 
 		override fun onClose(conn: WebSocket, code: Int, reason: String?, remote: Boolean)

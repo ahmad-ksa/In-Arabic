@@ -118,6 +118,8 @@ class InArabicPrefs(context: Context)
 	val tvZoom get() = p.getInt("ia_tv_zoom", 0) / 100f
 	val tvShift get() = p.getInt("ia_tv_shift", 0) / 100f
 	/** the menus (side texts) have their own look, apart from the dialogue: size (1 = the English size) and height */
+	/** the phone's clock shown small at the top left of the TV (off until you turn it on) */
+	val showClock get() = p.getBoolean("ia_clock", false)
 	val menuScale get() = p.getInt("ia_menu_scale", 100) / 100f
 	val menuShift get() = p.getInt("ia_menu_shift", 0) / 100f
 	fun setMenuLook(scalePct: Int, shiftPct: Int) = p.edit().putInt("ia_menu_scale", scalePct).putInt("ia_menu_shift", shiftPct).apply()

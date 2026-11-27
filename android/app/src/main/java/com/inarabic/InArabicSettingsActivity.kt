@@ -111,6 +111,7 @@ class InArabicSettingsActivity : AppCompatActivity()
 		override fun onSharedPreferenceChanged(sp: SharedPreferences?, key: String?)
 		{
 			val prefs = InArabicPrefs(requireContext())
+			if(key == "ia_clock") com.inarabic.link.LinkServer.sendClock() // shown or hidden on the TV at once
 			if(key == "ia_preset" && !applying)
 			{
 				val name = sp?.getString("ia_preset", "normal") ?: "normal"

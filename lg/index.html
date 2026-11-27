@@ -18,6 +18,10 @@
   #game { position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: contain; background: #000; }
   #cap { position: absolute; display: none; text-align: center; direction: rtl; font-weight: 700; white-space: pre-line;
     line-height: 1.25; padding: 10px 26px; border-radius: 12px; text-shadow: 0 2px 4px #000; box-sizing: border-box; }
+  /* the phone's clock: small, light, top left (no box over the game) */
+  #clock { position: absolute; left: 44px; top: 30px; display: none; direction: rtl; font-size: 30px; font-weight: 500;
+           color: rgba(255,255,255,0.92); letter-spacing: 0.5px; pointer-events: none;
+           text-shadow: 0 1px 3px rgba(0,0,0,0.85), 0 0 10px rgba(0,0,0,0.5); }
   #lens { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; pointer-events: none; transition: transform 60ms linear; }
   .item { position: absolute; direction: rtl; font-weight: 700; line-height: 1.25; box-sizing: border-box; border-radius: 6px; transform-origin: 50% 50%; }
   #side { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; display: none; pointer-events: none; }
@@ -67,6 +71,7 @@
 <div id="box2"></div>
 <div id="side"></div>
 <div id="lens"></div>
+<div id="clock"></div>
 <div id="zones"></div>
 <div id="panel"><h2 id="panel-t"></h2><div id="panel-b"></div></div>
 <div id="status"></div>
@@ -403,6 +408,7 @@
       else if (o.t === 'lens') lens(o.items);
       else if (o.t === 'lensclear') lens(null);
       else if (o.t === 'lensmove') lensMove(o);
+      else if (o.t === 'clock') { var ck = $('clock'); ck.textContent = o.text || ''; ck.style.display = o.text ? 'block' : 'none'; }
       else if (o.t === 'zone') zones(o.box ? [{ box: o.box, dialog: true }] : []);
       else if (o.t === 'zones') zones(o.zones);
       else if (o.t === 'panel') panel(o.title, o.text, o.ttl);
