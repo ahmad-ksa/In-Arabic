@@ -187,21 +187,24 @@ object Dubber
 				else -> Voices.order(p.voiceDialect, heard != 'f').first()
 			}
 		}
-		// names said right (vowel marks for the voice only: the screen shows them plain)
-		val text = com.inarabic.translate.Games.forVoice(Dialect.say(job.part.arabic, p.voiceDialect))
+		// names said right (vowel marks for the voice only: the screen shows them plain). The new system's translation
+		// comes in the dialect and with all its vowel marks already
+		val text = if(p.newSystem) job.part.arabic else com.inarabic.translate.Games.forVoice(Dialect.say(job.part.arabic, p.voiceDialect))
+		// how long it is: its letters (the vowel marks are not said on their own)
+		val letters = com.inarabic.translate.NewTranslator.plain(text).length
 		// «ضبط السرعة تلقائي»: as fast as makes it last as long as the English
 		val rate = if(p.voiceAutoRate && job.enChars >= 4)
-			(100f * (text.length / voiceCps) / (job.enChars / gameCps)).toInt().coerceIn(80, 180) else p.voiceRate
+			(100f * (letters / voiceCps) / (job.enChars / gameCps)).toInt().coerceIn(80, 180) else p.voiceRate
 		job.info = "${job.part.speaker ?: "?"} heard=${heard ?: '-'} → ${voice.label} ${rate}%: ${text.take(50)}"
 		var sound: Sound? = null
 		val made = speak(c, text, voice, rate) { sound = it; job.sound = it; job.started.countDown() }
 		Diag.add("dub: made ($made): ${text.take(30)}")
 		// the voice's own speed, learnt from what it said
 		val s = sound
-		if(s != null && s.ok && s.mime == "audio/mpeg" && text.length >= 8)
+		if(s != null && s.ok && s.mime == "audio/mpeg" && letters >= 8)
 		{
 			val ms = s.ms()
-			if(ms > 300) voiceCps = (voiceCps * 0.8f + text.length * 1000f / ms * (100f / rate) * 0.2f).coerceIn(6f, 30f)
+			if(ms > 300) voiceCps = (voiceCps * 0.8f + letters * 1000f / ms * (100f / rate) * 0.2f).coerceIn(6f, 30f)
 		}
 	}
 

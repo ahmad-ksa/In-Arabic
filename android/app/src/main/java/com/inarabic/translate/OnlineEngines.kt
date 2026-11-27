@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
-// Google Translate's free web service: the one translation source of the app.
+// The translation services on the web: Google Translate's free service (the old system), and the new system's
+// keyed ones: Google's official Cloud Translation, and Claude Haiku.
 
 package com.inarabic.translate
 
@@ -25,7 +26,7 @@ object OnlineEngines
 			val code = c.responseCode
 			if(code !in 200..299)
 			{
-				lastError = when(code) { 429 -> "خلص الحد المجاني لهالمصدر"; 401, 403 -> "مفتاح المصدر غلط أو ناقص"; 456 -> "خلص الحد الشهري لـ DeepL"; else -> "المصدر ما رد ($code)" }
+				lastError = when(code) { 429 -> "خلص الحد المجاني لهالمصدر"; 401, 403 -> "مفتاح المصدر غلط أو ناقص"; 400 -> "المصدر رفض الطلب (400): الرصيد خالص أو الطلب غلط"; 529 -> "المصدر مشغول (529)"; else -> "المصدر ما رد ($code)" }
 				return null
 			}
 			lastError = null
@@ -73,4 +74,26 @@ object OnlineEngines
 		out.toList()
 	}
 	catch(e: Exception) { emptyList() }
+
+	/** Google's official Cloud Translation (your key): each of [lines] into Arabic, in order */
+	fun googleOfficial(lines: List<String>, key: String): List<String>? = try
+	{
+		val body = lines.joinToString("&") { "q=" + enc(it) } + "&source=en&target=ar&format=text"
+		val r = http("https://translation.googleapis.com/language/translate/v2?key=" + enc(key), "POST", body, type = "application/x-www-form-urlencoded")
+		r?.let { JSONObject(it).getJSONObject("data").getJSONArray("translations") }?.let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("translatedText") } }
+			?.takeIf { it.size == lines.size }.also { if(it == null && r != null) lastError = "قوقل الرسمي ما رجّع ترجمة" }
+	}
+	catch(e: Exception) { lastError = "قوقل الرسمي ما رجّع ترجمة"; null }
+
+	/** Claude Haiku (your key): its answer to [user], told [system]; null if it failed ([lastError] says why) */
+	fun haiku(system: String, user: String, key: String): String? = try
+	{
+		val req = JSONObject().put("model", "claude-haiku-5-5").put("max_tokens", 600).put("temperature", 0)
+			.put("system", system).put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", user)))
+		val r = http("https://api.anthropic.com/v1/messages", "POST", req.toString(),
+			mapOf("x-api-key" to key, "anthropic-version" to "2023-06-01"))
+		r?.let { JSONObject(it).getJSONArray("content") }?.let { c -> (0 until c.length()).joinToString("") { c.getJSONObject(it).optString("text") } }
+			?.trim()?.ifBlank { null }.also { if(it == null && r != null) lastError = "Haiku ما رجّع ترجمة" }
+	}
+	catch(e: Exception) { lastError = "Haiku ما رجّع ترجمة"; null }
 }

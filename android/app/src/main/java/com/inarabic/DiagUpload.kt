@@ -71,7 +71,7 @@ object DiagUpload
 		val version = try { c.packageManager.getPackageInfo(c.packageName, 0).versionName } catch(e: Exception) { "?" }
 		val sp = PreferenceManager.getDefaultSharedPreferences(c)
 		val head = "${Build.MANUFACTURER} ${Build.MODEL} · Android ${Build.VERSION.RELEASE} · app $version\n" +
-			"mode=${sp.getString("ia_mode", "menus")} source=${sp.getString("ia_dialog_source", "screen")} voice=${p.voiceOn} out=${p.voiceOut} " +
+			"system=${if(p.newSystem) "new/" + p.newTranslator else "old"} mode=${sp.getString("ia_mode", "menus")} source=${sp.getString("ia_dialog_source", "screen")} voice=${p.voiceOn} out=${p.voiceOut} " +
 			"who=${p.voiceWho} dialect=${p.voiceDialect} dlook=${p.dialogLook} mlook=${p.menuLook}"
 		val counts = Diag.takeCounts().ifBlank { "-" }
 		// a comment holds 65536 characters: the newest part of a very long log

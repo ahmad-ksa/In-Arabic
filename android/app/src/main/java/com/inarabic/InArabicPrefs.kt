@@ -97,7 +97,17 @@ class InArabicPrefs(context: Context)
 		set(v) { p.edit().putBoolean("ia_phone_audio", v).apply() }
 	/** reconnect by itself when the stream drops */
 	val autoReconnect get() = p.getBoolean("ia_auto_reconnect", true)
-	/** the one translation source: Google Translate (the AI and keyed sources were removed) */
+	/** «النظام الجديد» (chosen when the app opens): one translator, Haiku or Google's official service; the old
+	 * one (Google's free service, the game file's corrected lines and words, the dialect's words) is left alone */
+	var newSystem: Boolean
+		get() = p.getString("ia_system", "old") == "new"
+		set(v) { p.edit().putString("ia_system", if(v) "new" else "old").apply() }
+	/** the new system's translator: "haiku" or "google" (Google's official, keyed) */
+	val newTranslator get() = p.getString("ia_new_translator", "haiku") ?: "haiku"
+	val haikuKey get() = p.getString("ia_haiku_key", "")?.trim().orEmpty()
+	val googleKey get() = p.getString("ia_google_key", "")?.trim().orEmpty()
+
+	/** the old system's translation source: Google Translate's free service */
 	val engine: String get() = "google"
 	val aiOnly get() = false
 	val box2Enabled get() = p.getBoolean("ia_box2", false)

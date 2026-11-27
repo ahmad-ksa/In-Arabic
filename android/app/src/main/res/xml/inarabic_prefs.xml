@@ -14,6 +14,15 @@
         <Preference app:key="ia_game_pick" app:title="اللعبة" app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
+    <PreferenceCategory app:title="النظام الجديد" app:iconSpaceReserved="false">
+        <ListPreference app:key="ia_system" app:title="النظام" app:defaultValue="old" app:iconSpaceReserved="false"
+            app:entries="@array/ia_system_names" app:entryValues="@array/ia_system_values" app:useSimpleSummaryProvider="true" />
+        <ListPreference app:key="ia_new_translator" app:title="مترجم النظام الجديد" app:defaultValue="haiku" app:iconSpaceReserved="false"
+            app:entries="@array/ia_new_translator_names" app:entryValues="@array/ia_new_translator_values" app:useSimpleSummaryProvider="true" />
+        <EditTextPreference app:key="ia_haiku_key" app:title="مفتاح Haiku" app:iconSpaceReserved="false" />
+        <EditTextPreference app:key="ia_google_key" app:title="مفتاح قوقل الرسمي" app:iconSpaceReserved="false" />
+    </PreferenceCategory>
+
     <PreferenceCategory app:title="٢. الشاشة (التلفزيون)" app:iconSpaceReserved="false">
         <Preference app:key="ia_pair_scan" app:title="اربط شاشة بالباركود" app:iconSpaceReserved="false" />
         <Preference app:key="ia_test" app:title="اعرض سطر تجريبي على الشاشة" app:iconSpaceReserved="false"

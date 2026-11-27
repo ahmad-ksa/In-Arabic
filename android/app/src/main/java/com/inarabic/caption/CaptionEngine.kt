@@ -179,6 +179,8 @@ class CaptionEngine(
 	{
 		if(loop != null || !prefs.enabled) return
 		TranslationMemory.load(context)
+		// a new session: the new system's translator starts without the last session's dialogue
+		com.inarabic.translate.NewTranslator.reset()
 		TranslationMemory.engine = prefs.engine
 		SessionLog.begin(context, prefs.gameName)
 		com.inarabic.translate.Games.select(prefs.gameName)
@@ -427,13 +429,15 @@ class CaptionEngine(
 		val lines = english.split('\n').filter { it.isNotBlank() }
 		val to = if(tries == 0) talk.plan(lines, seenAt).also { synchronized(talkTo) { talkTo[id] = it; while(talkTo.size > 30) talkTo.remove(talkTo.keys.first()) } }
 			else synchronized(talkTo) { talkTo[id] } ?: emptyList()
+		// «النظام الجديد»: only its translator (no game file corrections, no memory, no fixed words)
+		val old = !prefs.newSystem
 		// a line the game file corrects: never from memory (an earlier Google translation of it is wrong)
-		val corrected = lines.indices.any { com.inarabic.translate.Games.fix(lines[it], to.getOrNull(it)) != null }
+		val corrected = old && lines.indices.any { com.inarabic.translate.Games.fix(lines[it], to.getOrNull(it)) != null }
 		if(corrected && tries == 0) Diag.add("corrected #$id (said to ${to.joinToString { (it ?: '?').toString() }}): ${english.replace('\n', '/')}")
 		scope.launch {
-			val known0 = if(corrected) null else TranslationMemory.get(english)
+			val known0 = if(corrected || !old) null else TranslationMemory.get(english)
 			// the fixed game words win over anything translated before (not over your own corrections)
-			val fixed = if(known0?.source == TranslationMemory.Source.USER) null else com.inarabic.translate.Glossary.lookup(english)
+			val fixed = if(!old || known0?.source == TranslationMemory.Source.USER) null else com.inarabic.translate.Glossary.lookup(english)
 			if(fixed != null) { Diag.count("translated: game words"); show(id, english, fixed, true, box, seenAt); return@launch }
 			// a line seen before: from memory at once. Your corrections always; anything else only if it is complete
 			// (an old translation with English left in it is asked again)
@@ -446,17 +450,17 @@ class CaptionEngine(
 			{
 				Diag.count("translation failed")
 				Diag.add("translate #$id FAILED after $took ms: ${translator.lastAiError}: $english")
-				if(currentId == id) aiFailed(translator.lastAiError ?: "Google Translate ما رد")
+				if(currentId == id) aiFailed(translator.lastAiError ?: "المترجم ما رد")
 				return@launch
 			}
 			val done = com.inarabic.translate.Translator.complete(ar)
-			Diag.count("translated: google", took)
+			Diag.count(if(old) "translated: google" else "translated: new system, ${prefs.newTranslator}", took)
 			// how long after the line came its translation is ready, and whether English is left in it
 			Diag.add("translate #$id: $took ms (line seen ${System.currentTimeMillis() - seenAt} ms ago)" + if(done) "" else " INCOMPLETE, English left: $ar")
 			if(!done) Diag.count("translation incomplete (English left)")
 			// only a complete translation is remembered: an incomplete one would come back every time (and not a
 			// corrected one: it depends on whom it is said to)
-			if(done && !corrected) TranslationMemory.put(english, ar, TranslationMemory.Source.QUICK)
+			if(done && !corrected && old) TranslationMemory.put(english, ar, TranslationMemory.Source.QUICK)
 			if(currentId != id)
 			{
 				// the dialogue moved on before the answer came: still shown if nothing newer is on screen yet; else
@@ -465,7 +469,7 @@ class CaptionEngine(
 				{
 					Diag.count("translation MISSED (newer line already shown)")
 					Diag.add("MISSED #$id: its translation came after a newer line was shown, never on screen: $english")
-					SessionLog.add(english, com.inarabic.translate.Glossary.arabicNames(ar)); return@launch
+					SessionLog.add(english, screenText(ar)); return@launch
 				}
 				Diag.count("translation late (line already gone)")
 				Diag.add("LATE #$id: shown after its line left the screen: $english")
@@ -489,10 +493,11 @@ class CaptionEngine(
 	{
 		val box = current?.box ?: lastBox
 		lastShownId = id
-		val a = com.inarabic.translate.Glossary.arabicNames(arabic)
+		val voiced = voiced(arabic)
+		val a = screenText(arabic)
 		LinkServer.sendSub(id, a, english, true, box, spans(english, a, subColored))
 		SessionLog.add(english, a)
-		com.inarabic.voice.Dubber.say(id, english, a, seenAt, namedOnly = !fromSound)
+		com.inarabic.voice.Dubber.say(id, english, voiced, seenAt, namedOnly = !fromSound)
 		post(a)
 		// on screen long enough to read, then gone if nothing newer came
 		scope.launch {
@@ -502,25 +507,30 @@ class CaptionEngine(
 	}
 	@Volatile private var lastBox: FloatArray? = null
 
+	/** a translation as the voice says it: the old system's names spelt one way; the new one's as it came (with its
+	 * vowel marks) */
+	private fun voiced(arabic: String) = if(prefs.newSystem) arabic else com.inarabic.translate.Glossary.arabicNames(arabic)
+
+	/** a translation as the screen shows it: without the vowel marks the new system writes for the voice */
+	private fun screenText(arabic: String) = if(prefs.newSystem) com.inarabic.translate.NewTranslator.plain(arabic) else com.inarabic.translate.Glossary.arabicNames(arabic)
+
 	private suspend fun show(id: Int, english: String, arabic0: String, final: Boolean, box: FloatArray?, seenAt: Long)
 	{
 		if(id > lastShownId) lastShownId = id
 		if(box != null) lastBox = box
-		val arabic = com.inarabic.translate.Glossary.arabicNames(arabic0)
-		Diag.add("show #$id ${if(final) "final" else "first"}: $english → $arabic")
+		val voiced = voiced(arabic0)
+		val arabic = screenText(arabic0)
+		Diag.add("show #$id ${if(final) "final" else "first"}: $english → $voiced")
 		current = Current(id, english, arabic, box)
 		LinkServer.sendSub(id, arabic, english, final, box, spans(english, arabic, subColored))
-		if(final) { SessionLog.add(english, arabic); com.inarabic.voice.Dubber.say(id, english, arabic, seenAt, namedOnly = !fromSound) }
+		if(final) { SessionLog.add(english, arabic); com.inarabic.voice.Dubber.say(id, english, voiced, seenAt, namedOnly = !fromSound) }
 		post(arabic)
 	}
 
 	private fun translateBox2(english: String, box: FloatArray)
 	{
 		scope.launch {
-			val known = TranslationMemory.get(english)
-			val ar = known?.arabic?.takeIf { known.source == TranslationMemory.Source.USER || com.inarabic.translate.Translator.complete(it) } ?: translator.quick(english) ?: return@launch
-			if(known == null && com.inarabic.translate.Translator.complete(ar)) TranslationMemory.put(english, ar, TranslationMemory.Source.QUICK)
-			LinkServer.sendBox2(ar, box)
+			LinkServer.sendBox2(itemArabic(english) ?: return@launch, box)
 		}
 	}
 
@@ -576,23 +586,13 @@ class CaptionEngine(
 		else { Diag.add("side show: " + ready.joinToString(" | ") { it.arabic }); LinkServer.sendSide(ready) }
 	}
 
-	/** one item, once: the fixed game word, your correction, the AI (when on) or the on-device translator */
+	/** one item, once (itemArabic) */
 	private fun translateItem(item: SideItem)
 	{
 		scope.launch {
 			val st = item.st
-			val g = com.inarabic.translate.Glossary.lookup(st.text)
-			val known = TranslationMemory.get(st.text)
-			val ar: String? = when
-			{
-				known?.source == TranslationMemory.Source.USER -> known.arabic
-				g != null -> g
-				// remembered only if complete; else Google Translate (remembered only if complete)
-				else -> known?.arabic?.takeIf { com.inarabic.translate.Translator.complete(it) }
-					?: translator.quick(st.text)?.also { if(com.inarabic.translate.Translator.complete(it)) TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) }
-			}
-			if(ar == null) { item.retryAt = System.currentTimeMillis() + 6000; item.asked = false; return@launch } // try again a bit later
-			val arN = com.inarabic.translate.Glossary.arabicNames(ar)
+			val arN = itemArabic(st.text)
+			if(arN == null) { item.retryAt = System.currentTimeMillis() + 6000; item.asked = false; return@launch } // try again a bit later
 			// English left in it: shown, and asked again in a moment (3 times at most); a complete one replaces it
 			if(!com.inarabic.translate.Translator.complete(arN) && item.tries < 3) { item.tries++; item.retryAt = System.currentTimeMillis() + 1500; item.asked = false }
 			if(item.arabic != null && !com.inarabic.translate.Translator.complete(arN) && leftEnglish(arN) >= leftEnglish(item.arabic!!)) return@launch
@@ -601,6 +601,27 @@ class CaptionEngine(
 			Diag.add("side item: ${st.text} → ${item.arabic}")
 			sendSideIfChanged()
 		}
+	}
+
+	/**
+	 * A text beside the dialogue (a menu entry, a prompt, a help box, the second box, the lens) in Arabic, as the
+	 * screen shows it. The old system: your correction, the fixed game word, memory, or Google (its names spelt one
+	 * way); the new one: its translator only.
+	 */
+	private suspend fun itemArabic(text: String): String?
+	{
+		if(prefs.newSystem) return translator.quick(text)?.let { com.inarabic.translate.NewTranslator.plain(it) }
+		val g = com.inarabic.translate.Glossary.lookup(text)
+		val known = TranslationMemory.get(text)
+		val ar: String = when
+		{
+			known?.source == TranslationMemory.Source.USER -> known.arabic
+			g != null -> g
+			// remembered only if complete; else Google Translate (remembered only if complete)
+			else -> known?.arabic?.takeIf { com.inarabic.translate.Translator.complete(it) }
+				?: translator.quick(text)?.also { if(com.inarabic.translate.Translator.complete(it)) TranslationMemory.put(text, it, TranslationMemory.Source.QUICK) }
+		} ?: return null
+		return com.inarabic.translate.Glossary.arabicNames(ar)
 	}
 
 	/** how many English words are left in a translation (names and brands aside) */
@@ -902,21 +923,12 @@ class CaptionEngine(
 		}
 	}
 
-	/** the same choice as for side texts: your correction, the fixed game word, the AI (when on) or the on-device model */
+	/** the same as for side texts (itemArabic) */
 	private suspend fun lensTranslate(english: String): String?
 	{
 		lensCache[english]?.let { return it }
 		val st = SideText.clean(english) ?: return null
-		val g = com.inarabic.translate.Glossary.lookup(st.text)
-		val known = TranslationMemory.get(st.text)
-		val ar: String = when
-		{
-			known?.source == TranslationMemory.Source.USER -> known.arabic
-			g != null -> g
-			else -> known?.arabic?.takeIf { com.inarabic.translate.Translator.complete(it) }
-				?: translator.quick(st.text)?.also { if(com.inarabic.translate.Translator.complete(it)) TranslationMemory.put(st.text, it, TranslationMemory.Source.QUICK) }
-		} ?: return null
-		val arN = com.inarabic.translate.Glossary.arabicNames(ar)
+		val arN = itemArabic(st.text) ?: return null
 		val out = if(st.button != null) "$arN  ${st.button}" else arN
 		// only a complete translation is kept for the box: an incomplete one is asked again
 		if(com.inarabic.translate.Translator.complete(arN)) lensCache[english] = out
@@ -1019,6 +1031,8 @@ class CaptionEngine(
 		// the whole line in one colour: colour all of it
 		if(mine.size == 1 && mine[0].english.length >= english.trim { !it.isLetterOrDigit() }.length - 1)
 			return listOf(ColorSpan(0, arabic.length, mine[0].color))
+		// the new system: not word by word (each word would be a request to its translator, and the line would wait)
+		if(prefs.newSystem) return emptyList()
 		val out = ArrayList<ColorSpan>()
 		for(c in mine)
 		{

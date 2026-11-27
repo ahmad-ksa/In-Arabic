@@ -125,6 +125,12 @@ class InArabicSettingsActivity : AppCompatActivity()
 				true
 			}
 			// the key is never shown: only whether one is set
+			// the new system's keys: hidden like the log's
+			for((k, none) in listOf("ia_haiku_key" to "ما فيه مفتاح: Haiku ما يشتغل", "ia_google_key" to "ما فيه مفتاح: قوقل الرسمي ما يشتغل"))
+				findPreference<EditTextPreference>(k)?.apply {
+					setOnBindEditTextListener { it.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
+					summaryProvider = Preference.SummaryProvider<EditTextPreference> { p -> if(p.text.isNullOrBlank()) none else "✓ فيه مفتاح" }
+				}
 			findPreference<EditTextPreference>("ia_diag_token")?.apply {
 				setOnBindEditTextListener { it.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD }
 				summaryProvider = Preference.SummaryProvider<EditTextPreference> { p -> if(p.text.isNullOrBlank()) "ما فيه مفتاح: السجل ما يرتفع" else "✓ فيه مفتاح، السجل يرتفع لحاله" }

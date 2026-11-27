@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
-// Translation: Google Translate only (its free web service, no key). Lines are translated as they are; a list
+// Translation, the old system: Google Translate (its free web service, no key); the new system's is NewTranslator. Lines are translated as they are; a list
 // (lines under each other) goes in one request and keeps its lines. The fixed game words (Glossary) come first.
 // A translation that still has English words in it (Google left a word it did not know) is "incomplete": it is
 // shown, but not remembered as final, so the next reading of the line is translated again.
@@ -13,7 +13,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
-class Translator(@Suppress("unused") private val prefs: InArabicPrefs)
+class Translator(private val prefs: InArabicPrefs)
 {
 	companion object
 	{
@@ -40,6 +40,9 @@ class Translator(@Suppress("unused") private val prefs: InArabicPrefs)
 	 */
 	suspend fun quick(english0: String, to: List<Char?> = emptyList()): String?
 	{
+		// «النظام الجديد»: its one translator, and nothing of the old system's
+		if(prefs.newSystem) return withTimeoutOrNull(12000) { withContext(Dispatchers.IO) { NewTranslator.translate(english0, prefs) } }
+			.also { lastAiError = if(it == null) (NewTranslator.lastError ?: "المترجم ما رد") else null }
 		Games.fix(english0.trim(), to.firstOrNull())?.takeIf { '\n' !in english0.trim() }?.let { return it }
 		// «Local: …»: the name written as the game's (Google made «محلي» of it), only the words after it translated
 		if('\n' !in english0.trim()) Games.label(english0.trim())?.let { (name, text) -> return said(text)?.let { "$name: $it" } }
