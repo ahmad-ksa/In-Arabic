@@ -25,9 +25,9 @@ object Voices
 		"IQ" to ("Bassel" to "Rana"), "JO" to ("Taim" to "Sana"), "LB" to ("Rami" to "Layla"), "SY" to ("Laith" to "Amany"),
 		"EG" to ("Shakir" to "Salma"), "LY" to ("Omar" to "Iman"), "TN" to ("Hedi" to "Reem"), "DZ" to ("Ismael" to "Amina"),
 		"MA" to ("Jamal" to "Mouna"))
-	/** the setting «نبرة الصوت»: the countries whose voices come first */
-	private val ACCENTS = mapOf("sa" to listOf("SA"), "gulf" to listOf("KW", "AE", "QA", "BH", "OM"), "eg" to listOf("EG"),
-		"sham" to listOf("JO", "LB", "SY"), "iq" to listOf("IQ"), "ye" to listOf("YE"), "maghreb" to listOf("MA", "DZ", "TN", "LY"))
+	/** the setting «لهجة الكلام»: the countries whose voices come first (standard Arabic: the Saudi ones) */
+	private val ACCENTS = mapOf("fusha" to listOf("SA"), "sa" to listOf("SA"), "gulf" to listOf("KW", "AE", "QA", "BH", "OM"), "eg" to listOf("EG"),
+		"sham" to listOf("JO", "LB", "SY"))
 
 	val all: List<V> = REGIONS.keys.flatMap { r -> NAMES[r]!!.let { (m, f) -> listOf(V("ar-$r-${m}Neural", true, r), V("ar-$r-${f}Neural", false, r)) } }
 

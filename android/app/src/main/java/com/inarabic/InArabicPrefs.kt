@@ -137,12 +137,14 @@ class InArabicPrefs(context: Context)
 	val showClock get() = p.getBoolean("ia_clock", false)
 
 	// ---------- dubbing (voice/Dubber.kt)
+	/** where the dialogue comes from: false the subtitles on screen, true the game's speech (games without subtitles) */
+	val dialogFromSound get() = p.getString("ia_dialog_source", "screen") == "sound"
 	/** each dialogue line is spoken in Arabic too */
 	val voiceOn get() = p.getBoolean("ia_voice", false)
 	/** where it is heard: "tv" (the screens; the phone when none is linked), "phone", "both" */
 	val voiceOut get() = p.getString("ia_voice_out", "tv") ?: "tv"
-	/** whose voices come first: sa, gulf, eg, sham, iq, ye, maghreb */
-	val voiceAccent get() = p.getString("ia_voice_accent", "sa") ?: "sa"
+	/** how the dubbing talks (voice/Dialect.kt) and whose voices come first: fusha, sa, gulf, eg, sham */
+	val voiceDialect get() = p.getString("ia_voice_dialect", "sa") ?: "sa"
 	/** "auto": a voice for each character (a man's or a woman's); "male" / "female": one voice for everyone */
 	val voiceWho get() = p.getString("ia_voice_who", "auto") ?: "auto"
 	/** the menus' own size (1 = the English size) and height, apart from the dialogue's */

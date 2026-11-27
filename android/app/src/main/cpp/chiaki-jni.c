@@ -412,20 +412,23 @@ JNIEXPORT void JNICALL JNI_FCN(setAudioMuted)(JNIEnv *env, jobject obj, jboolean
 	android_chiaki_audio_muted = muted ? 1 : 0;
 }
 
-/** the newest game sound into [out] (one channel); returns its sample rate, 0 when nothing came yet */
-JNIEXPORT jint JNICALL JNI_FCN(recentAudio)(JNIEnv *env, jobject obj, jshortArray out)
+/** the game's sound from sample [from] (-1: the newest) into [out]: [first sample copied, count, rate, total] */
+JNIEXPORT jlongArray JNICALL JNI_FCN(audioFrom)(JNIEnv *env, jobject obj, jlong from, jshortArray out)
 {
 	jsize n = E->GetArrayLength(env, out);
 	int16_t *tmp = malloc(sizeof(int16_t) * (n > 0 ? n : 1));
+	jlongArray r = E->NewLongArray(env, 4);
 	if(!tmp)
-		return 0;
+		return r;
+	uint64_t start = 0, total = 0;
 	uint32_t rate = 0;
-	size_t got = android_chiaki_audio_recent(tmp, (size_t)n, &rate);
-	if(got < (size_t)n)
-		memset(tmp + got, 0, sizeof(int16_t) * ((size_t)n - got));
-	E->SetShortArrayRegion(env, out, 0, n, (const jshort *)tmp);
+	size_t got = android_chiaki_audio_from((int64_t)from, tmp, (size_t)n, &start, &rate, &total);
+	if(got > 0)
+		E->SetShortArrayRegion(env, out, 0, (jsize)got, (const jshort *)tmp);
 	free(tmp);
-	return got == (size_t)n ? (jint)rate : 0;
+	jlong v[4] = { (jlong)start, (jlong)got, (jlong)rate, (jlong)total };
+	E->SetLongArrayRegion(env, r, 0, 4, v);
+	return r;
 }
 
 /** [measured bitrate in Mbit/s, packet loss 0..1] */

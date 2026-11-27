@@ -94,7 +94,7 @@ private class ChiakiNative
 		@JvmStatic external fun sessionSetControllerState(ptr: Long, controllerState: ControllerState)
 		@JvmStatic external fun sessionSetLoginPin(ptr: Long, pin: String)
 		@JvmStatic external fun setAudioMuted(muted: Boolean)
-		@JvmStatic external fun recentAudio(out: ShortArray): Int
+		@JvmStatic external fun audioFrom(from: Long, out: ShortArray): LongArray
 		@JvmStatic external fun sessionGetStats(ptr: Long): DoubleArray
 		@JvmStatic external fun discoveryServiceCreate(result: CreateResult, options: DiscoveryServiceOptions, javaService: DiscoveryService)
 		@JvmStatic external fun discoveryServiceFree(ptr: Long)
@@ -349,8 +349,11 @@ class Session(connectInfo: ConnectInfo, logFile: String?, logVerbose: Boolean)
 	companion object
 	{
 		fun setAudioMuted(muted: Boolean) = ChiakiNative.setAudioMuted(muted)
-		/** the newest game sound (one channel) into [out]; its sample rate, 0 when there is none yet (In Arabic: dubbing) */
-		fun recentAudio(out: ShortArray) = ChiakiNative.recentAudio(out)
+		/**
+		 * In Arabic: the game's sound (one channel, 16 kHz) from sample number [from] (-1: the newest out.size) into
+		 * [out]; returns [first sample copied, how many, sample rate, samples so far]
+		 */
+		fun audioFrom(from: Long, out: ShortArray): LongArray = ChiakiNative.audioFrom(from, out)
 	}
 	fun stop() = ErrorCode(ChiakiNative.sessionStop(nativePtr))
 

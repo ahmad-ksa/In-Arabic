@@ -111,13 +111,14 @@ object Dubber
 			val heard = if(listen) VoicePitch.gender(heardPitch(job.seenAt)) else null
 			val voice = when(p.voiceWho)
 			{
-				"male" -> Voices.order(p.voiceAccent, true).first()
-				"female" -> Voices.order(p.voiceAccent, false).first()
-				else -> if(job.part.speaker != null) Voices.voiceOf(c, job.part.speaker, heard, p.voiceAccent)
-					else Voices.order(p.voiceAccent, heard != 'f').first()
+				"male" -> Voices.order(p.voiceDialect, true).first()
+				"female" -> Voices.order(p.voiceDialect, false).first()
+				else -> if(job.part.speaker != null) Voices.voiceOf(c, job.part.speaker, heard, p.voiceDialect)
+					else Voices.order(p.voiceDialect, heard != 'f').first()
 			}
 			val t0 = System.currentTimeMillis()
-			val clip = speak(c, job.part.arabic, voice)
+			val said = Dialect.say(job.part.arabic, p.voiceDialect)
+			val clip = speak(c, said, voice)
 			synchronized(lock) {
 				// replaced while it was being made: not this one
 				if(waiting.firstOrNull() !== job) return@synchronized null
@@ -131,7 +132,7 @@ object Dubber
 			if(System.currentTimeMillis() - job.seenAt > STALE_MS) { Diag.add("dub: late, skipped \"${job.part.arabic.take(40)}\""); continue }
 			// a newer line came while this one waited for its turn: the newer one is said, not this
 			if(synchronized(lock) { job.id != lineId }) { Diag.add("dub: newer line came, skipped \"${job.part.arabic.take(40)}\""); continue }
-			Diag.add("dub: ${job.part.speaker ?: "?"} heard=${heard ?: '-'} → ${voice.label} (${clip.mime}, ${System.currentTimeMillis() - t0} ms): ${job.part.arabic.take(50)}")
+			Diag.add("dub: ${job.part.speaker ?: "?"} heard=${heard ?: '-'} → ${voice.label} (${clip.mime}, ${System.currentTimeMillis() - t0} ms): ${said.take(50)}")
 			if(gen != generation) return
 			play(c, p, clip)
 			busyUntil = System.currentTimeMillis() + clip.ms + 150
@@ -165,16 +166,8 @@ object Dubber
 	private fun heardPitch(seenAt: Long): Float?
 	{
 		val ms = (System.currentTimeMillis() - seenAt + 150).coerceIn(400, 2900)
-		return try
-		{
-			val probe = ShortArray(1)
-			val rate = com.metallic.chiaki.lib.Session.recentAudio(probe)
-			if(rate <= 0) return null
-			val s = ShortArray((rate * ms / 1000).toInt())
-			if(com.metallic.chiaki.lib.Session.recentAudio(s) <= 0) return null
-			VoicePitch.pitch(s, rate)
-		}
-		catch(e: Throwable) { null }
+		val c = GameSound.recent(ms) ?: return null
+		return VoicePitch.pitch(c.samples, c.rate, 0, c.count)
 	}
 
 	private fun play(c: Context, p: InArabicPrefs, clip: Clip)

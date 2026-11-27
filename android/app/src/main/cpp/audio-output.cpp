@@ -40,16 +40,19 @@ struct AudioOutput
 	AudioOutput() : stream_callback(this) {}
 };
 
-// In Arabic: the last seconds of the game's sound (one channel, a quarter of the rate), kept even when the phone
-// is muted: the dubbing tells a man's voice from a woman's by it (see caption/VoicePitch.kt)
-#define TAP_LEN 36000
-#define TAP_DECIMATE 4
+// In Arabic: the last seconds of the game's sound (one channel, 16 kHz), kept even when the phone is muted:
+// the dubbing tells a man's voice from a woman's by it (voice/VoicePitch.kt), and «صوت اللعبة» turns its speech
+// into the dialogue (caption/SoundDialogue.kt)
+#define TAP_LEN 48000
+#define TAP_RATE 16000
 static std::mutex tap_mutex;
 static int16_t tap_buf[TAP_LEN];
 static size_t tap_pos = 0, tap_filled = 0;
-static uint32_t tap_channels = 2, tap_rate = 48000;
+/** samples kept since the stream began: sample number [tap_total] goes to [tap_pos] */
+static uint64_t tap_total = 0;
+static uint32_t tap_channels = 2, tap_rate = 48000, tap_decimate = 3;
 static int32_t tap_acc = 0;
-static int tap_n = 0;
+static uint32_t tap_n = 0;
 
 static void tap_push(const int16_t *buf, size_t samples_count)
 {
@@ -61,10 +64,11 @@ static void tap_push(const int16_t *buf, size_t samples_count)
 		for(uint32_t c = 0; c < ch; c++)
 			v += buf[i + c];
 		tap_acc += v / (int32_t)ch;
-		if(++tap_n < TAP_DECIMATE)
+		if(++tap_n < tap_decimate)
 			continue;
-		tap_buf[tap_pos] = (int16_t)(tap_acc / TAP_DECIMATE);
+		tap_buf[tap_pos] = (int16_t)(tap_acc / (int32_t)tap_decimate);
 		tap_pos = (tap_pos + 1) % TAP_LEN;
+		tap_total++;
 		if(tap_filled < TAP_LEN)
 			tap_filled++;
 		tap_acc = 0;
@@ -94,6 +98,7 @@ extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t
 	{
 		std::lock_guard<std::mutex> lock(tap_mutex);
 		tap_channels = channels;
+		tap_decimate = rate >= TAP_RATE ? rate / TAP_RATE : 1;
 		tap_rate = rate;
 		tap_filled = 0;
 	}
@@ -122,17 +127,30 @@ extern "C" void android_chiaki_audio_output_settings(uint32_t channels, uint32_t
 // In Arabic: game sound on the phone can be switched off (the TV plays it anyway)
 extern "C" { volatile int android_chiaki_audio_muted = 0; }
 
-/** copies the newest [n] samples (oldest first) into [out]; returns how many, and their rate in [rate] */
-extern "C" size_t android_chiaki_audio_recent(int16_t *out, size_t n, uint32_t *rate)
+/**
+ * Copies the game's sound from sample number [from] on (-1: the newest [n] samples) into [out]; returns how many.
+ * [start]: the number of the first one copied (later than [from] if those are gone), [rate] their sample rate,
+ * [total] how many there have been.
+ */
+extern "C" size_t android_chiaki_audio_from(int64_t from, int16_t *out, size_t n, uint64_t *start, uint32_t *rate, uint64_t *total)
 {
 	std::lock_guard<std::mutex> lock(tap_mutex);
-	*rate = tap_rate / TAP_DECIMATE;
-	if(n > tap_filled)
-		n = tap_filled;
-	size_t start = (tap_pos + TAP_LEN - n) % TAP_LEN;
-	for(size_t i = 0; i < n; i++)
-		out[i] = tap_buf[(start + i) % TAP_LEN];
-	return n;
+	*rate = tap_rate / tap_decimate;
+	*total = tap_total;
+	uint64_t oldest = tap_total - tap_filled;
+	uint64_t s = from < 0 ? (tap_total > n ? tap_total - n : 0) : (uint64_t)from;
+	if(s < oldest)
+		s = oldest;
+	if(s > tap_total)
+		s = tap_total;
+	size_t cnt = (size_t)(tap_total - s);
+	if(cnt > n)
+		cnt = n;
+	size_t ring = (tap_pos + TAP_LEN - (size_t)(tap_total - s)) % TAP_LEN;
+	for(size_t i = 0; i < cnt; i++)
+		out[i] = tap_buf[(ring + i) % TAP_LEN];
+	*start = s;
+	return cnt;
 }
 
 extern "C" void android_chiaki_audio_output_frame(int16_t *buf, size_t samples_count, void *audio_output)

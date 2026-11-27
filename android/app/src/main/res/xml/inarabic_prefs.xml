@@ -9,6 +9,8 @@
             app:title="الترجمة شغالة" app:summary="تترجم وقت اللعب من الجوال" />
         <ListPreference app:key="ia_mode" app:title="وش أترجم؟" app:defaultValue="menus" app:iconSpaceReserved="false"
             app:entries="@array/ia_mode_names" app:entryValues="@array/ia_mode_values" app:useSimpleSummaryProvider="true" />
+        <ListPreference app:key="ia_dialog_source" app:title="مصدر الحوار" app:defaultValue="screen" app:iconSpaceReserved="false"
+            app:entries="@array/ia_dialog_source_names" app:entryValues="@array/ia_dialog_source_values" app:useSimpleSummaryProvider="true" />
         <Preference app:key="ia_game_pick" app:title="اللعبة" app:iconSpaceReserved="false" />
     </PreferenceCategory>
 
@@ -55,8 +57,8 @@
             app:entries="@array/ia_voice_out_names" app:entryValues="@array/ia_voice_out_values" app:useSimpleSummaryProvider="true" />
         <ListPreference app:key="ia_voice_who" app:title="الأصوات" app:defaultValue="auto" app:iconSpaceReserved="false"
             app:entries="@array/ia_voice_who_names" app:entryValues="@array/ia_voice_who_values" app:useSimpleSummaryProvider="true" />
-        <ListPreference app:key="ia_voice_accent" app:title="نبرة الصوت" app:defaultValue="sa" app:iconSpaceReserved="false"
-            app:entries="@array/ia_voice_accent_names" app:entryValues="@array/ia_voice_accent_values" app:useSimpleSummaryProvider="true" />
+        <ListPreference app:key="ia_voice_dialect" app:title="لهجة الكلام" app:defaultValue="sa" app:iconSpaceReserved="false"
+            app:entries="@array/ia_voice_dialect_names" app:entryValues="@array/ia_voice_dialect_values" app:useSimpleSummaryProvider="true" />
         <Preference app:key="ia_voice_people" app:title="الشخصيات وأصواتها" app:iconSpaceReserved="false" />
     </PreferenceCategory>
 

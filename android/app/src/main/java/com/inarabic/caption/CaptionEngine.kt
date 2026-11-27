@@ -182,6 +182,13 @@ class CaptionEngine(
 		LinkServer.start(context)
 		LinkServer.sendStyle(prefs)
 		com.inarabic.voice.Dubber.start(context)
+		// «صوت اللعبة»: the dialogue comes from the game's speech, not from the subtitles
+		fromSound = prefs.dialogFromSound
+		if(fromSound)
+		{
+			val notice = { msg: String -> LinkServer.sendNotice(msg); mainHandler.post { onNotice?.invoke(msg) }; Unit }
+			sound = SoundDialogue(context, { en, at -> heard(en, at) }, notice) { fromSound = false }.also { if(!it.start(scope)) { fromSound = false; sound = null } }
+		}
 		if(prefs.secondReader) scope.launch { paddle = PaddleReader.open(context) }
 		loop = scope.launch {
 			while(isActive)
@@ -200,6 +207,7 @@ class CaptionEngine(
 		loop?.cancel()
 		loop = null
 		com.inarabic.voice.Dubber.stop()
+		sound?.stop(); sound = null
 		lensJob?.cancel(); lensRect = null
 		LinkServer.sendLensClear()
 		LinkServer.sendClear()
@@ -272,7 +280,7 @@ class CaptionEngine(
 			var read = OcrRead("")
 			var subLines = 0
 			var subSmall = 0; var subGroups = 0 // for the log: lines too small for dialogue, separate texts read
-			for(z in zones.filter { it.dialog })
+			for(z in zones.filter { it.dialog && !fromSound })
 			{
 				val r = px(z.r); if(r.width() < 16 || r.height() < 8) continue
 				val got = readArea(frame, r, 0.018f, if(prefs.centerOnly) side else null)
@@ -341,6 +349,8 @@ class CaptionEngine(
 			updateSide(side.filter { r -> r.box != null && !onSubtitle(r.box) && !inLens(r.box) && seen.add(SubtitleTracker.key(r.text)) }, now)
 			// what is on screen is sent again every few seconds: the TVs keep it as long as the English is there
 			if(now - refreshedAt > 4000) { refreshedAt = now; LinkServer.refresh() }
+			// the dialogue comes from the game's speech (heard): nothing more to read
+			if(fromSound) return
 			val ev0 = subTracker.feed(read)
 			if(now - diagAt > 1000 || ev0 != null)
 			{
@@ -379,10 +389,26 @@ class CaptionEngine(
 	/** the dialogue as last read (a retry of an incomplete translation uses the newest reading) */
 	@Volatile private var lastSubRead = ""
 
-	private fun translate(id: Int, english: String, box: FloatArray?, tries: Int = 0)
+	/** «صوت اللعبة» on, and working */
+	@Volatile private var fromSound = false
+	private var sound: SoundDialogue? = null
+
+	/** a sentence heard in the game's speech (begun at [startedAt]): a dialogue line like a subtitle */
+	private fun heard(english: String, startedAt: Long)
+	{
+		val id = ++nextId
+		translate(id, english, null, seenAt = startedAt)
+		// a spoken line has no end on screen: it stays long enough to read, then goes if nothing newer came
+		scope.launch {
+			delay((2500L + english.length * 60L).coerceAtMost(8000L))
+			if(currentId == id) { currentId = -1; current = null; LinkServer.sendClear(); post(null) }
+		}
+	}
+
+	/** [seenAt]: when the line came (a heard one: when it began to be said) */
+	private fun translate(id: Int, english: String, box: FloatArray?, tries: Int = 0, seenAt: Long = System.currentTimeMillis())
 	{
 		currentId = id
-		val seenAt = System.currentTimeMillis()
 		lastLineAt = seenAt
 		scope.launch {
 			val known0 = TranslationMemory.get(english)

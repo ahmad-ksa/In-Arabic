@@ -41,23 +41,28 @@
         <item>phone</item>
         <item>both</item>
     </string-array>
-    <string-array name="ia_voice_accent_names">
+    <string-array name="ia_voice_dialect_names">
+        <item>فصحى</item>
         <item>سعودي</item>
         <item>خليجي</item>
         <item>مصري</item>
         <item>شامي</item>
-        <item>عراقي</item>
-        <item>يمني</item>
-        <item>مغربي</item>
     </string-array>
-    <string-array name="ia_voice_accent_values">
+    <string-array name="ia_voice_dialect_values">
+        <item>fusha</item>
         <item>sa</item>
         <item>gulf</item>
         <item>eg</item>
         <item>sham</item>
-        <item>iq</item>
-        <item>ye</item>
-        <item>maghreb</item>
+    </string-array>
+    <!-- where the dialogue comes from -->
+    <string-array name="ia_dialog_source_names">
+        <item>الترجمة المكتوبة في اللعبة</item>
+        <item>صوت اللعبة (للألعاب بدون ترجمة مكتوبة)</item>
+    </string-array>
+    <string-array name="ia_dialog_source_values">
+        <item>screen</item>
+        <item>sound</item>
     </string-array>
     <string-array name="ia_voice_who_names">
         <item>تلقائي: صوت لكل شخصية</item>

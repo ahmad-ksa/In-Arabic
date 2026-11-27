@@ -62,7 +62,7 @@ class InArabicSettingsActivity : AppCompatActivity()
 		private fun showVoiceSettings()
 		{
 			val p = InArabicPrefs(requireContext())
-			for(k in listOf("ia_voice_out", "ia_voice_who", "ia_voice_accent")) findPreference<Preference>(k)?.isVisible = p.voiceOn
+			for(k in listOf("ia_voice_out", "ia_voice_who", "ia_voice_dialect")) findPreference<Preference>(k)?.isVisible = p.voiceOn
 			findPreference<Preference>("ia_voice_people")?.apply {
 				isVisible = p.voiceOn && p.voiceWho == "auto"
 				val n = com.inarabic.voice.Voices.people(requireContext()).size
