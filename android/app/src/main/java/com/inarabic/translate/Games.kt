@@ -25,6 +25,10 @@ object Games
 		fun to(who: Char?) = when(who ?: usual) { 'f' -> toWoman; else -> toMan }
 	}
 
+	/** a word Google says wrong the same way in many lines: where the English has [en] (at the start of what is
+	 * said), its Arabic [ar] becomes [to] (the first one) */
+	class Word(val en: Regex, val ar: Regex, val to: String)
+
 	class Game(
 		val title: String,
 		val people: Map<String, Person>,
@@ -42,6 +46,8 @@ object Games
 		val english: List<Pair<Regex, String>>,
 		/** Arabic after Google: one spelling for each name */
 		val arabic: List<Pair<Regex, String>>,
+		/** words Google says wrong in many lines, with one meaning there (fixed after Google, by the English) */
+		val words: List<Word>,
 		/** how the voice says a word (vowel marks) */
 		val voice: Map<String, String>)
 
@@ -50,13 +56,13 @@ object Games
 	val GTA6 = Game(
 		title = "Grand Theft Auto VI",
 		people = mapOf(
-			"lucia" to Person(true, "ar-SA-ZariyahNeural"), "jason" to Person(false, "ar-SA-HamedNeural"),
+			"lucia" to Person(true, "ar-LB-LaylaNeural"), "jason" to Person(false, "ar-SA-HamedNeural"),
 			"vicki" to Person(true, "ar-KW-NouraNeural"), "dunk" to Person(false, "ar-KW-FahedNeural"),
 			"frankie" to Person(false, "ar-AE-HamdanNeural"), "martin" to Person(false, "ar-QA-MoazNeural"),
 			"brian" to Person(false, "ar-JO-TaimNeural"), "cal" to Person(false, "ar-BH-AliNeural"),
 			"boobie" to Person(false, "ar-OM-AbdullahNeural"), "raul" to Person(false, "ar-LB-RamiNeural"),
 			"layla" to Person(true, "ar-AE-FatimaNeural"), "dancer" to Person(true, "ar-QA-AmalNeural"),
-			"bartender" to Person(false, "ar-IQ-BasselNeural")),
+			"bartender" to Person(false, "ar-IQ-BasselNeural"), "moses" to Person(false, "ar-SY-LaithNeural")),
 		crowd = mapOf("local" to null, "locals" to null, "stranger" to null, "staff member" to null, "vagrants" to null,
 			"cop" to null, "kolt & associates" to null, "driver" to null, "drivers" to null, "tourists" to null,
 			"resident" to null, "worker" to null, "workers" to null, "stylist" to null),
@@ -70,11 +76,10 @@ object Games
 			"jordy" to "جوردي", "tommy" to "تومي", "dancer" to "الراقصة", "bartender" to "النادل", "local" to "أحد السكان", "locals" to "سكان",
 			"stranger" to "غريب", "staff member" to "موظف", "vagrants" to "متشردون", "cop" to "شرطي", "kolt & associates" to "كولت وشركاه",
 			"driver" to "سائق", "drivers" to "سائقون", "tourists" to "سياح", "resident" to "أحد السكان", "worker" to "عامل", "workers" to "عمال",
-			"stylist" to "مصفف الشعر", "zach" to "زاك", "danny" to "داني",
+			"stylist" to "مصفف الشعر", "zach" to "زاك", "moses" to "موزس", "mo" to "مو", "danny" to "داني",
 			"ammu-nation" to "أمونيشن", "ammu-nations" to "أمونيشن", "los santos" to "لوس سانتوس", "liberty city" to "ليبرتي سيتي"),
 		lines = linkedMapOf(
 			// «Hey» is a greeting, not «wait»
-			"hey" to Fix("مرحبًا."),
 			"heyhowyoufeeling" to Fix("مرحبًا. كيف تشعر؟", "مرحبًا. كيف تشعرين؟"),
 			"heyneedsomethingfromme" to Fix("مرحبًا، هل تحتاج شيئًا مني؟", "مرحبًا، هل تحتاجين شيئًا مني؟", 'f'),
 			"heyfindmelater" to Fix("مرحبًا، تعال إليّ لاحقًا.", "مرحبًا، تعالي إليّ لاحقًا.", 'f'),
@@ -187,11 +192,9 @@ object Games
 			"buyanewoutfit" to Fix("اشترِ ملابس جديدة"),
 			"nipper38pistol" to Fix("مسدس نيبر .38"),
 			// from the log of 27 Nov, night («Hey» said as «مهلا»: a greeting or a call, by the whole line)
-			"heyboys" to Fix("أهلًا يا شباب."),
 			"heybabe" to Fix("أهلًا يا حبيبي...", "أهلًا يا حبيبتي...", 'f'),
 			"heywatchit" to Fix("هيه! انتبه.", "هيه! انتبهي.", 'f'),
 			"heyoverheredude" to Fix("هيه، أنا هنا يا صاح."),
-			"heymo" to Fix("أهلًا، مو؟"),
 			"supwithyoutwo" to Fix("ما أخباركما أنتما الاثنان؟"),
 			"chillyouregood" to Fix("اهدأ، أنت بخير.", "اهدئي، أنتِ بخير."),
 			"yougood" to Fix("هل أنت بخير؟", "هل أنتِ بخير؟"),
@@ -239,10 +242,18 @@ object Games
 		english = listOf(
 			// «tip out» (pay the staff their share) is «tip»: Google read it as «guide», «inform», «take out»
 			Regex("\\b(tip|tipping|tipped|tips)\\s+(him|her|them|me|you|us)\\s+out\\b", RegexOption.IGNORE_CASE) to "$1 $2",
-			Regex("\\b(tip|tipping|tipped|tips)\\s+out\\b", RegexOption.IGNORE_CASE) to "$1"),
+			Regex("\\b(tip|tipping|tipped|tips)\\s+out\\b", RegexOption.IGNORE_CASE) to "$1",
+			// «Sup» is always «what's up» (Google: «سوب», «أتناول العشاء»)
+			Regex("(?<![A-Za-z'])\\s*'?[Ss]up\\b(?!')") to " What's up"),
 		arabic = listOf(
 			// one spelling for each name
 			w("دونك") to "دنك", w("دانك") to "دنك", w("جايسون") to "جيسون", w("المسرات") to "ديلايتس"),
+		words = listOf(
+			// a lone «Hey» (a greeting or a call) is never «مهلا» (wait): «Hey!» is a call, «Hey.» «Hey,» a greeting;
+			// «Hey, hey, hey! Easy» and «Hey, wait» do mean «مهلا» and stay
+			Word(Regex("^(?:(?:oh|uh|ah),?\\s+)?hey\\s*!(?!\\s*hey)", RegexOption.IGNORE_CASE), Regex("مهل(?:ًا|اً|ا)|يا(?=!)"), "هيه"),
+			Word(Regex("^(?:(?:oh|uh|ah),?\\s+)?hey\\b(?!\\s*[,.!]?\\s*(?:hey|wait|easy|relax|hold|slow|calm|stop|whoa))", RegexOption.IGNORE_CASE),
+				Regex("مهل(?:ًا|اً|ا)"), "أهلًا")),
 		voice = mapOf(
 			"دنك" to "دَنْك", "فيكي" to "فِيكِي", "لوسيا" to "لُوسِيَا", "جيسون" to "جَيْسُون", "فرانكي" to "فْرانْكِي",
 			"مارتن" to "مارْتِن", "براين" to "بْرايِن", "ديلايتس" to "دِيلايْتْس", "جيلهورن" to "جِيلْهُورْن", "ليلى" to "لَيْلى"))
@@ -316,6 +327,14 @@ object Games
 		var t = text
 		for((re, to) in g.arabic) t = re.replace(t, to)
 		return t
+	}
+
+	/** Google's Arabic for [english] (a whole line), the words it says wrong in many lines said right */
+	fun words(english: String, arabic: String): String
+	{
+		val said = split(english).second.trim()
+		val w = active?.words?.firstOrNull { it.en.containsMatchIn(said) } ?: return arabic
+		return w.ar.replaceFirst(arabic, w.to)
 	}
 
 	/** how the voice says it: names with their vowel marks */

@@ -56,7 +56,7 @@ class Translator(@Suppress("unused") private val prefs: InArabicPrefs)
 			if(got != null && got.size == todo.size)
 			{
 				var j = 0
-				return lines.indices.joinToString("\n") { i -> fixed[i] ?: Glossary.arabicNames(got[j++]).let { a -> label[i]?.let { "${it.first}: $a" } ?: a } }
+				return lines.indices.joinToString("\n") { i -> fixed[i] ?: Games.words(lines[i], Glossary.arabicNames(got[j++])).let { a -> label[i]?.let { "${it.first}: $a" } ?: a } }
 			}
 			// the lines did not come back one for one: each on its own
 			return lines.mapIndexed { i, l -> fixed[i] ?: quick(l) ?: l }.joinToString("\n")
@@ -70,7 +70,7 @@ class Translator(@Suppress("unused") private val prefs: InArabicPrefs)
 		val english = Glossary.sentenceCase(english0)
 		val k = SubtitleTracker.key(english)
 		cache.get(k)?.let { return it }
-		val ar = google(Games.english(english))?.let { Glossary.arabicNames(it) } ?: return null
+		val ar = google(Games.english(english))?.let { Games.words(english, Glossary.arabicNames(it)) } ?: return null
 		// only a complete translation is kept: an incomplete one is asked again at the next reading
 		if(complete(ar)) cache.put(k, ar)
 		return ar

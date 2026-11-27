@@ -1190,7 +1190,9 @@ class CaptionEngine(
 		{
 			list -> texts.joinToString("\n")
 			heading -> texts[0] + "\n" + texts.drop(1).joinToString(" ")
-			else -> texts.joinToString(" ")
+			// a wrapped sentence is one line, but a line that starts with a speaker's name («Local: …») is the next
+			// person speaking, never the sentence going on: its own line (else the voice says both, with the name)
+			else -> texts.indices.joinToString("") { i -> (if(i == 0) "" else if(com.inarabic.voice.DubLines.speaker(texts[i]) != null) "\n" else " ") + texts[i] }
 		}
 		val (fg, bg) = letterColors(crop, r)
 		return OcrRead(joined, box, coloredPhrases(crop, lines), fg, bg)

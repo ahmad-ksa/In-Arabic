@@ -27,6 +27,10 @@ class GamesTest
 			"Lucia: | try not to in public." to "Lucia: I try not to in public.",
 			"Return toVicki'sroom" to "Return to Vicki's room",
 			"Lucia: Did you not hear me say l'm taking this?" to "Lucia: Did you not hear me say I'm taking this?",
+			"Local: Hey,'sup..." to "Local: Hey, What's up...",
+			"Lucia: 'Sup with you two?" to "Lucia: What's up with you two?",
+			"Lucia: Sup, girl, all good?" to "Lucia: What's up, girl, all good?",
+			"Lucia: Sup, mama?" to "Lucia: What's up, mama?",
 			"Vagrants: Could l get some change, Miss Lady?" to "Vagrants: Could I get some change, Miss Lady?",
 			"Vagrants: Man, l'm crashing and got the IAA all over me." to "Vagrants: Man, I'm crashing and got the IAA all over me.",
 			"Vicki: After l'm done tipping out Martin's useless ass," to "Vicki: After I'm done tipping Martin's useless ass,",
@@ -61,6 +65,17 @@ class GamesTest
 		assertEquals(listOf<Char?>('m'), t.plan(listOf("Lucia: Well, these should help."), 2000))
 		// Vicki, then Lucia in the same text: Lucia to Vicki, a woman; a task line: nobody
 		assertEquals(listOf<Char?>('f', 'f', null), t.plan(listOf("Vicki: Hey.", "Lucia: Hey.", "Go to Delights"), 4000))
+	}
+
+	@Test fun wordSaidWrongInManyLines()
+	{
+		assertEquals("أهلًا يا أولاد.", Games.words("Lucia: Hey, boys.", "مهلا يا أولاد."))
+		assertEquals("هيه! انتبه.", Games.words("Zach: Hey! Watch it.", "مهلا! انتبه."))
+		// «Hey, hey! Easy», «Hey, wait»: «مهلا» is right there
+		assertEquals("مهلا، مهلا! بهدوء.", Games.words("Frankie: Hey, hey! Easy with that.", "مهلا، مهلا! بهدوء."))
+		assertEquals("مهلا، انتظر", Games.words("Local: Hey, wait, wait", "مهلا، انتظر"))
+		// no «Hey» at the start: nothing changes
+		assertEquals("مهلا، هل كانت", Games.words("Vagrants: Wait, was it", "مهلا، هل كانت"))
 	}
 
 	@Test fun namesSpeltOneWay()
