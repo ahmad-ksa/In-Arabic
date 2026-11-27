@@ -59,6 +59,11 @@ android {
         buildConfig true
     }
 
+    packaging {
+        // jar metadata two libraries both carry (jsch, and jspecify from ML Kit): not needed in the app
+        resources { excludes += 'META-INF/versions/9/OSGI-INF/MANIFEST.MF' }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
