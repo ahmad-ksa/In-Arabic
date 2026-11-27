@@ -85,13 +85,14 @@ object OnlineEngines
 	}
 	catch(e: Exception) { lastError = "قوقل الرسمي ما رجّع ترجمة"; null }
 
-	/** Gemini Flash (your key from Google AI Studio): its answer to [user], told [system], without thinking (faster) */
+	/** Gemini 3.8 Flash (your key from Google AI Studio): its answer to [user], told [system], thinking as little as it can (faster) */
 	fun gemini(system: String, user: String, key: String): String? = try
 	{
 		val req = JSONObject()
 			.put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system))))
 			.put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", user)))))
-			.put("generationConfig", JSONObject().put("temperature", 0).put("thinkingConfig", JSONObject().put("thinkingBudget", 0)))
+			// Gemini 3.8: no temperature (removed), and thinking set by level: "low" is its least ("minimal" is refused)
+			.put("generationConfig", JSONObject().put("thinkingConfig", JSONObject().put("thinkingLevel", "low")))
 		val r = http("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", "POST", req.toString(),
 			mapOf("x-goog-api-key" to key))
 		r?.let { JSONObject(it).getJSONArray("candidates").getJSONObject(0).getJSONObject("content").getJSONArray("parts") }
