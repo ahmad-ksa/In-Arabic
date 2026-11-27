@@ -57,7 +57,8 @@ object Games
 			"boobie" to Person(false, "ar-OM-AbdullahNeural"), "raul" to Person(false, "ar-LB-RamiNeural"),
 			"layla" to Person(true, "ar-AE-FatimaNeural"), "dancer" to Person(true, "ar-QA-AmalNeural"),
 			"bartender" to Person(false, "ar-IQ-BasselNeural")),
-		crowd = mapOf("local" to null),
+		crowd = mapOf("local" to null, "locals" to null, "stranger" to null, "staff member" to null, "vagrants" to null,
+			"cop" to null, "kolt & associates" to null),
 		names = linkedMapOf(
 			"vice city" to "فايس سيتي", "leonida keys" to "جزر ليونيدا", "leonida" to "ليونيدا", "port gellhorn" to "بورت جيلهورن",
 			"gellhorn" to "جيلهورن", "vice-dale county" to "مقاطعة فايس-ديل", "grassrivers" to "غراس ريفرز", "ambrosia" to "أمبروسيا", "mount kalaga" to "جبل كالاغا",
@@ -65,7 +66,8 @@ object Games
 			"jason" to "جيسون", "lucia" to "لوسيا", "kenton" to "كينتون", "cal" to "كال", "boobie" to "بوبي", "raul" to "راؤول",
 			"brian" to "براين", "real dimez" to "ريل دايمز", "dre'quan" to "دريكوان", "drequan" to "دريكوان",
 			"vicki" to "فيكي", "dunk" to "دنك", "frankie" to "فرانكي", "martin" to "مارتن", "layla" to "ليلى",
-			"jordy" to "جوردي", "tommy" to "تومي", "dancer" to "الراقصة", "bartender" to "النادل", "local" to "أحد السكان",
+			"jordy" to "جوردي", "tommy" to "تومي", "dancer" to "الراقصة", "bartender" to "النادل", "local" to "أحد السكان", "locals" to "سكان",
+			"stranger" to "غريب", "staff member" to "موظف", "vagrants" to "متشردون", "cop" to "شرطي", "kolt & associates" to "كولت وشركاه",
 			"ammu-nation" to "أمونيشن", "ammu-nations" to "أمونيشن", "los santos" to "لوس سانتوس", "liberty city" to "ليبرتي سيتي"),
 		lines = linkedMapOf(
 			// «Hey» is a greeting, not «wait»
@@ -153,6 +155,34 @@ object Games
 			"comeonin" to Fix("ادخل!", "ادخلي!", 'f'),
 			"urghdidyougetacat" to Fix("أف، هل اقتنيت قطة؟", "أف، هل اقتنيتِ قطة؟"),
 			"billwiththepill" to Fix("بيل صاحب الحبوب!"),
+			// from the log of 27 Nov (robbing a store, the Kolts, passers-by)
+			"finegetyourselfsomedeodorant" to Fix("حسنًا... اشترِ لنفسك مزيل عرق.", "حسنًا... اشتري لنفسكِ مزيل عرق."),
+			"getthefuckouthurryup" to Fix("اخرج من هنا، اللعنة! أسرع!", "اخرجي من هنا، اللعنة! أسرعي!"),
+			"openitbitch" to Fix("افتحه يا حقير.", "افتحيه يا حقيرة."),
+			"nowstayrightthereandshutthefuckup" to Fix("الآن ابقَ مكانك واخرس", "الآن ابقي مكانكِ واخرسي"),
+			"startwalkin" to Fix("امشِ!", "امشي!"),
+			"heymoneysintheregisterjustgetitselfserviceorwhatever" to Fix("المال في الصندوق، خذه بنفسك، خدمة ذاتية أو أيًا كان...", "المال في الصندوق، خذيه بنفسكِ، خدمة ذاتية أو أيًا كان...", 'f'),
+			"heymoneysintheregisterjustgetit" to Fix("المال في الصندوق، خذه بنفسك،", "المال في الصندوق، خذيه بنفسكِ،", 'f'),
+			"thatsitregistersbonedrynow" to Fix("هذا كل شيء، الصندوق فارغ تمامًا الآن."),
+			"heretakeit" to Fix("تفضل، خذه!", "تفضلي، خذيه!", 'f'),
+			"needanyhelp" to Fix("هل تحتاج أي مساعدة؟", "هل تحتاجين أي مساعدة؟", 'f'),
+			"yougotwhatyoucameforrightmindgettingoutnow" to Fix("حصلت على ما جئت من أجله، صحيح؟ هلّا خرجت الآن؟", "حصلتِ على ما جئتِ من أجله، صحيح؟ هلّا خرجتِ الآن؟", 'f'),
+			"couldigetsomechangemisslady" to Fix("هل لي ببعض الفكّة يا سيدتي؟"),
+			"manimcrashingandgottheiaaalloverme" to Fix("يا رجل، مفعول المخدر يزول عني ووكالة IAA تلاحقني من كل مكان."),
+			"aywatchit" to Fix("هيه، انتبه!", "هيه، انتبهي!", 'f'),
+			"heywaitwaithowboutwecallit" to Fix("مهلًا، انتظر، انتظر، ما رأيك أن ننهي الأمر هنا...", "مهلًا، انتظري، انتظري، ما رأيكِ أن ننهي الأمر هنا...", 'f'),
+			"imfuckinggone" to Fix("سأرحل من هنا، اللعنة!"),
+			"wellleaveyoubeandsaynomoreaboutithowsthat" to Fix("سنتركك وشأنك ولن نتكلم عن الأمر! ما رأيك؟", "سنترككِ وشأنكِ ولن نتكلم عن الأمر! ما رأيكِ؟", 'f'),
+			"aintyoubibiscousin" to Fix("ألست ابن عم بيبي؟", "ألستِ ابنة عم بيبي؟", 'f'),
+			"ayowaityoulookfamiliar" to Fix("مهلًا، انتظر، تبدو مألوفًا!", "مهلًا، انتظري، تبدين مألوفة!", 'f'),
+			"quitfuckinstallinletsgo" to Fix("توقف عن المماطلة اللعينة! هيا!", "توقفي عن المماطلة اللعينة! هيا!", 'f'),
+			"surehopin" to Fix("طبعًا، اركب.", "طبعًا، اركبي.", 'f'),
+			"soifyouhappentoyouknowfindaridethatspeakstoyouorwhatever" to Fix("فإن صادفت، كما تعلم، سيارة تعجبك، أو أيًا كان،", "فإن صادفتِ، كما تعلمين، سيارة تعجبكِ، أو أيًا كان،", 'f'),
+			"justbringittheretellhimisentyou" to Fix("فقط خذها إلى هناك. قل له إنني أرسلتك.", "فقط خذيها إلى هناك. قولي له إنني أرسلتكِ.", 'f'),
+			"leasticandoafterthiscolorfulwasteoftime" to Fix("هذا أقل ما يمكنني فعله بعد كل هذا الوقت الضائع."),
+			"whosgotavisualanyone" to Fix("هل يراه أحد؟ أي أحد؟"),
+			"buyanewoutfit" to Fix("اشترِ ملابس جديدة"),
+			"nipper38pistol" to Fix("مسدس نيبر .38"),
 			// tasks
 			"gotodelights" to Fix("اذهب إلى ديلايتس"),
 			"gotodunkstrailer" to Fix("اذهب إلى مقطورة دنك"),
@@ -167,6 +197,7 @@ object Games
 			Regex("(?<=[A-Za-z])'s(?=(car|room|trailer|office|place|house)\\b)") to "'s ",
 			// «I» read as «l» or «|»
 			Regex("\\bl'(m|ll|d|ve)\\b") to "I'$1", Regex("(?<=^|\\s)\\|(?=\\s)") to "I",
+			Regex("(?<=\\s)l(?=\\s)") to "I",
 			// a letter lost at the end of a name
 			Regex("\\bDr\\. Bil\\b") to "Dr. Bill"),
 		english = listOf(
@@ -190,7 +221,7 @@ object Games
 		active = if(n.isBlank() || "grand theft auto" in n || "gta" in n) GTA6 else null
 	}
 
-	private val NAME = Regex("^\\s*([A-Za-z][A-Za-z'.\\-]*(?:\\s[A-Za-z][A-Za-z'.\\-]*){0,2})\\s*:\\s*(.+)$")
+	private val NAME = Regex("^\\s*([A-Za-z][A-Za-z'.\\-]*(?:\\s(?:&\\s)?[A-Za-z][A-Za-z'.\\-]*){0,2})\\s*:\\s*(.+)$")
 
 	/** «Vicki: text» → (vicki, text); no name → (null, line) */
 	fun split(line: String): Pair<String?, String>

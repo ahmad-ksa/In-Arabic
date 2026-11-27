@@ -8,8 +8,8 @@ object DubLines
 {
 	class Part(val speaker: String?, val arabic: String, val end: Int)
 
-	// one to three capitalised words, then a colon: the speaker
-	private val NAME = Regex("^\\s*([A-Z][A-Za-z'.\\-]*(?:\\s[A-Z][A-Za-z'.\\-]*){0,2})\\s*:\\s*(.*)$")
+	// one to three capitalised words («Kolt & Associates» too), then a colon: the speaker
+	private val NAME = Regex("^\\s*([A-Z][A-Za-z'.\\-]*(?:\\s(?:&\\s)?[A-Z][A-Za-z'.\\-]*){0,2})\\s*:\\s*(.*)$")
 	// labels that are not people
 	private val NOT_PEOPLE = setOf("tip", "hint", "note", "objective", "mission", "goal", "task", "warning", "new", "info", "help")
 

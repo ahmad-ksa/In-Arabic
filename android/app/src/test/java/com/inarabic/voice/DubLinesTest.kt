@@ -10,6 +10,7 @@ class DubLinesTest
 	{
 		assertEquals("Lucia", DubLines.speaker("Lucia: Let's go."))
 		assertEquals("Uncle Raul", DubLines.speaker("Uncle Raul: Not now."))
+		assertEquals("Kolt & Associates", DubLines.speaker("Kolt & Associates: Ayo, wait!"))
 		assertNull(DubLines.speaker("Let's go."))
 		assertNull(DubLines.speaker("Objective: Leave the trailer"))
 	}

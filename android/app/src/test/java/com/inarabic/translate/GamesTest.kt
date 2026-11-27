@@ -26,6 +26,8 @@ class GamesTest
 			"Lucia: If I was you, l'd just quit." to "Lucia: If I was you, I'd just quit.",
 			"Lucia: | try not to in public." to "Lucia: I try not to in public.",
 			"Return toVicki'sroom" to "Return to Vicki's room",
+			"Vagrants: Could l get some change, Miss Lady?" to "Vagrants: Could I get some change, Miss Lady?",
+			"Vagrants: Man, l'm crashing and got the IAA all over me." to "Vagrants: Man, I'm crashing and got the IAA all over me.",
 			"Vicki: After l'm done tipping out Martin's useless ass," to "Vicki: After I'm done tipping Martin's useless ass,",
 			"Vicki: But can you drive? 'Cause l'm a little..." to "Vicki: But can you drive? 'Cause I'm a little...",
 			"Vicki: I'm gonna tip out the DJ, tip out the doorman." to "Vicki: I'm gonna tip the DJ, tip the doorman.",
@@ -72,12 +74,15 @@ class GamesTest
 		// a name the game does not know: the whole line goes to Google
 		assertNull(Games.label("LRI Dunk: We just gotta call Dr. Bill!"))
 		assertNull(Games.label("Go to Delights"))
+		// a gang's name with «&»
+		assertEquals("كولت وشركاه" to "Quit fuckin' stallin'! Let's go!", Games.label("Kolt & Associates: Quit fuckin' stallin'! Let's go!"))
 	}
 
 	@Test fun passersByHaveNoVoiceOfTheirOwn()
 	{
 		org.junit.Assert.assertTrue(Games.crowd("Local") && !Games.crowd("Lucia") && !Games.crowd(null))
 		assertNull(Games.crowdGender("Local"))
+		org.junit.Assert.assertTrue(Games.crowd("Kolt & Associates") && Games.crowd("Staff Member"))
 	}
 
 	@Test fun namesSaidWithVowelMarks() = assertEquals("أنا دَنْك", Games.forVoice("أنا دنك"))
