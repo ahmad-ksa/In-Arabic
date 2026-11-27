@@ -161,8 +161,10 @@ object Dubber
 	{
 		val c = context ?: return
 		val p = prefs ?: return
+		// the game's own people have their voice (unless you chose another one for them in the settings)
+		val known = com.inarabic.translate.Games.person(job.part.speaker)?.takeIf { job.part.speaker?.let { Voices.fixed(c, it) } != true }
 		// who speaks is not known yet: enough of the line heard to tell a man from a woman
-		val listen = p.voiceWho == "auto" && (job.part.speaker == null || !Voices.settled(c, job.part.speaker))
+		val listen = p.voiceWho == "auto" && known == null && (job.part.speaker == null || !Voices.settled(c, job.part.speaker))
 		val wait = job.seenAt + LISTEN_MS - System.currentTimeMillis()
 		if(listen && wait > 0) Thread.sleep(wait)
 		val heard = if(listen) VoicePitch.gender(heardPitch(job.seenAt)) else null
@@ -170,10 +172,11 @@ object Dubber
 		{
 			"male" -> Voices.order(p.voiceDialect, true).first()
 			"female" -> Voices.order(p.voiceDialect, false).first()
-			else -> if(job.part.speaker != null) Voices.voiceOf(c, job.part.speaker, heard, p.voiceDialect)
+			else -> known?.voice?.let { Voices.byId(it) } ?: if(job.part.speaker != null) Voices.voiceOf(c, job.part.speaker, heard, p.voiceDialect)
 				else Voices.order(p.voiceDialect, heard != 'f').first()
 		}
-		val text = Dialect.say(job.part.arabic, p.voiceDialect)
+		// names said right (vowel marks for the voice only: the screen shows them plain)
+		val text = com.inarabic.translate.Games.forVoice(Dialect.say(job.part.arabic, p.voiceDialect))
 		// «ضبط السرعة تلقائي»: as fast as makes it last as long as the English
 		val rate = if(p.voiceAutoRate && job.enChars >= 4)
 			(100f * (text.length / voiceCps) / (job.enChars / gameCps)).toInt().coerceIn(80, 180) else p.voiceRate

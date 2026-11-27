@@ -1,0 +1,236 @@
+// SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
+// What one game needs beyond Google's translation, kept apart for each game (GTA VI first):
+//  - its people: man or woman, and a voice each that stays the same the whole game;
+//  - corrected lines: Google's mistakes seen in the logs, said right; a line said to someone ("you") has a version
+//    for a man and one for a woman, picked by who is spoken to (caption/Talk.kt);
+//  - names: people and places written one way (Google spells them several ways, or translates a place's name);
+//  - a few English fixes before Google, only where the meaning is always the same ("tip out" is "tip"), and the
+//    words the reader glues together ("Getin Vicki'scar"). Every logged line is checked against them in the tests
+//    (GamesTest): a fix that would change a line it should not stops the build;
+//  - how names are said: vowel marks for the voice, so it reads them right.
+// Pure Kotlin, unit-tested.
+
+package com.inarabic.translate
+
+import com.inarabic.caption.SubtitleTracker
+
+object Games
+{
+	/** a person of the game: a woman or a man, and the voice that says their lines (Voices ids) */
+	class Person(val female: Boolean, val voice: String? = null)
+
+	/** a corrected line: [toMan] said to a man, [toWoman] to a woman; [usual] when it is not known to whom */
+	class Fix(val toMan: String, val toWoman: String = toMan, val usual: Char = 'm')
+	{
+		fun to(who: Char?) = when(who ?: usual) { 'f' -> toWoman; else -> toMan }
+	}
+
+	class Game(
+		val title: String,
+		val people: Map<String, Person>,
+		/** names in Arabic letters (people, places; lowercase English): Google leaves them in English or spells
+		 * them its own way; the speaker's name before a corrected line («Vicki:») too */
+		val names: Map<String, String>,
+		/** whole lines, by their key (SubtitleTracker.key of the words after the speaker's name) */
+		val lines: Map<String, Fix>,
+		/** what the reader gets wrong in the English (glued words, «l'm» for «I'm»): fixed before anything else */
+		val ocr: List<Pair<Regex, String>>,
+		/** English before Google: only meanings that never change */
+		val english: List<Pair<Regex, String>>,
+		/** Arabic after Google: one spelling for each name */
+		val arabic: List<Pair<Regex, String>>,
+		/** how the voice says a word (vowel marks) */
+		val voice: Map<String, String>)
+
+	private fun w(word: String) = Regex("(?<![\\u0600-\\u06FF])" + Regex.escape(word) + "(?![\\u0600-\\u06FF])")
+
+	val GTA6 = Game(
+		title = "Grand Theft Auto VI",
+		people = mapOf(
+			"lucia" to Person(true, "ar-SA-ZariyahNeural"), "jason" to Person(false, "ar-SA-HamedNeural"),
+			"vicki" to Person(true, "ar-KW-NouraNeural"), "dunk" to Person(false, "ar-KW-FahedNeural"),
+			"frankie" to Person(false, "ar-AE-HamdanNeural"), "martin" to Person(false, "ar-QA-MoazNeural"),
+			"brian" to Person(false, "ar-JO-TaimNeural"), "cal" to Person(false, "ar-BH-AliNeural"),
+			"boobie" to Person(false, "ar-OM-AbdullahNeural"), "raul" to Person(false, "ar-LB-RamiNeural"),
+			"layla" to Person(true, "ar-AE-FatimaNeural"), "dancer" to Person(true, "ar-QA-AmalNeural"),
+			"bartender" to Person(false, "ar-IQ-BasselNeural")),
+		names = linkedMapOf(
+			"vice city" to "فايس سيتي", "leonida keys" to "جزر ليونيدا", "leonida" to "ليونيدا", "port gellhorn" to "بورت جيلهورن",
+			"gellhorn" to "جيلهورن", "grassrivers" to "غراس ريفرز", "ambrosia" to "أمبروسيا", "mount kalaga" to "جبل كالاغا",
+			"key lento" to "كي لينتو", "tanglewood" to "تانغلوود", "delights" to "ديلايتس", "kolts" to "الكولتس",
+			"jason" to "جيسون", "lucia" to "لوسيا", "kenton" to "كينتون", "cal" to "كال", "boobie" to "بوبي", "raul" to "راؤول",
+			"brian" to "براين", "real dimez" to "ريل دايمز", "dre'quan" to "دريكوان", "drequan" to "دريكوان",
+			"vicki" to "فيكي", "dunk" to "دنك", "frankie" to "فرانكي", "martin" to "مارتن", "layla" to "ليلى",
+			"jordy" to "جوردي", "tommy" to "تومي", "dancer" to "الراقصة", "bartender" to "النادل", "local" to "أحد السكان",
+			"ammu-nation" to "أمونيشن", "ammu-nations" to "أمونيشن", "los santos" to "لوس سانتوس", "liberty city" to "ليبرتي سيتي"),
+		lines = linkedMapOf(
+			// «Hey» is a greeting, not «wait»
+			"hey" to Fix("مرحبًا."),
+			"heyhowyoufeeling" to Fix("مرحبًا. كيف تشعر؟", "مرحبًا. كيف تشعرين؟"),
+			"heyneedsomethingfromme" to Fix("مرحبًا، هل تحتاج شيئًا مني؟", "مرحبًا، هل تحتاجين شيئًا مني؟", 'f'),
+			"heyfindmelater" to Fix("مرحبًا، تعال إليّ لاحقًا.", "مرحبًا، تعالي إليّ لاحقًا.", 'f'),
+			"heysup" to Fix("أهلًا، كيف الحال..."),
+			"supmama" to Fix("كيف الحال يا جميلة؟", "كيف الحال يا جميلة؟", 'f'),
+			"supgirlallgood" to Fix("أهلًا يا فتاة، هل كل شيء بخير؟"),
+			"heygirlyougood" to Fix("أهلًا يا فتاة، هل أنتِ بخير؟"),
+			"howreyoudoinggorgeous" to Fix("كيف حالك يا وسيم؟", "كيف حالكِ يا جميلة؟", 'f'),
+			"igotyouinasecondb00" to Fix("سأكون معك بعد لحظة يا عزيزي..", "سأكون معكِ بعد لحظة يا عزيزتي..", 'f'),
+			"ohhey" to Fix("أوه، أهلًا!"),
+			"heyheyheyheyheyheyheyeasywiththateasywiththat" to Fix("على مهلك، على مهلك! بهدوء. بهدوء.", "على مهلكِ، على مهلكِ! بهدوء. بهدوء."),
+			"heyheyheyheyheyheyheyeasywiththat" to Fix("على مهلك، على مهلك! بهدوء.", "على مهلكِ، على مهلكِ! بهدوء."),
+			"heyheyheyheyrelaxvickilookatthissee" to Fix("مهلًا، مهلًا. اهدئي. فيكي، انظري إلى هذا، أرأيتِ؟"),
+			"toughcookiehuh" to Fix("عنيد، أليس كذلك؟", "عنيدة، أليس كذلك؟", 'f'),
+			"thatstagefeesstandardhon" to Fix("رسوم المسرح هذه عادية يا عزيزي.", "رسوم المسرح هذه عادية يا عزيزتي.", 'f'),
+			"lookjusttiphimoutnowokay" to Fix("اسمع، أعطه إكراميته الآن، اتفقنا؟", "اسمعي، أعطيه إكراميته الآن، اتفقنا؟", 'f'),
+			"martinsaidthatyoudidnttiphimoutlastnight" to Fix("قال مارتن إنك لم تعطه إكراميته البارحة.", "قال مارتن إنكِ لم تعطيه إكراميته البارحة.", 'f'),
+			"jusjustmakesureyoutipmartinonyourwayoutalright" to Fix("فقط تأكد أن تعطي مارتن إكراميته وأنت خارج، اتفقنا؟", "فقط تأكدي أن تعطي مارتن إكراميته وأنتِ خارجة، اتفقنا؟", 'f'),
+			"imgonnatipoutthedjtipoutthedoorman" to Fix("سأعطي الدي جي إكراميته، والبوّاب إكراميته."),
+			"imgonnatipoutthebarandthenimgonnatipoutthewaitress" to Fix("سأعطي البار إكراميته، ثم النادلة،"),
+			"afterimdonetippingoutmartinsuselessass" to Fix("بعد أن أدفع إكرامية مارتن التافه،"),
+			"hereletmeshowyouyoutakethefrickinrabbit" to Fix("دعني أريك. تأخذ الأرنب اللعين،", "دعيني أريكِ. تأخذين الأرنب اللعين،", 'f'),
+			"youtakethehand" to Fix("وتأخذ اليد.", "وتأخذين اليد.", 'f'),
+			"youputitinthegoshdarnhatbutsexy" to Fix("وتضعها في القبعة اللعينة، لكن بإغراء.", "وتضعينها في القبعة اللعينة، لكن بإغراء.", 'f'),
+			"bangbaby" to Fix("وهكذا يا حلوة!"),
+			"wellenchantémadame" to Fix("تشرّفت بمعرفتكِ يا سيدتي."),
+			"luciabeautiful" to Fix("لوسيا، اسم جميل."),
+			"whatareyousouptightabouthuh" to Fix("لماذا أنت متوتر هكذا؟", "لماذا أنتِ متوترة هكذا؟", 'f'),
+			"inallthoseswankyspotsontheobstrip" to Fix("في كل تلك الأماكن الفخمة على شارع OB."),
+			"igotitintheofficevickcomeon" to Fix("إنه في المكتب يا فيك، هيا."),
+			"imeanithoneytonightallyours" to Fix("أنا جاد يا عزيزتي. الليلة. كله لكِ."),
+			"heyhowboutyougetmainstagetonightandearnyourselfalittlebonus" to Fix("ما رأيك أن تأخذ المسرح الرئيسي الليلة وتكسب مكافأة صغيرة؟", "ما رأيكِ أن تأخذي المسرح الرئيسي الليلة وتكسبي مكافأة صغيرة؟", 'f'),
+			"yeahthatstheleastyoucoulddoforavetlikeme" to Fix("نعم، هذا أقل ما يمكنك فعله لمخضرمة مثلي."),
+			"woofbeentheresister" to Fix("أوف. مررت بهذا يا أختي."),
+			"jeezgodforbidagirlsqueezeinaquickhustle" to Fix("يا إلهي. وكأنه ممنوع على فتاة أن تكسب مالًا سريعًا."),
+			"startintothinkyoumightbehigherthanme" to Fix("بدأت أظن أنك منتشٍ أكثر مني.", "بدأت أظن أنكِ منتشية أكثر مني.", 'f'),
+			"theresaprettygoodthriftstoreontheotherendofthestrip" to Fix("يوجد متجر ملابس مستعملة جيد في آخر الشارع."),
+			"cmonhoneyearnthatscampipush" to Fix("هيا يا عزيزي، اكسب عشاءك. ادفع."),
+			"thoseare80ssostartwithhalfandthenuh" to Fix("هذه حبوب ٨٠ ملغ، فابدأ بالنصف ثم، آه...", "هذه حبوب ٨٠ ملغ، فابدئي بالنصف ثم، آه...", 'f'),
+			"letsgogirlvamanos" to Fix("هيا يا فتاة. لنذهب."),
+			"gottabepatientintherethough" to Fix("لكن عليك أن تصبر هناك.", "لكن عليكِ أن تصبري هناك.", 'f'),
+			"ohyoureoneofthosehuh" to Fix("أوه، أنت واحد من هؤلاء، أليس كذلك؟", "أوه، أنتِ واحدة من هؤلاء، أليس كذلك؟", 'f'),
+			"cmonpleasejusthelpmeup" to Fix("هيا، أرجوك؟ فقط ساعدني على النهوض.", "هيا، أرجوكِ؟ فقط ساعديني على النهوض.", 'f'),
+			"imsupposedtojustknowthathelpmeup" to Fix("وكيف لي أن أعرف ذلك؟ ساعدني على النهوض.", "وكيف لي أن أعرف ذلك؟ ساعديني على النهوض.", 'f'),
+			"howboutigiveyouthemoneyforthepillshmmasapeaceoffering" to Fix("ما رأيك أن أعطيك ثمن الحبوب؟ كعربون صلح؟", "ما رأيكِ أن أعطيكِ ثمن الحبوب؟ كعربون صلح؟", 'f'),
+			"sowegottatakealittleridedowntownwhatdoyousay" to Fix("علينا أن نذهب في جولة قصيرة إلى وسط المدينة. ما رأيك؟", "علينا أن نذهب في جولة قصيرة إلى وسط المدينة. ما رأيكِ؟", 'f'),
+			"whatsupwegoin" to Fix("ما الأمر؟ هل نذهب؟"),
+			"whatwoahplottwistokayihaveamillionquestionsbutholdon" to Fix("ماذا؟ واو، مفاجأة! حسنًا، عندي مليون سؤال، لكن انتظر-", "ماذا؟ واو، مفاجأة! حسنًا، عندي مليون سؤال، لكن انتظري-", 'f'),
+			"illgetyoubackforthis" to Fix("سأرد لك هذا الجميل.", "سأرد لكِ هذا الجميل.", 'f'),
+			"youbetternotbefuckinwithmeagain" to Fix("من الأفضل ألا تعبث معي مرة أخرى.", "من الأفضل ألا تعبثي معي مرة أخرى.", 'f'),
+			"imsureyoudo" to Fix("أنا متأكدة من ذلك."),
+			"itrynottoinpublic" to Fix("أحاول ألا أفعل ذلك أمام الناس."),
+			"deep" to Fix("كلام عميق."),
+			"welltrythatthenletsgo" to Fix("سنجرب ذلك إذن. هيا بنا."),
+			"igetitihaveonetootommy" to Fix("فهمت. عندي واحد أيضًا. تومي."),
+			"vickitoldmeyoureholdingsomepainmeds" to Fix("أخبرتني فيكي أن لديك مسكنات ألم.", "أخبرتني فيكي أن لديكِ مسكنات ألم."),
+			"tostraightenthisshitout" to Fix("لأصلح هذه المصيبة!"),
+			"okaydoyouknowwhere" to Fix("حسنًا. هل تعرف أين؟", "حسنًا. هل تعرفين أين؟", 'f'),
+			"nolikeithinkshegotthesefroma247look" to Fix("لا، أظنها اشترتها من بقالة. انظر.", "لا، أظنها اشترتها من بقالة. انظري.", 'f'),
+			"youwantmetosplitazombix" to Fix("تريدني أن أقسم حبة زومبكس؟", "تريدينني أن أقسم حبة زومبكس؟", 'f'),
+			"whereyougoin" to Fix("إلى أين أنت ذاهب؟", "إلى أين أنتِ ذاهبة؟", 'f'),
+			"buttheyrefuckinfakesmanforreal" to Fix("لكنها مزيفة يا رجل! بجد."),
+			"hereitisparadiseonwheels" to Fix("ها هي! جنة على عجلات!"),
+			"koltswillsellyouanythingoxiespercsxans" to Fix("الكولتس يبيعونك أي شيء: أوكسي، بيركوسيت، زاناكس..", "الكولتس يبيعونكِ أي شيء: أوكسي، بيركوسيت، زاناكس..", 'f'),
+			"ifyourelookinforpillsthengellhornsfuckincandyland" to Fix("إذا كنت تبحث عن حبوب، فجيلهورن جنة الحلوى اللعينة.", "إذا كنتِ تبحثين عن حبوب، فجيلهورن جنة الحلوى اللعينة.", 'f'),
+			"uhheywhawhatwasyournameagain" to Fix("آه، مرحبًا. ما-ما اسمك مرة أخرى؟", "آه، مرحبًا. ما-ما اسمكِ مرة أخرى؟", 'f'),
+			"ijustcleaneduptoosoyknowuhluckyyou" to Fix("وقد نظفت للتو أيضًا. لذا، أنت محظوظ.", "وقد نظفت للتو أيضًا. لذا، أنتِ محظوظة.", 'f'),
+			"areyoustilltakingmehome" to Fix("هل ما زلت ستوصلني إلى البيت؟", "هل ما زلتِ ستوصلينني إلى البيت؟", 'f'),
+			"thankyouforgettingmeouttathere" to Fix("شكرًا لأنك أخرجتني من هناك!", "شكرًا لأنكِ أخرجتِني من هناك!", 'f'),
+			"yeahthatscausevickiknowswhatsup" to Fix("نعم، لأن فيكي تفهم في الأمور!"),
+			"andimnotgonnaliesomeofitsawesome" to Fix("ولن أكذب عليك، بعضها رائع!", "ولن أكذب عليكِ، بعضها رائع!", 'f'),
+			"dunkonlycarriesahundredpercentpharmaceuticals" to Fix("دنك لا يبيع إلا أدوية أصلية مئة بالمئة."),
+			"yougotananglefriend" to Fix("هل تخطط لشيء يا صديقي؟", "هل تخططين لشيء يا صديقتي؟", 'f'),
+			"yeahwalkawayyouknowyouaintaboutit" to Fix("نعم، امشِ. تعرف أنك لست قدّها!", "نعم، امشي. تعرفين أنكِ لستِ قدّها!", 'f'),
+			"freak" to Fix("مجنون..", "مجنونة..", 'f'),
+			"anywaybacktoit" to Fix("على أي حال... نعود للعمل.."),
+			"wantedacloserlook" to Fix("أردت أن تنظر عن قرب؟", "أردتِ أن تنظري عن قرب؟", 'f'),
+			// tasks
+			"gotodelights" to Fix("اذهب إلى ديلايتس"),
+			"gotodunkstrailer" to Fix("اذهب إلى مقطورة دنك"),
+			"drivetotown" to Fix("قُد إلى المدينة"),
+			"returntojasonwiththepills" to Fix("عُد إلى جيسون بالحبوب"),
+			"returntovickisroom" to Fix("عُد إلى غرفة فيكي"),
+			"gototheboatyard" to Fix("اذهب إلى حوض السفن")),
+		ocr = listOf(
+			// words the reader glued together
+			Regex("\\bGetin\\b") to "Get in", Regex("\\bGoto\\b") to "Go to",
+			Regex("\\bto(?=[A-Z][a-z])") to "to ",
+			Regex("(?<=[A-Za-z])'s(?=(car|room|trailer|office|place|house)\\b)") to "'s ",
+			// «I» read as «l» or «|»
+			Regex("\\bl'(m|ll|d|ve)\\b") to "I'$1", Regex("(?<=^|\\s)\\|(?=\\s)") to "I"),
+		english = listOf(
+			// «tip out» (pay the staff their share) is «tip»: Google read it as «guide», «inform», «take out»
+			Regex("\\b(tip|tipping|tipped|tips)\\s+(him|her|them|me|you|us)\\s+out\\b", RegexOption.IGNORE_CASE) to "$1 $2",
+			Regex("\\b(tip|tipping|tipped|tips)\\s+out\\b", RegexOption.IGNORE_CASE) to "$1"),
+		arabic = listOf(
+			// one spelling for each name
+			w("دونك") to "دنك", w("دانك") to "دنك", w("جايسون") to "جيسون", w("المسرات") to "ديلايتس"),
+		voice = mapOf(
+			"دنك" to "دَنْك", "فيكي" to "فِيكِي", "لوسيا" to "لُوسِيَا", "جيسون" to "جَيْسُون", "فرانكي" to "فْرانْكِي",
+			"مارتن" to "مارْتِن", "براين" to "بْرايِن", "ديلايتس" to "دِيلايْتْس", "جيلهورن" to "جِيلْهُورْن", "ليلى" to "لَيْلى"))
+
+	/** the game being played (GTA VI also when no game is chosen: the only one so far) */
+	@Volatile var active: Game? = GTA6
+		private set
+
+	fun select(gameName: String)
+	{
+		val n = gameName.lowercase()
+		active = if(n.isBlank() || "grand theft auto" in n || "gta" in n) GTA6 else null
+	}
+
+	private val NAME = Regex("^\\s*([A-Za-z][A-Za-z'.\\-]*(?:\\s[A-Za-z][A-Za-z'.\\-]*){0,2})\\s*:\\s*(.+)$")
+
+	/** «Vicki: text» → (vicki, text); no name → (null, line) */
+	fun split(line: String): Pair<String?, String>
+	{
+		val m = NAME.find(line) ?: return null to line
+		return m.groupValues[1].trim().lowercase() to m.groupValues[2]
+	}
+
+	/** the person [name] (lowercase), if the game knows them */
+	fun person(name: String?): Person? = name?.let { active?.people?.get(it.lowercase()) }
+
+	/** a corrected line for [line] said to a man ('m') or a woman ('f'), with its speaker's name; or null */
+	fun fix(line: String, to: Char?): String?
+	{
+		val g = active ?: return null
+		val (who, text) = split(ocr(line))
+		val f = g.lines[SubtitleTracker.key(text)] ?: return null
+		val name = who?.let { g.names[it] ?: line.substringBefore(':').trim() }
+		return (if(name != null) "$name: " else "") + f.to(to)
+	}
+
+	/** the English as it is on screen (what the reader got wrong, fixed) */
+	fun ocr(text: String): String
+	{
+		var t = text
+		for((re, to) in active?.ocr ?: return text) t = re.replace(t, to)
+		return t
+	}
+
+	/** the English given to Google */
+	fun english(text: String): String
+	{
+		var t = ocr(text)
+		for((re, to) in active?.english ?: return t) t = re.replace(t, to)
+		return t
+	}
+
+	/** Google's Arabic, the names spelt one way (the speakers' names too) */
+	fun arabic(text: String): String
+	{
+		val g = active ?: return text
+		var t = text
+		for((re, to) in g.arabic) t = re.replace(t, to)
+		return t
+	}
+
+	/** how the voice says it: names with their vowel marks */
+	fun forVoice(text: String): String
+	{
+		val g = active ?: return text
+		var t = text
+		for((word, said) in g.voice) t = w(word).replace(t, said)
+		return t
+	}
+}

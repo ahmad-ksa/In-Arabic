@@ -75,6 +75,9 @@ object Voices
 		return p.optBoolean("fixed") || p.optInt("m") + p.optInt("f") >= VOTES
 	}
 
+	/** you chose this character's voice in the settings */
+	@Synchronized fun fixed(c: Context, name: String): Boolean = load(c).optJSONObject(name.lowercase())?.optBoolean("fixed") == true
+
 	@Synchronized fun remove(c: Context, key: String) { val o = load(c); o.remove(key); save(c, o) }
 
 	/**

@@ -33,16 +33,22 @@ class Translator(@Suppress("unused") private val prefs: InArabicPrefs)
 	/** nothing to download any more: Google Translate needs only the internet */
 	suspend fun prepare(): Boolean = true
 
-	suspend fun quick(english0: String): String?
+	/**
+	 * [english0] in Arabic: the game's corrected lines (Games) and fixed words (Glossary) first, Google for the
+	 * rest. [to]: for each line, whom it is said to ('m' a man, 'f' a woman, null not known), for the corrected
+	 * lines' «you».
+	 */
+	suspend fun quick(english0: String, to: List<Char?> = emptyList()): String?
 	{
+		Games.fix(english0.trim(), to.firstOrNull())?.takeIf { '\n' !in english0.trim() }?.let { return it }
 		Glossary.lookup(english0)?.let { return it }
 		// a list: the lines in one request, kept under each other (Google keeps the lines of one request)
 		if('\n' in english0)
 		{
 			val lines = english0.split('\n').filter { it.isNotBlank() }
-			val fixed = lines.map { Glossary.lookup(it) }
+			val fixed = lines.mapIndexed { i, l -> Games.fix(l, to.getOrNull(i)) ?: Glossary.lookup(l) }
 			val todo = lines.filterIndexed { i, _ -> fixed[i] == null }
-			val got = if(todo.isEmpty()) emptyList() else google(todo.joinToString("\n") { Glossary.sentenceCase(it) })
+			val got = if(todo.isEmpty()) emptyList() else google(todo.joinToString("\n") { Games.english(Glossary.sentenceCase(it)) })
 				?.split('\n')?.map { it.trim() }?.filter { it.isNotEmpty() }
 			if(got != null && got.size == todo.size)
 			{
@@ -50,12 +56,12 @@ class Translator(@Suppress("unused") private val prefs: InArabicPrefs)
 				return lines.indices.joinToString("\n") { i -> fixed[i] ?: Glossary.arabicNames(got[j++]) }
 			}
 			// the lines did not come back one for one: each on its own
-			return lines.map { quick(it) ?: it }.joinToString("\n")
+			return lines.mapIndexed { i, l -> fixed[i] ?: quick(l) ?: l }.joinToString("\n")
 		}
 		val english = Glossary.sentenceCase(english0)
 		val k = SubtitleTracker.key(english)
 		cache.get(k)?.let { return it }
-		val ar = google(english)?.let { Glossary.arabicNames(it) } ?: return null
+		val ar = google(Games.english(english))?.let { Glossary.arabicNames(it) } ?: return null
 		// only a complete translation is kept: an incomplete one is asked again at the next reading
 		if(complete(ar)) cache.put(k, ar)
 		return ar

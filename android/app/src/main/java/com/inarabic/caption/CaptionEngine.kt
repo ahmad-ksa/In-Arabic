@@ -179,6 +179,7 @@ class CaptionEngine(
 		TranslationMemory.load(context)
 		TranslationMemory.engine = prefs.engine
 		SessionLog.begin(context, prefs.gameName)
+		com.inarabic.translate.Games.select(prefs.gameName)
 		LinkServer.start(context)
 		LinkServer.sendStyle(prefs)
 		com.inarabic.voice.Dubber.start(context)
@@ -391,6 +392,10 @@ class CaptionEngine(
 	/** the dialogue as last read (a retry of an incomplete translation uses the newest reading) */
 	@Volatile private var lastSubRead = ""
 
+	/** who speaks to whom (the corrected lines' «you») */
+	private val talk = Talk()
+	private val talkTo = LinkedHashMap<Int, List<Char?>>()
+
 	/** «صوت اللعبة» on, and working */
 	@Volatile private var fromSound = false
 	private var sound: SoundDialogue? = null
@@ -413,8 +418,15 @@ class CaptionEngine(
 		currentId = id
 		lastLineAt = seenAt
 		if(tries == 0) Diag.count("lines")
+		// whom each line is said to (for the corrected lines' «you»): worked out once, when the line comes
+		val lines = english.split('\n').filter { it.isNotBlank() }
+		val to = if(tries == 0) talk.plan(lines, seenAt).also { synchronized(talkTo) { talkTo[id] = it; while(talkTo.size > 30) talkTo.remove(talkTo.keys.first()) } }
+			else synchronized(talkTo) { talkTo[id] } ?: emptyList()
+		// a line the game file corrects: never from memory (an earlier Google translation of it is wrong)
+		val corrected = lines.indices.any { com.inarabic.translate.Games.fix(lines[it], to.getOrNull(it)) != null }
+		if(corrected && tries == 0) Diag.add("corrected #$id (said to ${to.joinToString { (it ?: '?').toString() }}): ${english.replace('\n', '/')}")
 		scope.launch {
-			val known0 = TranslationMemory.get(english)
+			val known0 = if(corrected) null else TranslationMemory.get(english)
 			// the fixed game words win over anything translated before (not over your own corrections)
 			val fixed = if(known0?.source == TranslationMemory.Source.USER) null else com.inarabic.translate.Glossary.lookup(english)
 			if(fixed != null) { Diag.count("translated: game words"); show(id, english, fixed, true, box, seenAt); return@launch }
@@ -423,7 +435,7 @@ class CaptionEngine(
 			val known = known0?.takeIf { it.source == TranslationMemory.Source.USER || com.inarabic.translate.Translator.complete(it.arabic) }
 			if(known != null) { Diag.count("translated: from memory"); show(id, english, known.arabic, true, box, seenAt); return@launch }
 			val t0 = System.currentTimeMillis()
-			val ar = translator.quick(english)
+			val ar = translator.quick(english, to)
 			val took = System.currentTimeMillis() - t0
 			if(ar == null)
 			{
@@ -437,8 +449,9 @@ class CaptionEngine(
 			// how long after the line came its translation is ready, and whether English is left in it
 			Diag.add("translate #$id: $took ms (line seen ${System.currentTimeMillis() - seenAt} ms ago)" + if(done) "" else " INCOMPLETE, English left: $ar")
 			if(!done) Diag.count("translation incomplete (English left)")
-			// only a complete translation is remembered: an incomplete one would come back every time
-			if(done) TranslationMemory.put(english, ar, TranslationMemory.Source.QUICK)
+			// only a complete translation is remembered: an incomplete one would come back every time (and not a
+			// corrected one: it depends on whom it is said to)
+			if(done && !corrected) TranslationMemory.put(english, ar, TranslationMemory.Source.QUICK)
 			if(currentId != id)
 			{
 				// the dialogue moved on before the answer came: still shown if nothing newer is on screen yet; else

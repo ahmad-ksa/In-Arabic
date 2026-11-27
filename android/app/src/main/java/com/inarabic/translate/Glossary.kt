@@ -61,26 +61,17 @@ object Glossary
 		"bachelor party" to "حفلة توديع العزوبية", "fast travel" to "انتقال سريع", "photo mode" to "وضع التصوير"
 	)
 
-	/**
-	 * Names the translator leaves in English (people, places): written in Arabic letters instead.
-	 * GTA VI first; more games can be added the same way.
-	 */
-	private val names: Map<String, String> = linkedMapOf(
-		"vice city" to "فايس سيتي", "leonida keys" to "جزر ليونيدا", "leonida" to "ليونيدا", "port gellhorn" to "بورت جيلهورن",
-		"grassrivers" to "غراس ريفرز", "ambrosia" to "أمبروسيا", "mount kalaga" to "جبل كالاغا", "key lento" to "كي لينتو",
-		"jason" to "جيسون", "lucia" to "لوسيا", "kenton" to "كينتون", "cal" to "كال", "boobie" to "بوبي", "raul" to "راؤول",
-		"brian" to "براين", "real dimez" to "ريل دايمز", "dre'quan" to "دريكوان", "drequan" to "دريكوان",
-		"ammu-nation" to "أمونيشن", "ammu-nations" to "أمونيشن", "los santos" to "لوس سانتوس", "liberty city" to "ليبرتي سيتي"
-	)
+	/** names the translator leaves in English (people, places): the game's own (Games), written in Arabic letters */
+	private val names: Map<String, String> get() = Games.active?.names ?: emptyMap()
 
-	/** English names left in a translation, written in Arabic letters */
+	/** the names in a translation: English ones written in Arabic letters, and each spelt one way (Games) */
 	fun arabicNames(ar: String): String
 	{
-		if(ar.none { it in 'A'..'Z' || it in 'a'..'z' }) return ar
+		if(ar.none { it in 'A'..'Z' || it in 'a'..'z' }) return Games.arabic(ar)
 		var out = ar
 		for((en, a) in names)
 			out = Regex("(?i)(?<![A-Za-z])" + Regex.escape(en) + "(?![A-Za-z])").replace(out, a)
-		return out
+		return Games.arabic(out)
 	}
 
 	/** where the names sit in an Arabic text: [start, end) pairs, longest names first, no overlaps */
