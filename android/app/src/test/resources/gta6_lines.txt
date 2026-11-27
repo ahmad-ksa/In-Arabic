@@ -213,12 +213,16 @@ Lucia: I like your car, girl.
 Lucia: I like your car, girl. Tourists: Are you tweakin'? Let go of me!
 Lucia: I'm listening.
 Lucia: I'm sure you do.
+Lucia: I've had some practice. I've been boosting cars since I was fourteen.
 Lucia: If I was you, l'd just quit.
 Lucia: Ill get you back for this.
 Lucia: It's gonna be okay, Jay. Just try to sleep..
 Lucia: Listen, I don't have the money right now, but..
+Lucia: Look, if you can't help it's cool. I'll work something out.
 Lucia: Lucia. Vicki's neighbor, remember?
+Lucia: Maybe that's all you need to know.
 Lucia: Nah, but you could drop me off in town.
+Lucia: No?
 Lucia: Not yet, working on it.
 Lucia: Nothin' fancy, it's just the ones I got on are getting pretty
 Lucia: Now stay right there and shut the fuck up
@@ -228,6 +232,7 @@ Lucia: Okay, bro!
 Lucia: Okay, going out..
 Lucia: Okay. Do you know where?
 Lucia: Open it, bitch.
+Lucia: Right, well | guess I'l come back later then.
 Lucia: She said to start with half, and see how you feel.
 Lucia: She said you might be able to help me out with the ride.
 Lucia: She, uh, mention it or anything? Nope
@@ -256,7 +261,15 @@ Lucia: | try not to in public.
 Martin: See you tonight, Vicki.
 Martin: See you tonight, Vicki. Vicki: We got my check, let's go see Dunk.
 Martin: Whoa, whoa, whoa!
+Moses: I don't know nothing about you 'cept you got a name, and a ride that ain't yours.
+Moses: I don't need nothin'.
+Moses: Is that your ride?
+Moses: Yeah, see I don't know.
+Moses: Yeah, you and half the people in this town.
+Moses: You, uh... you good at that kinda thing?
+Moses: but that's why you came to me, right?
 NIPPER.38 PISTOL
+Nope.
 Norch Mariana County
 North Mariana County
 Okay.

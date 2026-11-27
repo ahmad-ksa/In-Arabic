@@ -76,7 +76,7 @@ object Games
 			"jordy" to "جوردي", "tommy" to "تومي", "dancer" to "الراقصة", "bartender" to "النادل", "local" to "أحد السكان", "locals" to "سكان",
 			"stranger" to "غريب", "staff member" to "موظف", "vagrants" to "متشردون", "cop" to "شرطي", "kolt & associates" to "كولت وشركاه",
 			"driver" to "سائق", "drivers" to "سائقون", "tourists" to "سياح", "resident" to "أحد السكان", "worker" to "عامل", "workers" to "عمال",
-			"stylist" to "مصفف الشعر", "zach" to "زاك", "moses" to "موزس", "mo" to "مو", "danny" to "داني",
+			"stylist" to "مصفف الشعر", "zach" to "زاك", "moses" to "موسى", "mo" to "مو", "danny" to "داني",
 			"ammu-nation" to "أمونيشن", "ammu-nations" to "أمونيشن", "los santos" to "لوس سانتوس", "liberty city" to "ليبرتي سيتي"),
 		lines = linkedMapOf(
 			// «Hey» is a greeting, not «wait»
@@ -244,7 +244,11 @@ object Games
 			Regex("\\b(tip|tipping|tipped|tips)\\s+(him|her|them|me|you|us)\\s+out\\b", RegexOption.IGNORE_CASE) to "$1 $2",
 			Regex("\\b(tip|tipping|tipped|tips)\\s+out\\b", RegexOption.IGNORE_CASE) to "$1",
 			// «Sup» is always «what's up» (Google: «سوب», «أتناول العشاء»)
-			Regex("(?<![A-Za-z'])\\s*'?[Ss]up\\b(?!')") to " What's up"),
+			Regex("(?<![A-Za-z'])\\s*'?[Ss]up\\b(?!')") to " What's up",
+			// «your ride», «a ride that…» is a car (Google: «رحلة», 4 lines); «take a little ride», «need a ride»,
+			// «give me a ride» are a trip or a lift and stay
+			Regex("(?<!\\b(?:give|gave|need|needs|want|get|got|offer|catch|hitch|for|take|took)\\s(?:\\w{1,8}\\s)?)\\b(your|my|his|her|their|the|a|that|this)\\s+ride\\b",
+				RegexOption.IGNORE_CASE) to "$1 car"),
 		arabic = listOf(
 			// one spelling for each name
 			w("دونك") to "دنك", w("دانك") to "دنك", w("جايسون") to "جيسون", w("المسرات") to "ديلايتس"),
