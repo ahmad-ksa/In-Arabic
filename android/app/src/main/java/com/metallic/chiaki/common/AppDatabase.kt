@@ -48,7 +48,7 @@ fun getDatabase(context: Context): AppDatabase
 	return db
 }
 
-private class Converters
+internal class Converters
 {
 	@TypeConverter
 	fun macFromValue(v: Long) = MacAddress(v)
