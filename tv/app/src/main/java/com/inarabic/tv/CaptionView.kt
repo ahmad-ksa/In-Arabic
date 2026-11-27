@@ -31,7 +31,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	var box2: FloatArray? = null
 		set(v) { field = v; invalidate() }
 	/** texts found off to the side (mission title, button prompts): each drawn over its English one */
-	class Side(val text: String, val box: FloatArray, val spans: List<IntArray> = emptyList())
+	class Side(val text: String, val box: FloatArray, val spans: List<IntArray> = emptyList(), val fg: Int = Color.WHITE, val bg: Int = Color.BLACK)
 	var sides: List<Side> = emptyList()
 		set(v) { field = v; invalidate() }
 	/** a short notice at the top (phone lost / back) */
@@ -47,13 +47,22 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		set(v) { field = v; invalidate() }
 
 	var scale = 1f
-	var cover = true
-	var opacity = 0.85f
-	var color = Color.WHITE
 	var position = "auto"
-	var bold = true
-	var outline = false
-	var boxColor = Color.BLACK
+	/**
+	 * The look of the dialogue ([dLook]) and of the menus ([mLook]), one choice each, as on the LG screen; the
+	 * letters are always the game's own colour: "special" (تنسيق خاص) the game's own background too, "box" a
+	 * background of your colour ([dBg] / [mBg], #AARRGGBB), "outline" a black edge and no background.
+	 */
+	var dLook = "box"
+	var dBg = Color.argb(217, 0, 0, 0)
+	var mLook = "box"
+	var mBg = Color.argb(217, 0, 0, 0)
+	/** the menus' own size and height (from the phone's «شكل القوائم») */
+	var mScale = 1f
+	var mDy = 0f
+	/** the dialogue line's own colours on screen (letters, background), from the phone */
+	var subFg = Color.WHITE
+	var subBg = Color.BLACK
 	/** TV picture fit (from the phone): the TV enlarges the HDMI picture by [zoom] and moves it by [dy] */
 	var zoom = 0f
 	var dy = 0f
@@ -103,6 +112,12 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	private val hideSide = Runnable { sides = emptyList() }
 	private val hideZone = Runnable { zoneList = emptyList() }
 
+	/** "#RRGGBB" or "#AARRGGBB" from the phone */
+	private fun color(s: String?, def: Int) = try { if(s.isNullOrBlank()) def else Color.parseColor(s) } catch(e: Exception) { def }
+
+	/** a text's background for its look: the game's own (special), yours (box), or none (outline) */
+	private fun lookBg(look: String, mine: Int, game: Int) = when(look) { "special" -> game or (0xFF shl 24); "box" -> mine; else -> Color.TRANSPARENT }
+
 	/** A message from the phone (see the phone's LinkServer for the format). */
 	fun handle(o: org.json.JSONObject)
 	{
@@ -122,6 +137,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			{
 				box = box(o)
 				textSpans = spans(o)
+				subFg = color(o.optString("fg"), Color.WHITE)
+				subBg = color(o.optString("bg"), Color.BLACK)
 				text = o.optString("ar")
 				// safety: never leave a line on screen forever if the phone disappears
 				timers.removeCallbacks(hide); timers.postDelayed(hide, 15000)
@@ -135,7 +152,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				sides = if(items == null) emptyList() else (0 until items.length()).mapNotNull { i ->
 					val it = items.optJSONObject(i) ?: return@mapNotNull null
 					val b = box(it) ?: return@mapNotNull null
-					it.optString("ar").takeIf { a -> a.isNotBlank() }?.let { a -> Side(a, b, spans(it)) }
+					it.optString("ar").takeIf { a -> a.isNotBlank() }?.let { a -> Side(a, b, spans(it), color(it.optString("fg"), Color.WHITE), color(it.optString("bg"), Color.BLACK)) }
 				}
 				timers.removeCallbacks(hideSide); timers.postDelayed(hideSide, 15000)
 			}
@@ -161,13 +178,11 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			"style" ->
 			{
 				scale = o.optDouble("scale", 1.0).toFloat()
-				cover = o.optBoolean("cover", true)
-				opacity = o.optDouble("opacity", 0.85).toFloat()
-				color = try { Color.parseColor(o.optString("color", "#FFFFFF")) } catch(e: Exception) { Color.WHITE }
 				position = o.optString("pos", "auto")
-				bold = o.optBoolean("bold", true)
-				outline = o.optBoolean("outline", false)
-				boxColor = try { Color.parseColor(o.optString("boxColor", "#000000")) } catch(e: Exception) { Color.BLACK }
+				dLook = o.optString("dlook", "box"); dBg = color(o.optString("dbg"), Color.argb(217, 0, 0, 0))
+				mLook = o.optString("mlook", "box"); mBg = color(o.optString("mbg"), Color.argb(217, 0, 0, 0))
+				mScale = o.optDouble("mscale", 1.0).toFloat()
+				mDy = o.optDouble("mdy", 0.0).toFloat()
 				zoom = o.optDouble("zoom", 0.0).toFloat()
 				dy = o.optDouble("dy", 0.0).toFloat()
 				invalidate()
@@ -204,8 +219,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		return s
 	}
 
-	/** with the outline on: a black stroke under the letters, then the letters */
-	private fun drawText(l: StaticLayout, canvas: Canvas)
+	/** [outline] («حد»): a black stroke under the letters, then the letters */
+	private fun drawText(l: StaticLayout, canvas: Canvas, outline: Boolean)
 	{
 		if(outline)
 		{
@@ -226,9 +241,8 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	{
 		val w = width.toFloat()
 		val h = height.toFloat()
-		textPaint.color = color
-		textPaint.typeface = if(bold) fontBold else fontRegular
-		boxPaint.color = Color.argb((opacity * 255).toInt(), Color.red(boxColor), Color.green(boxColor), Color.blue(boxColor))
+		textPaint.color = Color.WHITE
+		textPaint.typeface = fontBold
 
 		// second box: in its own area of the picture, smaller text, top aligned
 		val b2t = box2Text
@@ -240,8 +254,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			val inner = (area.width() - w * 0.016f).toInt().coerceAtLeast(50)
 			val l = layout(b2t, inner, Layout.Alignment.ALIGN_NORMAL)
 			area.bottom = max(area.bottom, area.top + l.height + h * 0.02f)
+			boxPaint.color = dBg
 			canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, boxPaint)
-			canvas.save(); canvas.translate(area.left + w * 0.008f, area.top + h * 0.01f); drawText(l, canvas); canvas.restore()
+			canvas.save(); canvas.translate(area.left + w * 0.008f, area.top + h * 0.01f); drawText(l, canvas, false); canvas.restore()
 		}
 
 		// notice at the top
@@ -252,7 +267,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			val bp = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(235, 23, 44, 36) }
 			canvas.drawRoundRect(r, h * 0.03f, h * 0.03f, bp)
 			canvas.save(); canvas.translate(w * 0.25f, r.top + h * 0.01f); l.draw(canvas); canvas.restore()
-			textPaint.color = color
+			textPaint.color = Color.WHITE
 		}
 
 		// the reading frames (only on the TV: the phone shows its own handles)
@@ -268,18 +283,20 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			textPaint.textSize = h * 0.024f; textPaint.color = c
 			val l = layout((if(dialog) "حوار" else "نص جانبي") + " ${i + 1}", (w * 0.3f).toInt())
 			canvas.save(); canvas.translate(r.centerX() - w * 0.15f, (r.top - l.height - h * 0.005f).coerceAtLeast(0f)); l.draw(canvas); canvas.restore()
-			textPaint.color = color
+			textPaint.color = Color.WHITE
 		}
 
 		// side texts: each exactly over its English text (a bit wider if the Arabic needs it), kept on screen
 		// one size for all of them (the English of a menu or a stats panel is one size; the reading of each
 		// line's height is not exact): the middle size, kept while it stays close
-		val rawSizes = sides.map { sizeFor(fit(it.box), h, 0.03f, 0.02f, 0.045f) }
+		// the menus' own height setting moves them; their own size setting scales them
+		fun menuBox(b: FloatArray) = fit(b).copyOf().also { it[1] += mDy }
+		val rawSizes = sides.map { sizeFor(menuBox(it.box), h, 0.03f, 0.02f, 0.045f) * mScale }
 		val mid = rawSizes.sorted().getOrNull(rawSizes.size / 2)
 		if(mid != null) { if(sideUniform <= 0f || kotlin.math.abs(mid - sideUniform) > sideUniform * 0.25f) sideUniform = mid }
 		for((si, sd) in sides.withIndex())
 		{
-			val sb = fit(sd.box)
+			val sb = menuBox(sd.box)
 			val raw = rawSizes[si]
 			textPaint.textSize = if(raw in sideUniform * 0.65f..sideUniform * 1.5f) sideUniform else raw
 			val area = RectF(sb[0] * w - w * 0.004f, sb[1] * h - h * 0.004f, (sb[0] + sb[2]) * w + w * 0.004f, (sb[1] + sb[3]) * h + h * 0.004f)
@@ -302,8 +319,11 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			}
 			if(area.bottom > h) area.offset(0f, h - area.bottom)
 			if(area.top < 0) area.offset(0f, -area.top)
-			canvas.drawRoundRect(area, h * 0.006f, h * 0.006f, boxPaint)
-			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas); canvas.restore()
+			// its look: the game's own letters always; the background as chosen for the menus
+			boxPaint.color = lookBg(mLook, mBg, sd.bg)
+			if(Color.alpha(boxPaint.color) > 0) canvas.drawRoundRect(area, h * 0.006f, h * 0.006f, boxPaint)
+			textPaint.color = sd.fg
+			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas, mLook == "outline"); canvas.restore()
 		}
 
 		// subtitle
@@ -315,7 +335,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			val area = when
 			{
 				position == "top" -> RectF(w * 0.1f, h * 0.05f, w * 0.9f, h * 0.17f)
-				position == "auto" && b != null && cover ->
+				position == "auto" && b != null ->
 					RectF(b[0] * w - w * 0.015f, b[1] * h - h * 0.012f, (b[0] + b[2]) * w + w * 0.015f, (b[1] + b[3]) * h + h * 0.012f)
 				else -> RectF(w * 0.1f, h * 0.78f, w * 0.9f, h * 0.92f)
 			}
@@ -339,8 +359,11 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 					if(area.height() < need) area.bottom = min(h, area.top + need)
 				}
 			}
-			canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, boxPaint)
-			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas); canvas.restore()
+			// its look: the game's own letters always; the background as chosen for the dialogue
+			boxPaint.color = lookBg(dLook, dBg, subBg)
+			if(Color.alpha(boxPaint.color) > 0) canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, boxPaint)
+			textPaint.color = subFg
+			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas, dLook == "outline"); canvas.restore()
 		}
 
 		// panel (story summary): centred card
