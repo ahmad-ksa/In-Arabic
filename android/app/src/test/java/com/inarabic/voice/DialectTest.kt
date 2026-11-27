@@ -13,6 +13,13 @@ class DialectTest
 		assertEquals("ووش بعد؟", Dialect.say("وماذا أيضًا؟", "sa"))
 	}
 
+	@Test fun have()
+	{
+		// from the log: «ليس لدي المال الآن، ولكن» was said «مو لدي الفلوس الحين، وبس»
+		assertEquals("اسمعي، ما عندي الفلوس الحين، بس..", Dialect.say("اسمعي، ليس لدي المال الآن، ولكن..", "sa"))
+		assertEquals("معنديش", Dialect.say("ليس لدي", "eg"))
+	}
+
 	@Test fun vowelMarksAndHamza() = assertEquals("طيب، يلا.", Dialect.say("حسنًا، هيّا.", "sa"))
 
 	@Test fun otherDialects()

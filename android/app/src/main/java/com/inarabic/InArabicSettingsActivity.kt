@@ -179,6 +179,10 @@ class InArabicSettingsActivity : AppCompatActivity()
 			if(key in styleKeys) LinkServer.sendStyle(prefs)
 			if(key == "ia_dialog_look" || key == "ia_menu_look") showLookSettings()
 			if(key == "ia_voice" || key == "ia_voice_who") showVoiceSettings()
+			// «صوت اللعبة»: Android's speech recognition needs the microphone permission (the mic itself stays off)
+			if(key == "ia_dialog_source" && prefs.dialogFromSound &&
+				requireContext().checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+				requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 7)
 		}
 
 		private fun pairedText(): String

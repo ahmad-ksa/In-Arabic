@@ -41,8 +41,9 @@ object PhoneTts
 		val t = synchronized(this) { tts } ?: return null
 		if(!ready) return null
 		val voices = try { t.voices?.filter { it.locale.language == "ar" && !it.isNetworkConnectionRequired }?.sortedBy { it.name } } catch(e: Exception) { null }
-		val file = File(context.cacheDir, "phone-voice.wav")
+		// several lines are made at once: each in its own file
 		val id = "ia" + System.nanoTime()
+		val file = File(context.cacheDir, "phone-voice-$id.wav")
 		val latch = CountDownLatch(1)
 		synchronized(waits) { waits[id] = latch }
 		synchronized(this) {
@@ -52,7 +53,7 @@ object PhoneTts
 			t.setPitch(if(male) 0.85f else 1.25f)
 			if(t.synthesizeToFile(text, Bundle(), file, id) != TextToSpeech.SUCCESS) { synchronized(waits) { waits.remove(id) }; return null }
 		}
-		if(!latch.await(8, TimeUnit.SECONDS)) return null
-		return try { file.readBytes().takeIf { it.size > 44 } } catch(e: Exception) { null }
+		if(!latch.await(8, TimeUnit.SECONDS)) { file.delete(); return null }
+		return try { file.readBytes().takeIf { it.size > 44 } } catch(e: Exception) { null } finally { file.delete() }
 	}
 }

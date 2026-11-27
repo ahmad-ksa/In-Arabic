@@ -26,10 +26,24 @@ class DubLinesTest
 		assertEquals(listOf("Jason", "Lucia"), p.map { it.speaker }); assertEquals(listOf(1, 2), p.map { it.end })
 	}
 
-	@Test fun goingOn()
+	@Test fun taskLineNotSaid()
 	{
-		val p = DubLines.parts(listOf("Jason: Ready?", "Let's move."), listOf("جيسون: جاهز؟", "لنتحرك."))
+		// the game writes who speaks: the line with no name is a task, not speech
+		val p = DubLines.parts(listOf("Vicki: C'mon.", "Take the pills from Vicki"), listOf("فيكي: هيا.", "خذي الحبوب من فيكي"))
+		assertEquals(1, p.size); assertEquals("هيا.", p[0].arabic); assertEquals(1, p[0].end)
+		assertEquals(0, DubLines.parts(listOf("Return to Jason"), listOf("العودة إلى جيسون"), namesUsed = true).size)
+	}
+
+	@Test fun sameSpeakerTogether()
+	{
+		val p = DubLines.parts(listOf("Jason: Ready?", "Jason: Let's move."), listOf("جيسون: جاهز؟", "جيسون: لنتحرك."))
 		assertEquals(1, p.size); assertEquals("جاهز؟ لنتحرك.", p[0].arabic); assertEquals(2, p[0].end)
+	}
+
+	@Test fun gameWithoutNames()
+	{
+		val p = DubLines.parts(listOf("Ready?", "Let's move."), listOf("جاهز؟", "لنتحرك."))
+		assertEquals(1, p.size); assertEquals("جاهز؟ لنتحرك.", p[0].arabic)
 	}
 
 	@Test fun linesNotMatching()

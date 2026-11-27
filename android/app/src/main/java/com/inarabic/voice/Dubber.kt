@@ -3,8 +3,10 @@
 //
 //  - who: the name in front of the line («Lucia: …») is the character, with a voice of its own (Voices); with no
 //    name, a man's or a woman's voice by how high the voice in the game's sound is (VoicePitch).
-//  - one line at a time: the next waits for the one being spoken; a newer line replaces any line still waiting,
-//    so the voice never falls behind the game.
+//  - each line's voice is made as soon as it is translated, several at once (Microsoft takes 1–2 s a line), and
+//    they are said in order; when the voice falls behind it talks faster, and only a line more than a few seconds
+//    late is left out.
+//  - a game that writes who speaks («Vicki: …»): a line with no name (a task) is not said.
 //  - heard on the screens (TV, LG) or the phone, as chosen in the settings («وين تسمع الصوت»).
 
 package com.inarabic.voice
@@ -15,34 +17,47 @@ import com.inarabic.Diag
 import com.inarabic.InArabicPrefs
 import com.inarabic.link.LinkServer
 import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 
 object Dubber
 {
 	private class Job(val id: Int, val part: DubLines.Part, val seenAt: Long)
+	{
+		/** its voice, being made */
+		@Volatile var clip: Future<Clip?>? = null
+		/** who says it with which voice (for the log) */
+		@Volatile var info = ""
+	}
 
 	private val lock = Object()
+	/** the lines to say, in order */
 	private val waiting = ArrayDeque<Job>()
+	/** line id → how many of its lines are said (or being said) */
+	private val said = LinkedHashMap<Int, Int>()
+	/** the voices are made several at once */
+	private val makers = Executors.newFixedThreadPool(3)
 	private var thread: Thread? = null
 	@Volatile private var running = false
 	/** each start has its own worker: an old one still asleep stops when it wakes */
 	@Volatile private var generation = 0
 	private var context: Context? = null
 	private var prefs: InArabicPrefs? = null
-	/** the line being spoken, and how many of its lines are said or being said */
-	private var lineId = -1
-	private var lineSaid = 0
+	/** this game writes who speaks: lines with no name are tasks, not said */
+	@Volatile private var namesUsed = false
 	/** when what is playing now ends */
 	private var busyUntil = 0L
 	/** Microsoft's voices failed: the phone's voice is used for a while before they are tried again */
-	private var edgeDownUntil = 0L
+	@Volatile private var edgeDownUntil = 0L
 	private var player: MediaPlayer? = null
 
 	/** a line older than this when its turn comes is not spoken any more (the game is past it) */
-	private const val STALE_MS = 7000L
+	private const val STALE_MS = 6000L
 	/** how much of the line's sound is heard before telling a man from a woman */
 	private const val LISTEN_MS = 700L
-	/** Arabic takes longer to say than English: a little faster */
-	private const val RATE = "+10%"
+	/** Arabic takes longer to say than English: a little faster, and faster again for each line waiting before it */
+	private fun rate(ahead: Int) = "+" + (10 + 10 * ahead.coerceIn(0, 3)) + "%"
 
 	fun start(c: Context)
 	{
@@ -51,6 +66,7 @@ object Dubber
 			prefs = InArabicPrefs(c)
 			if(thread != null) return
 			running = true
+			namesUsed = false
 			PhoneTts.start(c)
 			val gen = ++generation
 			thread = Thread({ loop(gen) }, "dub").also { it.isDaemon = true; it.start() }
@@ -59,7 +75,7 @@ object Dubber
 
 	fun stop()
 	{
-		synchronized(lock) { running = false; generation++; thread = null; waiting.clear(); lineId = -1; lineSaid = 0; lock.notifyAll() }
+		synchronized(lock) { running = false; generation++; thread = null; waiting.forEach { it.clip?.cancel(true) }; waiting.clear(); said.clear(); lock.notifyAll() }
 		stopPhone()
 		PhoneTts.stop()
 	}
@@ -73,26 +89,51 @@ object Dubber
 		val p = prefs ?: return
 		if(!p.voiceOn || !running) return
 		val en = DubLines.lines(english); val ar = DubLines.lines(arabic)
+		if(en.any { DubLines.speaker(it) != null }) namesUsed = true
 		synchronized(lock) {
-			if(id != lineId)
+			val done = said[id] ?: 0
+			// a newer reading of this line: its parts not yet said are made again from it
+			waiting.filter { it.id == id }.forEach { it.clip?.cancel(true) }
+			waiting.removeAll { it.id == id }
+			// the lines no longer match one to one, after part of it was said: not said twice
+			if(done > 0 && en.size != ar.size) return
+			if(done >= en.size) return
+			for(pt in DubLines.parts(en.drop(done), ar.drop(done), namesUsed))
 			{
-				// a new line: whatever still waits is the past
-				lineId = id; lineSaid = 0; waiting.clear()
+				val j = Job(id, DubLines.Part(pt.speaker, pt.arabic, done + pt.end), seenAt)
+				waiting.addLast(j)
+				j.clip = makers.submit<Clip?> { make(j) }
 			}
-			else
-			{
-				waiting.removeAll { it.id == id }
-				// the lines no longer match one to one, after part of it was said: not said twice
-				if(lineSaid > 0 && en.size != ar.size) return
-			}
-			if(lineSaid >= en.size) return
-			val parts = DubLines.parts(en.drop(lineSaid), ar.drop(lineSaid))
-			val base = lineSaid
-			for(pt in parts) waiting.addLast(Job(id, DubLines.Part(pt.speaker, pt.arabic, base + pt.end), seenAt))
 			lock.notifyAll()
 		}
 	}
 
+	/** the voice of one line: who says it, in the dialect, as fast as the queue needs */
+	private fun make(job: Job): Clip?
+	{
+		val c = context ?: return null
+		val p = prefs ?: return null
+		// who speaks is not known yet: enough of the line heard to tell a man from a woman
+		val listen = p.voiceWho == "auto" && (job.part.speaker == null || !Voices.settled(c, job.part.speaker))
+		val wait = job.seenAt + LISTEN_MS - System.currentTimeMillis()
+		if(listen && wait > 0) Thread.sleep(wait)
+		val heard = if(listen) VoicePitch.gender(heardPitch(job.seenAt)) else null
+		val voice = when(p.voiceWho)
+		{
+			"male" -> Voices.order(p.voiceDialect, true).first()
+			"female" -> Voices.order(p.voiceDialect, false).first()
+			else -> if(job.part.speaker != null) Voices.voiceOf(c, job.part.speaker, heard, p.voiceDialect)
+				else Voices.order(p.voiceDialect, heard != 'f').first()
+		}
+		val ahead = synchronized(lock) { waiting.indexOf(job) }.coerceAtLeast(0)
+		val text = Dialect.say(job.part.arabic, p.voiceDialect)
+		val t0 = System.currentTimeMillis()
+		val clip = speak(c, text, voice, rate(ahead))
+		job.info = "${job.part.speaker ?: "?"} heard=${heard ?: '-'} → ${voice.label} ${rate(ahead)} (${clip?.mime}, made in ${System.currentTimeMillis() - t0} ms): ${text.take(50)}"
+		return clip
+	}
+
+	/** says the lines in order, each when the one before it is over */
 	private fun loop(gen: Int)
 	{
 		while(true)
@@ -102,38 +143,24 @@ object Dubber
 				if(gen != generation) return
 				waiting.first()
 			}
-			val c = context ?: return
-			val p = prefs ?: return
-			// who speaks is not known yet: enough of the line heard to tell a man from a woman
-			val listen = p.voiceWho == "auto" && (job.part.speaker == null || !Voices.settled(c, job.part.speaker))
-			val wait = job.seenAt + LISTEN_MS - System.currentTimeMillis()
-			if(listen && wait > 0) Thread.sleep(wait)
-			val heard = if(listen) VoicePitch.gender(heardPitch(job.seenAt)) else null
-			val voice = when(p.voiceWho)
-			{
-				"male" -> Voices.order(p.voiceDialect, true).first()
-				"female" -> Voices.order(p.voiceDialect, false).first()
-				else -> if(job.part.speaker != null) Voices.voiceOf(c, job.part.speaker, heard, p.voiceDialect)
-					else Voices.order(p.voiceDialect, heard != 'f').first()
-			}
-			val t0 = System.currentTimeMillis()
-			val said = Dialect.say(job.part.arabic, p.voiceDialect)
-			val clip = speak(c, said, voice)
+			val clip = try { job.clip?.get(12, TimeUnit.SECONDS) } catch(e: Exception) { null }
 			synchronized(lock) {
-				// replaced while it was being made: not this one
+				// replaced by a newer reading while its voice was made: the newer one is said
 				if(waiting.firstOrNull() !== job) return@synchronized null
 				waiting.removeFirst()
-				if(job.id == lineId) lineSaid = maxOf(lineSaid, job.part.end)
+				said[job.id] = maxOf(said[job.id] ?: 0, job.part.end)
+				while(said.size > 50) said.remove(said.keys.first())
 				job
 			} ?: continue
+			val c = context ?: return
+			val p = prefs ?: return
 			if(clip == null) { Diag.add("dub: no voice for \"${job.part.arabic.take(40)}\" (${EdgeTts.lastError})"); continue }
 			val gap = busyUntil - System.currentTimeMillis()
 			if(gap > 0) Thread.sleep(gap)
-			if(System.currentTimeMillis() - job.seenAt > STALE_MS) { Diag.add("dub: late, skipped \"${job.part.arabic.take(40)}\""); continue }
-			// a newer line came while this one waited for its turn: the newer one is said, not this
-			if(synchronized(lock) { job.id != lineId }) { Diag.add("dub: newer line came, skipped \"${job.part.arabic.take(40)}\""); continue }
-			Diag.add("dub: ${job.part.speaker ?: "?"} heard=${heard ?: '-'} → ${voice.label} (${clip.mime}, ${System.currentTimeMillis() - t0} ms): ${said.take(50)}")
+			val late = System.currentTimeMillis() - job.seenAt
+			if(late > STALE_MS) { Diag.add("dub: $late ms late, left out: ${job.info}"); continue }
 			if(gen != generation) return
+			Diag.add("dub: $late ms after the line: ${job.info}")
 			play(c, p, clip)
 			busyUntil = System.currentTimeMillis() + clip.ms + 150
 		}
@@ -142,11 +169,11 @@ object Dubber
 	class Clip(val bytes: ByteArray, val mime: String, val ms: Long)
 
 	/** [voice] saying [text]: Microsoft's voice, or the phone's own when that does not answer */
-	private fun speak(c: Context, text: String, voice: Voices.V): Clip?
+	private fun speak(c: Context, text: String, voice: Voices.V, rate: String = rate(0)): Clip?
 	{
 		if(System.currentTimeMillis() > edgeDownUntil)
 		{
-			val mp3 = EdgeTts.say(text, voice.id, RATE)
+			val mp3 = EdgeTts.say(text, voice.id, rate)
 			if(mp3 != null) return Clip(mp3, "audio/mpeg", mp3.size * 8000L / EdgeTts.BITRATE)
 			edgeDownUntil = System.currentTimeMillis() + 60000
 			Diag.add("dub: Microsoft voice failed (${EdgeTts.lastError}), phone voice for a minute")

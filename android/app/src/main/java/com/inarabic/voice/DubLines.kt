@@ -32,15 +32,18 @@ object DubLines
 	/**
 	 * The parts to speak of the lines [en] with their translations [ar] (a line of its own may be another
 	 * person). Lines of the same speaker one after the other are said together; [Part.end] is how many of the
-	 * lines are said once that part is.
+	 * lines are said once that part is. [namesUsed]: the game writes who speaks, so a line with no name is not
+	 * speech (a task: «Return to Jason with the pills») and is not said.
 	 */
-	fun parts(en: List<String>, ar: List<String>): List<Part>
+	fun parts(en: List<String>, ar: List<String>, namesUsed: Boolean = false): List<Part>
 	{
 		if(en.isEmpty() || ar.isEmpty()) return emptyList()
+		val names = namesUsed || en.any { speaker(it) != null }
 		if(en.size != ar.size)
 		{
-			// the lines do not match one to one: said as one
+			// the lines do not match one to one: said as one (by the first line's speaker)
 			val s = speaker(en[0])
+			if(s == null && names) return emptyList()
 			val a = ar.joinToString(" ")
 			return listOf(Part(s, if(s != null) withoutName(a) else a, en.size))
 		}
@@ -48,11 +51,12 @@ object DubLines
 		for(i in en.indices)
 		{
 			val s = speaker(en[i])
+			if(s == null && names) continue
 			val a = if(s != null) withoutName(ar[i]) else ar[i]
 			if(a.isBlank()) continue
 			val last = out.lastOrNull()
-			// a line with no name after a named one is usually the same person going on
-			if(last != null && (s == last.speaker || s == null)) out[out.size - 1] = Part(last.speaker, last.arabic + " " + a, i + 1)
+			// lines of the same speaker one after the other (or, in a game without names, the person going on)
+			if(last != null && last.end == i && s == last.speaker) out[out.size - 1] = Part(last.speaker, last.arabic + " " + a, i + 1)
 			else out += Part(s, a, i + 1)
 		}
 		return out

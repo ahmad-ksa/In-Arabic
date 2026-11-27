@@ -44,14 +44,30 @@ class SoundDialogue(
 	fun start(scope: CoroutineScope): Boolean
 	{
 		if(Build.VERSION.SDK_INT < 31) { onNotice("صوت اللعبة يحتاج أندرويد ١٢ أو أحدث — رجعت للترجمة المكتوبة"); return false }
+		// Android's speech recognition will not run without the microphone permission (asked for in the settings
+		// when «صوت اللعبة» is chosen), even though the sound given to it is the game's
+		if(context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+		{
+			onNotice("صوت اللعبة يحتاج إذن الميكروفون: اختره مرة ثانية من الإعدادات ووافق — رجعت للترجمة المكتوبة")
+			return false
+		}
 		job = scope.launch(Dispatchers.Default) {
 			val r = ready() ?: return@launch
 			recognizer = r
-			// one recognition at a time; when it ends (a long silence, an error) the next one starts
+			// one recognition at a time; when it ends (a long silence, an error) the next one starts. Errors one
+			// after another wait longer each time; a refused permission stops it
+			var pause = 300L
 			while(isActive)
 			{
-				try { listen(r) } catch(e: kotlinx.coroutines.CancellationException) { throw e } catch(e: Exception) { Diag.add("sound: $e") }
-				delay(300)
+				val heard = try { listen(r) } catch(e: kotlinx.coroutines.CancellationException) { throw e } catch(e: Exception) { Diag.add("sound: $e"); Ended.ERROR }
+				if(heard == Ended.REFUSED)
+				{
+					onNotice("النظام رفض التعرف على الكلام (إذن الميكروفون) — رجعت للترجمة المكتوبة")
+					onUnavailable()
+					return@launch
+				}
+				pause = if(heard == Ended.ERROR) (pause * 2).coerceAtMost(10000) else 300L
+				delay(pause)
 			}
 		}
 		return true
@@ -92,8 +108,10 @@ class SoundDialogue(
 		return null
 	}
 
+	private enum class Ended { OK, ERROR, REFUSED }
+
 	/** one recognition: the game's sound goes in as it plays, the sentences come out */
-	private suspend fun listen(r: SpeechRecognizer) = kotlinx.coroutines.coroutineScope {
+	private suspend fun listen(r: SpeechRecognizer): Ended = kotlinx.coroutines.coroutineScope {
 		val pipe = ParcelFileDescriptor.createPipe()
 		// the sound, written at the pace it plays (16 kHz, 16-bit, one channel)
 		val writer = launch(Dispatchers.IO) {
@@ -115,6 +133,7 @@ class SoundDialogue(
 			} }
 			catch(e: java.io.IOException) { }
 		}
+		var ended = Ended.OK
 		try
 		{
 			AudioSource.fromPfd(pipe[0], AudioSource.Mode.STREAMING).use { source ->
@@ -130,12 +149,17 @@ class SoundDialogue(
 							heardAt = 0L
 							if(t.length >= 2) { Diag.add("sound heard: $t"); onLine(t, began) }
 						}
-						is SpeechRecognizerResponse.ErrorResponse -> Diag.add("sound: error ${resp.e.message}")
+						is SpeechRecognizerResponse.ErrorResponse ->
+						{
+							Diag.add("sound: error ${resp.e.message}")
+							ended = if(resp.e.message?.contains("PERMISSION") == true) Ended.REFUSED else Ended.ERROR
+						}
 						else -> {}
 					}
 				}
 			}
 		}
 		finally { writer.cancel(); try { pipe[1].close() } catch(e: Exception) { } }
+		ended
 	}
 }
