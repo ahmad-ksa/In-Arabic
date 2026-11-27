@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: LicenseRef-AGPL-3.0-only-OpenSSL
-// «النظام الجديد»: one translator, chosen in the settings, and nothing after it.
-//  - Haiku (Claude): told the game, its people (man or woman) and names, and the dialogue so far, so it knows who
-//    speaks to whom; it writes the Arabic with all its vowel marks (the voice reads them; the screen shows the text
-//    without them: [plain]), in the dialect chosen;
-//  - Google's official Cloud Translation: each line as it comes, nothing added (to see how good it is on its own).
-// The reading's own fixes (glued words, «l'm») still come first: they are the reading's, not the translation's.
+// «النظام الجديد»: one translator, chosen in the settings, as if it were a new app: nothing of the old system goes
+// into it or comes after it (no game file, no names, no corrections, no reading fixes, no memory).
+//  - Haiku (Claude): shown the dialogue so far, to work out by itself who speaks to whom; it writes the Arabic
+//    with all its vowel marks (the voice reads them; the screen shows the text without them: [plain]), in the
+//    dialect chosen;
+//  - Google's official Cloud Translation: each line as it comes.
 
 package com.inarabic.translate
 
@@ -37,7 +37,7 @@ object NewTranslator
 	/** [english] (one line or lines under each other) in Arabic, by the new system's translator; null if it failed */
 	fun translate(english: String, prefs: InArabicPrefs): String?
 	{
-		val lines = english.split('\n').map { Games.ocr(it.trim()) }.filter { it.isNotBlank() }
+		val lines = english.split('\n').map { it.trim() }.filter { it.isNotBlank() }
 		if(lines.isEmpty()) return null
 		val k = lines.joinToString("\n")
 		synchronized(this) { cache[k] }?.let { return it }
@@ -80,7 +80,6 @@ object NewTranslator
 
 	private fun system(dialect: String): String
 	{
-		val g = Games.active
 		val how = when(dialect)
 		{
 			"sa" -> "باللهجة السعودية البيضاء"
@@ -89,32 +88,12 @@ object NewTranslator
 			"sham" -> "باللهجة الشامية"
 			else -> "بالعربية الفصحى المبسطة"
 		}
-		return buildString {
-			append("أنت مترجم حوار ونصوص ألعاب فيديو من الإنجليزي إلى العربي، $how.")
-			if(g != null) append(" اللعبة: ${g.title}.")
-			append("""
+		return """أنت مترجم حوار ونصوص ألعاب فيديو من الإنجليزي إلى العربي، $how.
 
 القواعد:
 - كل سطر يُعطى لك: ترجمه في سطر واحد، بنفس الترتيب ونفس عدد الأسطر. لا تكتب أي شرح أو ملاحظة أو ترقيم.
 - السطر الذي يبدأ باسم متكلم ثم نقطتين ("Lucia: ..."): اكتب اسمه بالعربي ثم نقطتين ثم الترجمة.
-- افهم من الحوار من يتكلم ومن يُخاطَب: المتكلم رجل أو امرأة، والمخاطَب رجل أو امرأة أو جماعة. اجعل الضمائر والأفعال والصفات على هذا الأساس.
-- شكّل الترجمة تشكيلًا كاملًا (كل حرف بحركته) لأن صوت الدبلجة يقرؤها، وخصوصًا الضمائر وأواخر الكلمات.
-- العامية الإنجليزية والشتائم: ترجم المعنى لا الكلمات ("ride" قد تكون سيارة، "Hey" تحية أو نداء، "Sup" كيف الحال).
-- السطر الذي ليس حوارًا (مهمة، قائمة، زر، اسم مكان): ترجمه قصيرًا كما في الألعاب.
-- أسماء الأماكن والمحلات والماركات: اكتبها بحروف عربية ولا تترجم معناها.""")
-			if(g != null)
-			{
-				val names = g.names
-				if(g.people.isNotEmpty())
-				{
-					append("\n\nالشخصيات:\n")
-					append(g.people.entries.joinToString("\n") { (k, p) -> "- ${k.replaceFirstChar { it.uppercase() }} = ${names[k] ?: k}: ${if(p.female) "امرأة" else "رجل"}" })
-				}
-				if(g.crowd.isNotEmpty())
-					append("\nأسماء عامة لأناس من الشارع (المتكلم يتغير كل سطر): " + g.crowd.keys.joinToString("، ") { k -> "${k.replaceFirstChar { it.uppercase() }} = ${names[k] ?: k}" })
-				val places = names.filterKeys { it !in g.people && it !in g.crowd }
-				if(places.isNotEmpty()) append("\nأسماء تكتبها هكذا: " + places.entries.joinToString("، ") { (en, ar) -> "$en = $ar" })
-			}
-		}
+- افهم من الحوار من يتكلم ومن يُخاطَب (رجل أو امرأة أو جماعة)، واجعل الضمائر والأفعال على هذا الأساس.
+- شكّل الترجمة تشكيلًا كاملًا لأن صوت الدبلجة يقرؤها."""
 	}
 }
