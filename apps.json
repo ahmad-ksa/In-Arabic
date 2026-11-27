@@ -1,0 +1,33 @@
+{
+  "paging": {
+    "page": 1,
+    "count": 1,
+    "maxPage": 1,
+    "itemsTotal": 1
+  },
+  "packages": [
+    {
+      "id": "com.inarabic.lg",
+      "title": "بالعربي",
+      "iconUri": "https://raw.githubusercontent.com/ahmad-ksa/In-Arabic/repo/icon.png",
+      "manifestUrl": "https://raw.githubusercontent.com/ahmad-ksa/In-Arabic/repo/com.inarabic.lg.manifest.json",
+      "manifest": {
+        "id": "com.inarabic.lg",
+        "version": "0.1.120",
+        "type": "web",
+        "title": "بالعربي",
+        "appDescription": "ترجمة ألعاب البلايستيشن للعربي على الشاشة",
+        "iconUri": "https://raw.githubusercontent.com/ahmad-ksa/In-Arabic/repo/icon.png",
+        "sourceUrl": "https://github.com/ahmad-ksa/In-Arabic",
+        "rootRequired": false,
+        "ipkUrl": "https://github.com/ahmad-ksa/In-Arabic/releases/download/latest/InArabic-lg.ipk",
+        "ipkHash": {
+          "sha256": "5179a891393590863a9f0c0d81fa665374dc5a310f971e0c850e4c96a8ca1be5"
+        }
+      },
+      "category": "multimedia",
+      "shortDescription": "ترجمة ألعاب البلايستيشن للعربي على الشاشة",
+      "version": "0.1.120"
+    }
+  ]
+}
