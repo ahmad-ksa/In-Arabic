@@ -112,31 +112,8 @@ class InArabicSettingsActivity : AppCompatActivity()
 		{
 			val prefs = InArabicPrefs(requireContext())
 			if(key == "ia_clock") com.inarabic.link.LinkServer.sendClock() // shown or hidden on the TV at once
-			if(key == "ia_preset" && !applying)
-			{
-				val name = sp?.getString("ia_preset", "normal") ?: "normal"
-				if(name != "custom")
-				{
-					applying = true
-					prefs.applyPreset(name)
-					// show the new values in the list
-					findPreference<androidx.preference.SeekBarPreference>("ia_text_scale")?.value = sp!!.getInt("ia_text_scale", 100)
-					findPreference<androidx.preference.SeekBarPreference>("ia_box_opacity")?.value = sp.getInt("ia_box_opacity", 85)
-					findPreference<androidx.preference.ListPreference>("ia_color")?.value = sp.getString("ia_color", "#FFFFFF")
-					findPreference<androidx.preference.ListPreference>("ia_box_color")?.value = sp.getString("ia_box_color", "#000000")
-					findPreference<androidx.preference.SwitchPreference>("ia_bold")?.isChecked = sp.getBoolean("ia_bold", true)
-					findPreference<androidx.preference.SwitchPreference>("ia_outline")?.isChecked = sp.getBoolean("ia_outline", false)
-					applying = false
-				}
-				LinkServer.sendStyle(prefs)
-			}
+			if(key in styleKeys) LinkServer.sendStyle(prefs)
 			if(key in styleKeys)
-			{
-				// a change by hand: the look is now your own
-				if(!applying && key != "ia_tv_zoom" && key != "ia_tv_shift") findPreference<androidx.preference.ListPreference>("ia_preset")?.let { if(it.value != "custom") { applying = true; it.value = "custom"; applying = false } }
-				LinkServer.sendStyle(prefs)
-			}
-			if(key in styleKeys || key == "ia_preset")
 				findPreference<androidx.preference.Preference>("ia_box_opacity")?.summary =
 					if(prefs.lowContrast) "⚠ النص صعب يتقرا بدون خلفية. فعّل «حدّ أسود حول الحروف» أو زِد العتامة" else null
 		}

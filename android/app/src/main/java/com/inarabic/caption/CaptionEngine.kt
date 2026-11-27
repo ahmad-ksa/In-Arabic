@@ -292,8 +292,7 @@ class CaptionEngine(
 						screenLineCount = lastLineCount
 						// "menus": only what the game draws for you (OPEN, Hold to skip, a button next to a word),
 						// not the world (restaurant boards, shop signs, posters)
-						all += if(prefs.mode == "popups") found.filter { it.white || SideText.clean(it.text)?.button != null }
-						else if(!prefs.scanOnlyPrompts) found else found.filter { r ->
+						all += if(!prefs.scanOnlyPrompts) found else found.filter { r ->
 							val st = SideText.clean(r.text)
 							st != null && (st.button != null || com.inarabic.translate.Glossary.lookup(st.text) != null ||
 								st.text.split(Regex("\\s+")).size >= 8) // a help box or a description, not a sign
@@ -345,7 +344,8 @@ class CaptionEngine(
 				// over the scene the letters are the bright ones (game subtitles are light with a dark edge): their colour,
 				// not the dark edge's
 				val fg = if(plain) fg0 else brightLetters(frame, px)
-				LinkServer.subLook = intArrayOf(fg, bg, if(plain) 1 else 0)
+				// the background always comes from your settings: only the letters take the game's colour
+				LinkServer.subLook = intArrayOf(fg, bg, 0)
 			}
 			if(ev0 != null) Diag.add("sub ${ev0.javaClass.simpleName}: " + read.text)
 			when(val ev = ev0)

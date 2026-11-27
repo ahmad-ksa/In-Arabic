@@ -337,16 +337,27 @@
       var shift = 0;
       if (bx.t < 0) shift = -bx.t; else if (bx.b > 1080) shift = 1080 - bx.b;
       bx.t += shift; bx.b += shift;
-      var up = false;
+      function hitOf(b) {
+        for (var j = 0; j < placed.length; j++) { var p = placed[j]; if (p.l < b.r && p.r > b.l && p.t < b.b && p.b > b.t) return p; }
+        return null;
+      }
+      // crowded: first the letters get smaller (15 %), only then is it moved
+      if (el !== c && hitOf(bx) && !el.getAttribute('data-small')) {
+        el.setAttribute('data-small', '1');
+        el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * 0.85) + 'px';
+        var r2 = el.getBoundingClientRect();
+        bx = { l: r2.left, t: r2.top + shift, r: r2.right, b: r2.bottom + shift };
+      }
+      // in the lower half it moves up first, in the upper half down first; it never leaves the screen
+      var up = (bx.t + bx.b) / 2 > 540, turned = false;
       for (var i = 0; i < 24; i++) {
-        var hit = null;
-        for (var j = 0; j < placed.length && !hit; j++) {
-          var p = placed[j];
-          if (p.l < bx.r && p.r > bx.l && p.t < bx.b && p.b > bx.t) hit = p;
-        }
+        var hit = hitOf(bx);
         if (!hit) break;
-        var hh = bx.b - bx.t, nt;
-        if (!up && hit.b + 4 + hh <= 1080) nt = hit.b + 4; else { up = true; nt = hit.t - 4 - hh; }
+        var hh = bx.b - bx.t, nt = up ? hit.t - 4 - hh : hit.b + 4;
+        if (nt < 0 || nt + hh > 1080) {
+          if (turned) { nt = Math.min(Math.max(nt, 0), Math.max(0, 1080 - hh)); shift += nt - bx.t; bx.b += nt - bx.t; bx.t = nt; break; }
+          turned = true; up = !up; continue;
+        }
         shift += nt - bx.t; bx.b += nt - bx.t; bx.t = nt;
       }
       el.style.top = (top0 + shift) + 'px';

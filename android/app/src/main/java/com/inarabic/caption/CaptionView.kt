@@ -270,12 +270,21 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	{
 		val gap = h * 0.004f
 		val y0 = r.top
-		var up = false
+		// in the lower half (near the dialogue at the bottom) it moves up first, in the upper half down first;
+		// it never leaves the screen
+		var up = r.centerY() > h / 2
+		var turned = false
 		repeat(24) {
 			val hit = placed.firstOrNull { RectF.intersects(it, r) } ?: return r.top - y0
-			if(!up && hit.bottom + gap + r.height() <= h) r.offsetTo(r.left, hit.bottom + gap)
-			else { up = true; r.offsetTo(r.left, hit.top - gap - r.height()) }
+			val ny = if(up) hit.top - gap - r.height() else hit.bottom + gap
+			if(ny < 0f || ny + r.height() > h)
+			{
+				if(turned) { r.offsetTo(r.left, ny.coerceIn(0f, max(0f, h - r.height()))); return r.top - y0 }
+				turned = true; up = !up
+			}
+			else r.offsetTo(r.left, ny)
 		}
+		r.offsetTo(r.left, r.top.coerceIn(0f, max(0f, h - r.height())))
 		return r.top - y0
 	}
 
@@ -311,10 +320,16 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 		val padX = lineH * (if(own) 0.08f else 0.15f); val padY = lineH * (if(own) 0.04f else 0.08f)
 		// a paragraph (a message, a description): wraps inside the English width; a list or a prompt: one line each
 		val para = ownH > lineH * 1.6f && '\n' !in text
-		val start = size ?: (lineH * 0.82f * scale)
+		val start0 = size ?: (lineH * 0.82f * scale)
 		textPaint.color = fg
-		val inner: Int
-		val l: StaticLayout
+		var inner = 0
+		var lay: StaticLayout? = null
+		var local = RectF(); var bounds = RectF()
+		var dx = 0f; var dy = 0f
+		// crowded: first the letters get smaller (15 %), only then is anything moved
+		for(attempt in 0..1)
+		{
+		val start = if(attempt == 0) start0 else start0 * 0.85f
 		if(para)
 		{
 			inner = ownW.toInt().coerceAtLeast(20)
@@ -328,7 +343,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 				if(bigger.height > ownH) { textPaint.textSize = sz; break }
 				lp = bigger
 			}
-			l = lp
+			lay = lp
 		}
 		else
 		{
@@ -338,18 +353,21 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			if(tw > ownW) textPaint.textSize = start * max(0.6f, ownW / tw)
 			val tw2 = text.split('\n').maxOf { textPaint.measureText(it) }
 			inner = max(ownW, tw2 + 2f).toInt().coerceAtLeast(20)
-			l = fitLayout(styled(text, spans), textPaint.textSize, inner, max(ownH, lineH) * 1.15f + padY, Layout.Alignment.ALIGN_CENTER, 0.75f)
+			lay = fitLayout(styled(text, spans), textPaint.textSize, inner, max(ownH, lineH) * 1.15f + padY, Layout.Alignment.ALIGN_CENTER, 0.75f)
 		}
 		val aw = max(ownW, inner.toFloat()) + padX * 2
-		val ah = max(ownH, l.height.toFloat()) + padY * 2
-		val local = RectF(cx - aw / 2, cy - ah / 2, cx + aw / 2, cy + ah / 2)
+		val ah = max(ownH, lay!!.height.toFloat()) + padY * 2
+		local = RectF(cx - aw / 2, cy - ah / 2, cx + aw / 2, cy + ah / 2)
 		// on screen: its turned outline, kept inside the picture and off what is already there
-		val bounds = RectF(local)
+		bounds = RectF(local)
 		if(angle != 0f) android.graphics.Matrix().apply { setRotate(angle, cx, cy) }.mapRect(bounds)
-		var dx = 0f; var dy = 0f
+		dx = 0f; dy = 0f
 		if(bounds.left < 0) dx = -bounds.left else if(bounds.right > w) dx = w - bounds.right
 		if(bounds.top < 0) dy = -bounds.top else if(bounds.bottom > h) dy = h - bounds.bottom
 		bounds.offset(dx, dy)
+		if(own || placed.none { RectF.intersects(it, bounds) }) break
+		}
+		val l = lay!!
 		// the lens's texts stay exactly on their English (each fits in its own area, so they cannot overlap; a tilted
 		// one's level outline is bigger than it, and moving by it pushed neighbours away); the others move off
 		if(!own) dy += avoid(bounds, h)
@@ -453,6 +471,9 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 					if(area.height() < need) area.bottom = min(h, area.top + need)
 				}
 			}
+			// never off the screen (the dialogue is at the very bottom; a longer Arabic line grows upward)
+			if(area.bottom > h) area.offset(0f, h - area.bottom)
+			if(area.top < 0f) area.offset(0f, -area.top)
 			val sbg = subBg
 			canvas.drawRoundRect(area, h * 0.01f, h * 0.01f, if(sbg != null) Paint(Paint.ANTI_ALIAS_FLAG).apply { color = sbg } else boxPaint)
 			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas); canvas.restore()

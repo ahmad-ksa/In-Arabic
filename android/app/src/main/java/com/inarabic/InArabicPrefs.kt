@@ -80,15 +80,15 @@ class InArabicPrefs(context: Context)
 	val centerOnly get() = p.getBoolean("ia_center_only", true)
 	/** what to translate: "dialog" (only the dialogue), "menus" (dialogue + side frames, prompts, tasks), "all" (anything on screen) */
 	var mode
-		get() = p.getString("ia_mode", null) ?: when { p.getBoolean("ia_dialog_only", false) -> "dialog"; p.getBoolean("ia_scan_screen", false) -> "all"; else -> "menus" }
+		// three choices only; the old ones ("zones", "popups") are "menus" now
+		get() = when(val m = p.getString("ia_mode", null) ?: when { p.getBoolean("ia_dialog_only", false) -> "dialog"; p.getBoolean("ia_scan_screen", false) -> "all"; else -> "menus" }) { "dialog", "all" -> m; else -> "menus" }
 		set(v) { p.edit().putString("ia_mode", v).apply() }
 	/** only the dialogue in the middle: no side texts, no side frames */
 	var dialogOnly
 		get() = mode == "dialog"
 		set(v) { mode = if(v) "dialog" else "menus" }
 	/** also read the rest of the picture for short prompts (OPEN, ENTER…) and translate them in place */
-	// "zones": every reading frame you placed (dialogue and side ones), nothing else on the screen
-	val scanScreen get() = mode != "dialog" && mode != "zones"
+	val scanScreen get() = mode != "dialog"
 	/** reading the whole picture keeps only game words and button prompts (no signs, no shop boards) */
 	val scanOnlyPrompts get() = mode == "menus"
 	/** game sound on the phone (off: the TV plays it) */
@@ -111,7 +111,8 @@ class InArabicPrefs(context: Context)
 	val textScale get() = p.getInt("ia_text_scale", 100) / 100f
 	val coverOriginal get() = p.getBoolean("ia_cover", true)
 	val boxOpacity get() = p.getInt("ia_box_opacity", 85) / 100f
-	val textColor get() = p.getString("ia_color", "#FFFFFF") ?: "#FFFFFF"
+	/** the letters: always the game's own colours («ترجمة كاملة»); white where the game gives none */
+	val textColor get() = "#FFFFFF"
 	/** auto = over the English line, bottom / top = fixed */
 	val position get() = p.getString("ia_position", "auto") ?: "auto"
 	/** TV picture fit: the TV may enlarge the HDMI picture (overscan) or move it */
@@ -127,23 +128,11 @@ class InArabicPrefs(context: Context)
 	val boxColor get() = p.getString("ia_box_color", "#000000") ?: "#000000"
 
 	/** a ready look: writes the single settings it is made of */
-	fun applyPreset(name: String)
-	{
-		val e = p.edit()
-		when(name)
-		{
-			"normal" -> e.putInt("ia_text_scale", 100).putString("ia_color", "#FFFFFF").putBoolean("ia_bold", true).putBoolean("ia_outline", false).putInt("ia_box_opacity", 85).putString("ia_box_color", "#000000")
-			"cinema" -> e.putInt("ia_text_scale", 105).putString("ia_color", "#FFE066").putBoolean("ia_bold", true).putBoolean("ia_outline", true).putInt("ia_box_opacity", 0)
-			"lounge" -> e.putInt("ia_text_scale", 135).putString("ia_color", "#FFFFFF").putBoolean("ia_bold", true).putBoolean("ia_outline", false).putInt("ia_box_opacity", 92).putString("ia_box_color", "#0F2A20")
-			"clear" -> e.putInt("ia_text_scale", 100).putString("ia_color", "#FFFFFF").putBoolean("ia_bold", true).putBoolean("ia_outline", true).putInt("ia_box_opacity", 0)
-			else -> {}
-		}
-		e.apply()
-	}
+
 
 	/** hard to read: no box and no outline */
 	val lowContrast get() = boxOpacity < 0.3f && !outline
-	val bold get() = p.getBoolean("ia_bold", true)
+	val bold get() = true
 
 	/** The game being played (filled from the PS5 when it says, or typed): helps the AI keep names right. */
 	/** camera mode: the TV's corners in the camera picture */

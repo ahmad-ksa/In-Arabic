@@ -20,42 +20,42 @@
             app:title="اعرض الترجمة على الجوال بعد" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="٣. شكل الترجمة" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="5">
-        <ListPreference app:key="ia_preset" app:title="شكل جاهز" app:defaultValue="normal" app:iconSpaceReserved="false"
-            app:entries="@array/ia_preset_names" app:entryValues="@array/ia_preset_values" app:useSimpleSummaryProvider="true" />
+    <PreferenceCategory app:title="٣. شكل الحوار" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="4">
+        <Preference app:key="ia_dialog_look_info" app:iconSpaceReserved="false" app:selectable="false"
+            app:summary="الحروف تاخذ ألوان اللعبة نفسها (ترجمة كاملة)، والخلفية من هنا" />
         <SeekBarPreference app:key="ia_text_scale" app:title="حجم خط الحوار (100 = نفس حجم الإنجليزي)" app:iconSpaceReserved="false"
             app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
-        <SwitchPreference app:key="ia_clock" app:defaultValue="false" app:iconSpaceReserved="false"
-            app:title="اعرض الساعة في اللعبة" app:summary="ساعة جوالك، صغيرة فوق يسار على التلفزيون" />
+        <SeekBarPreference app:key="ia_tv_shift" app:title="ارفع أو نزّل الحوار (%)" app:iconSpaceReserved="false"
+            app:defaultValue="0" android:max="10" app:min="-10" app:showSeekBarValue="true" />
+        <ListPreference app:key="ia_box_color" app:title="لون خلفية الحوار" app:defaultValue="#000000" app:iconSpaceReserved="false"
+            app:entries="@array/ia_box_color_names" app:entryValues="@array/ia_box_color_values" app:useSimpleSummaryProvider="true" />
+        <SeekBarPreference app:key="ia_box_opacity" app:title="عتامة خلفية الحوار (%)" app:iconSpaceReserved="false"
+            app:defaultValue="85" android:max="100" app:min="0" app:showSeekBarValue="true" />
+        <SwitchPreference app:key="ia_outline" app:defaultValue="false" app:title="حدّ أسود حول الحروف" app:iconSpaceReserved="false" />
+        <ListPreference app:key="ia_position" app:title="مكان الحوار" app:defaultValue="auto" app:iconSpaceReserved="false"
+            app:entries="@array/ia_pos_names" app:entryValues="@array/ia_pos_values" app:useSimpleSummaryProvider="true" />
+        <SwitchPreference app:key="ia_cover" app:defaultValue="true" app:iconSpaceReserved="false"
+            app:title="غطِّ الحوار الإنجليزي" />
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="٤. شكل القوائم" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="2">
         <SeekBarPreference app:key="ia_menu_scale" app:title="حجم خط القوائم (100 = نفس حجم الإنجليزي)" app:iconSpaceReserved="false"
             app:defaultValue="100" android:max="200" app:min="50" app:showSeekBarValue="true" />
         <SeekBarPreference app:key="ia_menu_shift" app:title="ارفع أو نزّل القوائم (%)" app:iconSpaceReserved="false"
             app:defaultValue="0" android:max="10" app:min="-10" app:showSeekBarValue="true" />
-        <ListPreference app:key="ia_color" app:title="لون الخط" app:defaultValue="#FFFFFF" app:iconSpaceReserved="false"
-            app:entries="@array/ia_color_names" app:entryValues="@array/ia_color_values" app:useSimpleSummaryProvider="true" />
-        <SwitchPreference app:key="ia_bold" app:defaultValue="true" app:title="خط عريض" app:iconSpaceReserved="false" />
-        <SwitchPreference app:key="ia_outline" app:defaultValue="false" app:title="حدّ أسود حول الحروف" app:iconSpaceReserved="false" />
-        <ListPreference app:key="ia_box_color" app:title="لون الخلفية" app:defaultValue="#000000" app:iconSpaceReserved="false"
-            app:entries="@array/ia_box_color_names" app:entryValues="@array/ia_box_color_values" app:useSimpleSummaryProvider="true" />
-        <SeekBarPreference app:key="ia_box_opacity" app:title="عتامة الخلفية (%)" app:iconSpaceReserved="false"
-            app:defaultValue="85" android:max="100" app:min="0" app:showSeekBarValue="true" />
-        <ListPreference app:key="ia_position" app:title="مكان الترجمة" app:defaultValue="auto" app:iconSpaceReserved="false"
-            app:entries="@array/ia_pos_names" app:entryValues="@array/ia_pos_values" app:useSimpleSummaryProvider="true" />
-        <SwitchPreference app:key="ia_cover" app:defaultValue="true" app:iconSpaceReserved="false"
-            app:title="غطِّ الترجمة الإنجليزية" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="٤. مكان القراءة" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="1">
+    <PreferenceCategory app:title="٥. عام" app:iconSpaceReserved="false" app:initialExpandedChildrenCount="2">
+        <SwitchPreference app:key="ia_clock" app:defaultValue="false" app:iconSpaceReserved="false"
+            app:title="اعرض الساعة في اللعبة" app:summary="ساعة جوالك، صغيرة فوق يسار على التلفزيون" />
         <Preference app:key="ia_zones_info" app:title="مربعات القراءة" app:iconSpaceReserved="false"
-            app:summary="من البث: المس الشاشة ← «📐 المربعات». حط مربع على الحوار، ومربعات للمهام إذا تبي." />
+            app:summary="من البث: المس الشاشة ← «📐 المربعات». مربع على الحوار، ومربعات للقوائم إذا تبي." />
         <SeekBarPreference app:key="ia_tv_zoom" app:title="مطابقة التلفزيون: تكبير (%)" app:iconSpaceReserved="false"
             app:summary="إذا الترجمة على التلفزيون أقرب للوسط من الإنجليزي، زِده"
             app:defaultValue="0" android:max="15" app:min="0" app:showSeekBarValue="true" />
-        <SeekBarPreference app:key="ia_tv_shift" app:title="ارفع أو نزّل الحوار (%) — على التلفزيون والجوال" app:iconSpaceReserved="false"
-            app:defaultValue="0" android:max="10" app:min="-10" app:showSeekBarValue="true" />
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="٥. الجلسات والذاكرة" app:iconSpaceReserved="false">
+    <PreferenceCategory app:title="٦. الجلسات والذاكرة" app:iconSpaceReserved="false">
         <Preference app:key="ia_summary" app:title="سجل الجلسات والملخص" app:iconSpaceReserved="false"
             app:summary="حوار كل جلسة، وملخص يذكّرك وين وقفت" />
         <Preference app:key="ia_memory" app:title="ذاكرة الترجمة" app:iconSpaceReserved="false" />

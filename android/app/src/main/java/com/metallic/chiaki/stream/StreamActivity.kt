@@ -388,8 +388,8 @@ class StreamActivity : AppCompatActivity()
 		val z = binding.iaZone
 		fun close() { z.visibility = View.GONE; binding.iaZoneBar.visibility = View.GONE; com.inarabic.link.LinkServer.sendZones(emptyList()) }
 		binding.iaModeButton.setOnClickListener {
-			val values = arrayOf("dialog", "zones", "popups", "menus", "all")
-			val names = arrayOf("الحوارات فقط", "مربعات القراءة فقط", "الحوارات + التعليمات (النص الأبيض)", "الحوارات + الأزرار والقوائم والمهام", "كل شي على الشاشة (حتى اللوحات)")
+			val values = arrayOf("dialog", "menus", "all")
+			val names = arrayOf("الحوار بس", "الحوار + القوائم (مربعات القوائم والأزرار والتعليمات)", "كل الشاشة (حتى اللوحات)")
 			MaterialAlertDialogBuilder(this).setTitle("وش أترجم؟")
 				.setSingleChoiceItems(names, values.indexOf(prefs.mode).coerceAtLeast(0)) { d, i ->
 					prefs.mode = values[i]; d.dismiss(); notice("الترجمة: " + names[i], 2500)
@@ -405,9 +405,13 @@ class StreamActivity : AppCompatActivity()
 		z.onChange = { com.inarabic.link.LinkServer.sendZones(it) }
 		// one dialogue frame only; the menus' text has its own size and height, set here and seen at once
 		binding.iaZoneMenuFont.setOnClickListener { menuLookDialog(prefs) }
-		binding.iaZoneAddSide.setOnClickListener { z.add(false); prefs.dialogOnly = false }
+		// the frames' buttons only add or remove frames: what is translated is chosen in «وش أترجم؟» alone
+		binding.iaZoneAddSide.setOnClickListener {
+			z.add(false)
+			if(prefs.dialogOnly) notice("ترى الحين «الحوار بس»: اختر «الحوار + القوائم» من «وش أترجم؟» عشان تشتغل القوائم", 4500)
+		}
 		binding.iaZoneDelete.setOnClickListener { z.removeSelected() }
-		binding.iaZoneReset.setOnClickListener { z.reset(); prefs.dialogOnly = true; notice("الحوار اللي في النص تحت بس. اضغط «احفظ»", 3000) }
+		binding.iaZoneReset.setOnClickListener { z.removeMenus(); notice("انمسحت مربعات القوائم. اضغط «احفظ»", 3000) }
 		binding.iaZoneSave.setOnClickListener {
 			if(z.zones.none { it.dialog }) { notice("لازم يكون فيه مربع حوار واحد على الأقل", 3000); return@setOnClickListener }
 			prefs.zones = z.zones.toList()
@@ -437,7 +441,7 @@ class StreamActivity : AppCompatActivity()
 	/** In Arabic: everything for the translation in one list */
 	private fun showIaMenu(prefs: com.inarabic.InArabicPrefs)
 	{
-		val modeNames = mapOf("dialog" to "الحوارات فقط", "zones" to "مربعات القراءة فقط", "popups" to "الحوارات + التعليمات", "menus" to "الحوارات + الأزرار والقوائم", "all" to "كل شي")
+		val modeNames = mapOf("dialog" to "الحوار بس", "menus" to "الحوار + القوائم", "all" to "كل الشاشة")
 		val items = arrayOf(
 			"📐  مربعات القراءة (وين أقرأ الترجمة)",
 			"🔤  وش أترجم: " + (modeNames[prefs.mode] ?: ""),
