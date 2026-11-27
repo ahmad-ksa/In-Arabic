@@ -199,6 +199,8 @@ class CaptionEngine(
 			{
 				val t0 = System.currentTimeMillis()
 				try { step() } catch(e: CancellationException) { throw e } catch(e: Exception) { Log.w(TAG, "step", e) }
+				// how long one reading of the screen takes: a line on screen is found at most this late
+				Diag.count("read: one reading of the screen", System.currentTimeMillis() - t0)
 				// while there is dialogue (a line now or in the last 3 s): every 0.2 s at least, so a fast line is caught
 				val every = if(current != null || System.currentTimeMillis() - lastLineAt < 3000) minOf(prefs.readEveryMs, 200L) else prefs.readEveryMs
 				delay((every - (System.currentTimeMillis() - t0)).coerceAtLeast(40))
