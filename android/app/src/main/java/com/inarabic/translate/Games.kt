@@ -54,7 +54,8 @@ object Games
 	private val FUCKING = Regex("^(?!.*\\b(?:silly|ridiculous|lame|absurd)\\b).*\\bfuck(?:ing|in'?)\\b", RegexOption.IGNORE_CASE)
 	private val REGISTER = Regex("\\b(?:the|that|this|those|these|a|cash)\\s+registers?\\b", RegexOption.IGNORE_CASE)
 
-	private fun w(word: String) = Regex("(?<![\\u0600-\\u06FF])" + Regex.escape(word) + "(?![\\u0600-\\u06FF])")
+	// an Arabic letter (or its vowel mark): «،» and «؟» are in the Arabic block too, but end a word
+	private fun w(word: String) = Regex("(?<![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])" + Regex.escape(word) + "(?![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])")
 
 	val GTA6 = Game(
 		title = "Grand Theft Auto VI",
@@ -417,23 +418,23 @@ object Games
 			Word(FUCKING, Regex("سخيفة"), "لعينة"), Word(FUCKING, Regex("سخيف(?!ة)"), "لعين"),
 			// the cash «register» said as «السجل» (the record), in 5 lines (not «register your vehicle»)
 			// «Hey.» «Hey?» said as «يا» (3 lines)
-			Word(Regex("\\bhey\\s*[.?]", RegexOption.IGNORE_CASE), Regex("(?<![\\u0600-\\u06FF])يا(?=\\s*[.?؟])"), "أهلًا"),
+			Word(Regex("\\bhey\\s*[.?]", RegexOption.IGNORE_CASE), Regex("(?<![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])يا(?=\\s*[.?؟])"), "أهلًا"),
 			// «Yo» (a call) said as «يو» (4 lines); not «yo'» (your)
-			Word(Regex("(?<![A-Za-z'])a?yo\\b(?!')", RegexOption.IGNORE_CASE), Regex("(?<![\\u0600-\\u06FF])أ?يو(?![\\u0600-\\u06FF])"), "هيه"),
+			Word(Regex("(?<![A-Za-z'])a?yo\\b(?!')", RegexOption.IGNORE_CASE), Regex("(?<![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])أ?يو(?![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])"), "هيه"),
 			// «Shit!» «Oh, shit.» said as «القرف» (4 lines)
-			Word(Regex("^(?:(?:oh|ah|aw|yeah),?\\s+)?shit\\b", RegexOption.IGNORE_CASE), Regex("يا للقرف|(?<![\\u0600-\\u06FF])القرف(?![\\u0600-\\u06FF])"), "تبًا"),
+			Word(Regex("^(?:(?:oh|ah|aw|yeah),?\\s+)?shit\\b", RegexOption.IGNORE_CASE), Regex("يا للقرف|(?<![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])القرف(?![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])"), "تبًا"),
 			// «dude» said as «المتأنق» (2 lines), «watch it!» as «شاهده» (3 lines)
 			Word(Regex("\\bdude\\b", RegexOption.IGNORE_CASE), Regex("متأنق"), "رجل"),
 			Word(Regex("\\bwatch it\\b", RegexOption.IGNORE_CASE), Regex("مشاهدته|شاهده|شاهدها"), "انتبه"),
 			// two words said wrong together: «you good?» as «أنت جيد» (3 lines; not «good at»)
-			Word(Regex("\\byou(?:'re| are)? good\\b(?!\\s+at)", RegexOption.IGNORE_CASE), Regex("(أنتِ?)\\s+جيدة?(?![\\u0600-\\u06FF])"), "$1 بخير"),
+			Word(Regex("\\byou(?:'re| are)? good\\b(?!\\s+at)", RegexOption.IGNORE_CASE), Regex("(أنتِ?)\\s+جيدة?(?![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])"), "$1 بخير"),
 			// «Come on!» on its own (urging) as «تعال» (3 lines); not when «come» comes twice («Come on then! Come and get it!»)
-			Word(Regex("^(?!.*\\bcome\\b.*\\bcome\\b).*\\b(?:come on|c'mon)\\s*[.!?]", RegexOption.IGNORE_CASE), Regex("(?<![\\u0600-\\u06FF])تعال(?![\\u0600-\\u06FF])"), "هيا"),
+			Word(Regex("^(?!.*\\bcome\\b.*\\bcome\\b).*\\b(?:come on|c'mon)\\s*[.!?]", RegexOption.IGNORE_CASE), Regex("(?<![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])تعال(?![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])"), "هيا"),
 			// «fuck off» as «اخرس», «اللعنة قبالة» (3 lines)
-			Word(Regex("\\bfuck off\\b", RegexOption.IGNORE_CASE), Regex("اللعنة قبالة|(?<![\\u0600-\\u06FF])اخرس(?![\\u0600-\\u06FF])"), "اغرب عن وجهي"),
+			Word(Regex("\\bfuck off\\b", RegexOption.IGNORE_CASE), Regex("اللعنة قبالة|(?<![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])اخرس(?![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])"), "اغرب عن وجهي"),
 			// «Bye» as «الوداع» (2 lines): a parting for ever
-			Word(Regex("\\bbye\\b", RegexOption.IGNORE_CASE), Regex("(?<![\\u0600-\\u06FF])(?:الوداع|وداعًا|وداعا)(?![\\u0600-\\u06FF])"), "مع السلامة"),
-			Word(REGISTER, Regex("السجلات"), "الصناديق"), Word(REGISTER, Regex("السجل(?![\\u0600-\\u06FF])"), "الصندوق")),
+			Word(Regex("\\bbye\\b", RegexOption.IGNORE_CASE), Regex("(?<![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])(?:الوداع|وداعًا|وداعا)(?![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])"), "مع السلامة"),
+			Word(REGISTER, Regex("السجلات"), "الصناديق"), Word(REGISTER, Regex("السجل(?![\\u0621-\\u064A\\u064B-\\u0652\\u0670\\u0640])"), "الصندوق")),
 		voice = mapOf(
 			"دنك" to "دَنْك", "فيكي" to "فِيكِي", "لوسيا" to "لُوسِيَا", "جيسون" to "جَيْسُون", "فرانكي" to "فْرانْكِي",
 			"مارتن" to "مارْتِن", "براين" to "بْرايِن", "ديلايتس" to "دِيلايْتْس", "جيلهورن" to "جِيلْهُورْن", "ليلى" to "لَيْلى", "موزس" to "مُوزِس"))
