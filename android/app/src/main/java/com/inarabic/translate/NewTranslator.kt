@@ -63,7 +63,7 @@ object NewTranslator
 			"gemini" ->
 			{
 				if(prefs.geminiKey.isBlank()) { lastError = "حط مفتاح Gemini في الإعدادات"; return null }
-				ai(ask, prefs) { system, user -> OnlineEngines.gemini(system, user, prefs.geminiKey) }
+				ai(ask, prefs) { system, user -> OnlineEngines.gemini(system, user, prefs.geminiKey, prefs.rawSwears) }
 			}
 			else ->
 			{
@@ -100,13 +100,13 @@ object NewTranslator
 		val before = synchronized(this) { history.joinToString("\n") { (en, ar) -> "$en\n→ ${plain(ar)}" } }
 		val user = (if(before.isBlank()) "" else "الحوار اللي قبل (للفهم فقط، لا تترجمه):\n$before\n\n") +
 			"ترجم هذه الأسطر (${lines.size}):\n" + lines.joinToString("\n")
-		val got = ask(system(prefs.voiceDialect), user) ?: return null
+		val got = ask(system(prefs.voiceDialect, prefs.rawSwears), user) ?: return null
 		val out = got.split('\n').map { it.trim() }.filter { it.isNotEmpty() }
 		// the lines did not come back one for one: said as one text
 		return if(out.size == lines.size) out else listOf(out.joinToString(" "))
 	}
 
-	private fun system(dialect: String): String
+	private fun system(dialect: String, raw: Boolean): String
 	{
 		val how = when(dialect)
 		{
@@ -122,6 +122,8 @@ object NewTranslator
 - كل سطر يُعطى لك: ترجمه في سطر واحد، بنفس الترتيب ونفس عدد الأسطر. لا تكتب أي شرح أو ملاحظة أو ترقيم.
 - السطر الذي يبدأ باسم متكلم ثم نقطتين ("Lucia: ..."): اكتب اسمه بالعربي ثم نقطتين ثم الترجمة.
 - افهم من الحوار من يتكلم ومن يُخاطَب (رجل أو امرأة أو جماعة)، واجعل الضمائر والأفعال على هذا الأساس.
-- شكّل الترجمة تشكيلًا كاملًا لأن صوت الدبلجة يقرؤها."""
+- شكّل الترجمة تشكيلًا كاملًا لأن صوت الدبلجة يقرؤها.
+- ${if(raw) "اللعبة للكبار: ترجم الشتائم والكلام البذيء بمعناه الحقيقي كما هو، بلا تلطيف ولا نجوم ولا حذف."
+		else "الشتائم والكلام البذيء: ترجمها بمرادف مخفف (مثل «تبًا لك»، «اللعنة»)، بلا نجوم ولا حذف."}"""
 	}
 }

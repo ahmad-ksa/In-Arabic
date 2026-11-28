@@ -92,4 +92,12 @@
         <item>gemini</item>
         <item>google</item>
     </string-array>
+    <string-array name="ia_swears_names">
+        <item>حرفي: ترجمته الحقيقية بدون تلطيف</item>
+        <item>مخفف: «تبًا لك» بدل الشتيمة</item>
+    </string-array>
+    <string-array name="ia_swears_values">
+        <item>raw</item>
+        <item>soft</item>
+    </string-array>
 </resources>

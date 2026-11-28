@@ -109,13 +109,18 @@ object OnlineEngines
 	catch(e: Exception) { lastError = "قوقل الرسمي ما رجّع ترجمة"; null }
 
 	/** Gemini 3.8 Flash (your key from Google AI Studio): its answer to [user], told [system], thinking as little as it can (faster) */
-	fun gemini(system: String, user: String, key: String): String? = try
+	fun gemini(system: String, user: String, key: String, raw: Boolean): String? = try
 	{
 		val req = JSONObject()
 			.put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system))))
 			.put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", JSONArray().put(JSONObject().put("text", user)))))
 			// Gemini 3.8: no temperature (removed), and thinking set by level: "low" is its least ("minimal" is refused)
 			.put("generationConfig", JSONObject().put("thinkingConfig", JSONObject().put("thinkingLevel", "low")))
+		// swearing translated as it is: its safety filter would refuse a game's street talk
+		if(raw) req.put("safetySettings", JSONArray().apply {
+			for(cat in listOf("HARASSMENT", "HATE_SPEECH", "SEXUALLY_EXPLICIT", "DANGEROUS_CONTENT"))
+				put(JSONObject().put("category", "HARM_CATEGORY_$cat").put("threshold", "BLOCK_NONE"))
+		})
 		val r = http("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", "POST", req.toString(),
 			mapOf("x-goog-api-key" to key))
 		r?.let { JSONObject(it).getJSONArray("candidates").getJSONObject(0).getJSONObject("content").getJSONArray("parts") }

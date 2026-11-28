@@ -107,6 +107,8 @@ class InArabicPrefs(context: Context)
 	val haikuKey get() = p.getString("ia_haiku_key", "")?.trim().orEmpty()
 	val googleKey get() = p.getString("ia_google_key", "")?.trim().orEmpty()
 	val geminiKey get() = p.getString("ia_gemini_key", "")?.trim().orEmpty()
+	/** the new system's swearing: as it is said ("raw") or softened ("soft": «تبًا لك») */
+	val rawSwears get() = p.getString("ia_swears", "raw") != "soft"
 
 	/** the old system's translation source: Google Translate's free service */
 	val engine: String get() = "google"
