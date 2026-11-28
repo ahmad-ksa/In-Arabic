@@ -45,7 +45,6 @@ object OnlineEngines
 		(try { JSONObject(t).optJSONObject("error")?.optString("message") } catch(e: Exception) { null })?.ifBlank { null } ?: t.take(300)
 	}
 	catch(e: Exception) { "" }
-	}
 
 	private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
