@@ -33,6 +33,13 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	/** texts found off to the side (mission title, button prompts): each drawn over its English one */
 	class Side(val text: String, val box: FloatArray, val spans: List<IntArray> = emptyList(), val fg: Int = Color.WHITE, val bg: Int = Color.BLACK)
 	var sides: List<Side> = emptyList()
+	/** the lens (two fingers on the phone) and the whole screen (a double tap): each translation over its English,
+	 * with the English's own letter and background colours */
+	class Lens(val text: String, val box: FloatArray, val color: Int, val bg: Int, val spans: List<IntArray>)
+	var lens: List<Lens> = emptyList()
+		set(v) { field = v; lensMove = null; invalidate() }
+	/** how far the lens's text moved since it was read (shaking): dx, dy (0..1), turn (degrees), centre x, y */
+	private var lensMove: FloatArray? = null
 		set(v) { field = v; invalidate() }
 	/** a short notice at the top (phone lost / back) */
 	private var bannerText: String? = null
@@ -110,6 +117,7 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 	private val hide = Runnable { text = null }
 	private val hidePanel = Runnable { panelText = null }
 	private val hideSide = Runnable { sides = emptyList() }
+	private val hideLens = Runnable { lens = emptyList() }
 	private val hideZone = Runnable { zoneList = emptyList() }
 
 	/** "#RRGGBB" or "#AARRGGBB" from the phone */
@@ -169,6 +177,23 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			}
 			"notice" -> banner(o.optString("text"))
 			"sideclear" -> { timers.removeCallbacks(hideSide); sides = emptyList() }
+			"lens" ->
+			{
+				val items = o.optJSONArray("items")
+				lens = if(items == null) emptyList() else (0 until items.length()).mapNotNull { i ->
+					val it = items.optJSONObject(i) ?: return@mapNotNull null
+					val b = box(it) ?: return@mapNotNull null
+					it.optString("ar").takeIf { a -> a.isNotBlank() }?.let { a -> Lens(a, b, color(it.optString("color"), Color.WHITE), color(it.optString("bg"), Color.BLACK), spans(it)) }
+				}
+				timers.removeCallbacks(hideLens); timers.postDelayed(hideLens, 15000)
+			}
+			"lensclear" -> { timers.removeCallbacks(hideLens); lens = emptyList() }
+			"lensmove" ->
+			{
+				lensMove = floatArrayOf(o.optDouble("dx").toFloat(), o.optDouble("dy").toFloat(), o.optDouble("a", 0.0).toFloat(),
+					o.optDouble("cx", 0.5).toFloat(), o.optDouble("cy", 0.5).toFloat())
+				invalidate()
+			}
 			"panel" ->
 			{
 				panelTitle = o.optString("title")
@@ -285,6 +310,40 @@ class CaptionView @JvmOverloads constructor(context: Context, attrs: android.uti
 			canvas.save(); canvas.translate(r.centerX() - w * 0.15f, (r.top - l.height - h * 0.005f).coerceAtLeast(0f)); l.draw(canvas); canvas.restore()
 			textPaint.color = Color.WHITE
 		}
+
+		// the lens: over each English text, in its area, with its own letter and background colours; all of it moved and
+		// turned the way the text moved since it was read (it follows the shaking)
+		canvas.save()
+		lensMove?.let { m ->
+			if(lens.isEmpty()) return@let
+			val c = fit(floatArrayOf(m[3], m[4], 0f, 0f))
+			val k = 1f + zoom
+			canvas.translate(m[0] * w * k, m[1] * h * k)
+			if(m[2] != 0f) canvas.rotate(m[2], c[0] * w, c[1] * h)
+		}
+		for(ln in lens)
+		{
+			val b = fit(ln.box)
+			val area = RectF(b[0] * w, b[1] * h, (b[0] + b[2]) * w, (b[1] + b[3]) * h)
+			val lineH = if(b.size > 4 && b[4] > 0f) b[4] * h else area.height()
+			val inner = area.width().toInt().coerceAtLeast(20)
+			// the English's size; smaller only if it does not fit in its area
+			textPaint.textSize = lineH * 0.82f
+			var l = layout(styled(ln.text, ln.spans), inner)
+			while(l.height > area.height() * 1.15f && textPaint.textSize > lineH * 0.45f)
+			{
+				textPaint.textSize *= 0.92f
+				l = layout(styled(ln.text, ln.spans), inner)
+			}
+			val bg = RectF(area).apply { inset(-lineH * 0.08f, -lineH * 0.04f) }
+			if(bg.height() < l.height) { val cy = bg.centerY(); bg.top = cy - l.height / 2f; bg.bottom = cy + l.height / 2f }
+			boxPaint.color = ln.bg or (0xFF shl 24)
+			canvas.drawRoundRect(bg, h * 0.004f, h * 0.004f, boxPaint)
+			textPaint.color = ln.color
+			canvas.save(); canvas.translate(area.centerX() - inner / 2f, area.centerY() - l.height / 2f); drawText(l, canvas, false); canvas.restore()
+		}
+		canvas.restore()
+		textPaint.color = Color.WHITE
 
 		// side texts: each exactly over its English text (a bit wider if the Arabic needs it), kept on screen
 		// one size for all of them (the English of a menu or a stats panel is one size; the reading of each
