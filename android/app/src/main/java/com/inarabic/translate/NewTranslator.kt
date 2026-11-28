@@ -21,7 +21,8 @@ object NewTranslator
 	private val history = ArrayDeque<Pair<String, String>>()
 	private const val HISTORY = 12
 
-	/** a text translated before in this session (the same reading comes again while it stays on screen) */
+	/** a line translated before in this session (a task stays under each new line of dialogue; a line is read
+	 * again while it stays on screen) */
 	private val cache = object : LinkedHashMap<String, String>(64, 0.75f, true)
 	{
 		override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?) = size > 300
@@ -32,44 +33,65 @@ object NewTranslator
 	/** the Arabic without its vowel marks (what the screen shows) */
 	fun plain(arabic: String) = MARKS.replace(arabic, "")
 
-	@Synchronized fun reset() { history.clear(); cache.clear() }
+	@Synchronized fun reset() { history.clear(); cache.clear(); pausedUntil = 0 }
 
-	/** [english] (one line or lines under each other) in Arabic, by the new system's translator; null if it failed */
+	/** the translator said it is over its limit: no request is sent before this time */
+	@Volatile private var pausedUntil = 0L
+
+	/**
+	 * [english] (one line or lines under each other) in Arabic, by the new system's translator; null if it failed.
+	 * Each line is kept once translated: only the lines not translated yet are sent («Find Dunk» under a new line of
+	 * dialogue is not asked again), so as few requests as can be.
+	 */
 	fun translate(english: String, prefs: InArabicPrefs): String?
 	{
 		val lines = english.split('\n').map { it.trim() }.filter { it.isNotBlank() }
 		if(lines.isEmpty()) return null
-		val k = lines.joinToString("\n")
-		synchronized(this) { cache[k] }?.let { return it }
+		val known = synchronized(this) { lines.map { cache[it] } }
+		val todo = lines.indices.filter { known[it] == null }
+		if(todo.isEmpty()) return known.joinToString("\n")
+		val now = System.currentTimeMillis()
+		if(now < pausedUntil) { lastError = "خلص حد المترجم: يرجع بعد ${(pausedUntil - now + 59_999) / 60_000} دقيقة"; return null }
+		val ask = todo.map { lines[it] }
 		val out = when(prefs.newTranslator)
 		{
 			"google" ->
 			{
 				if(prefs.googleKey.isBlank()) { lastError = "حط مفتاح قوقل الرسمي في الإعدادات"; return null }
-				OnlineEngines.googleOfficial(lines, prefs.googleKey)
+				OnlineEngines.googleOfficial(ask, prefs.googleKey)
 			}
 			"gemini" ->
 			{
 				if(prefs.geminiKey.isBlank()) { lastError = "حط مفتاح Gemini في الإعدادات"; return null }
-				ai(lines, prefs) { system, user -> OnlineEngines.gemini(system, user, prefs.geminiKey) }
+				ai(ask, prefs) { system, user -> OnlineEngines.gemini(system, user, prefs.geminiKey) }
 			}
 			else ->
 			{
 				if(prefs.haikuKey.isBlank()) { lastError = "حط مفتاح Haiku في الإعدادات"; return null }
-				ai(lines, prefs) { system, user -> OnlineEngines.haiku(system, user, prefs.haikuKey) }
+				ai(ask, prefs) { system, user -> OnlineEngines.haiku(system, user, prefs.haikuKey) }
 			}
 		}
-		if(out == null) { lastError = OnlineEngines.lastError ?: "المترجم ما رد"; return null }
+		if(out == null)
+		{
+			// over its limit: nothing sent until it says it takes requests again (every request would be refused)
+			if(OnlineEngines.retryMs > 0) pausedUntil = now + OnlineEngines.retryMs
+			lastError = OnlineEngines.lastError ?: "المترجم ما رد"
+			return null
+		}
 		lastError = null
-		val ar = out.joinToString("\n")
+		// the lines did not come back one for one: shown as they came, none kept
+		if(out.size != ask.size) return (known.filterNotNull() + out).joinToString("\n")
 		synchronized(this)
 		{
-			cache[k] = ar
-			// only what people say is the dialogue (not a task or a menu)
-			if(out.size == lines.size) for(i in lines.indices) if(DubLines.speaker(lines[i]) != null) history.addLast(lines[i] to out[i])
+			for(i in ask.indices)
+			{
+				cache[ask[i]] = out[i]
+				// only what people say is the dialogue (not a task or a menu)
+				if(DubLines.speaker(ask[i]) != null) history.addLast(ask[i] to out[i])
+			}
 			while(history.size > HISTORY) history.removeFirst()
 		}
-		return ar
+		return lines.indices.joinToString("\n") { known[it] ?: out[todo.indexOf(it)] }
 	}
 
 	/** Haiku or Gemini ([ask]: system, user → its answer): the lines, with the dialogue before them */

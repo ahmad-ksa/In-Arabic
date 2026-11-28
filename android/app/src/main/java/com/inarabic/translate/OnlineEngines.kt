@@ -17,6 +17,7 @@ object OnlineEngines
 
 	private fun http(url: String, method: String = "GET", body: String? = null, headers: Map<String, String> = emptyMap(), type: String = "application/json"): String?
 	{
+		retryMs = 0
 		return try
 		{
 			val c = URL(url).openConnection() as HttpURLConnection
@@ -28,7 +29,13 @@ object OnlineEngines
 			{
 				lastError = when(code) { 429 -> "خلص الحد المجاني لهالمصدر"; 401, 403 -> "مفتاح المصدر غلط أو ناقص"; 400 -> "المصدر رفض الطلب (400): الرصيد خالص أو الطلب غلط"; 529 -> "المصدر مشغول (529)"; else -> "المصدر ما رد ($code)" }
 				// the service's own words for it, in the log only (which limit, which setting): no guessing
-				com.inarabic.Diag.add("source refused ($code) ${URL(url).host}: " + said(c))
+				val why = said(c)
+				com.inarabic.Diag.add("source refused ($code) ${URL(url).host}: $why")
+				// over its limit: how long until it takes requests again (its Retry-After, or «retry in 5h38m49s»)
+				if(code == 429) retryMs = c.getHeaderField("retry-after")?.toLongOrNull()?.times(1000) ?: RETRY_IN.find(why)?.let { m ->
+					val (h, mi, sec) = m.destructured
+					((h.toLongOrNull() ?: 0L) * 3600 + (mi.toLongOrNull() ?: 0L) * 60) * 1000 + ((sec.toDoubleOrNull() ?: 0.0) * 1000).toLong()
+				}?.takeIf { it > 0 } ?: 60_000L
 				return null
 			}
 			lastError = null
@@ -45,6 +52,11 @@ object OnlineEngines
 		(try { JSONObject(t).optJSONObject("error")?.optString("message") } catch(e: Exception) { null })?.ifBlank { null } ?: t.take(300)
 	}
 	catch(e: Exception) { "" }
+
+	/** after a 429 (over the service's limit): how long until it takes requests again, in ms */
+	@Volatile var retryMs = 0L
+		private set
+	private val RETRY_IN = Regex("retry in (?:(\\d+)h)?(?:(\\d+)m)?(?:([\\d.]+)s)?", RegexOption.IGNORE_CASE)
 
 	private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
