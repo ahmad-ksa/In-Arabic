@@ -107,6 +107,13 @@ class GamesTest
 		assertEquals("تبًا. أنظر إليك.", Games.words("Jason: Oh, shit. Look at you.", "يا للقرف. أنظر إليك."))
 		assertEquals("هذا القرف", Games.words("Bud: I'm not high enough for this shit!", "هذا القرف"))
 		assertEquals("الرجل، انتبه!", Games.words("Ian: Dude, watch it!", "المتأنق، مشاهدته!"))
+		// two words together: «you good?», «Come on!», «fuck off», «Bye»
+		assertEquals("لوسيا: أنت بخير؟", Games.words("Lucia: You good?", "لوسيا: أنت جيد؟"))
+		assertEquals("أنت اه... هل تجيد هذا الشيء؟", Games.words("Moses: You, uh... you good at that kinda thing?", "أنت اه... هل تجيد هذا الشيء؟"))
+		assertEquals("إذهب! هيا!", Games.words("Lucia: Go, go, go! Come on!", "إذهب! تعال!"))
+		assertEquals("هيا إذن! تعال واحصل عليه!", Games.words("Addict: Come on then, bitch! Come and get it!", "هيا إذن! تعال واحصل عليه!"))
+		assertEquals("المدمن: اغرب عن وجهي!", Games.words("Addict: Fuck off!", "المدمن: اخرس!"))
+		assertEquals("أراك لاحقًا! مع السلامة!", Games.words("Layla: I'll see you later, yeah? Bye!", "أراك لاحقًا! الوداع!"))
 		// «yo'» is «your»: not a call
 		assertEquals("يو", Games.words("Workers: I'll catch yo' ass", "يو"))
 		// «fucking» is not «سخيف», the cash «register» is not «السجل»

@@ -371,6 +371,8 @@ object Games
 			"returntolucia" to Fix("ارجع إلى لوسيا"),
 			"parkupattheentrance" to Fix("اركن عند المدخل"),
 			"buyanewoutfitatthemerchstall" to Fix("اشترِ ملابس جديدة من كشك البضائع"),
+			"suredunktalktoyoulater" to Fix("حسنًا يا دنك. أكلمك لاحقًا."),
+			"andillseeyousoon" to Fix("وأراكما قريبًا."),
 			// tasks
 			"gotodelights" to Fix("اذهب إلى ديلايتس"),
 			"gotodunkstrailer" to Fix("اذهب إلى مقطورة دنك"),
@@ -423,6 +425,14 @@ object Games
 			// «dude» said as «المتأنق» (2 lines), «watch it!» as «شاهده» (3 lines)
 			Word(Regex("\\bdude\\b", RegexOption.IGNORE_CASE), Regex("متأنق"), "رجل"),
 			Word(Regex("\\bwatch it\\b", RegexOption.IGNORE_CASE), Regex("مشاهدته|شاهده|شاهدها"), "انتبه"),
+			// two words said wrong together: «you good?» as «أنت جيد» (3 lines; not «good at»)
+			Word(Regex("\\byou(?:'re| are)? good\\b(?!\\s+at)", RegexOption.IGNORE_CASE), Regex("(أنتِ?)\\s+جيدة?(?![\\u0600-\\u06FF])"), "$1 بخير"),
+			// «Come on!» on its own (urging) as «تعال» (3 lines); not when «come» comes twice («Come on then! Come and get it!»)
+			Word(Regex("^(?!.*\\bcome\\b.*\\bcome\\b).*\\b(?:come on|c'mon)\\s*[.!?]", RegexOption.IGNORE_CASE), Regex("(?<![\\u0600-\\u06FF])تعال(?![\\u0600-\\u06FF])"), "هيا"),
+			// «fuck off» as «اخرس», «اللعنة قبالة» (3 lines)
+			Word(Regex("\\bfuck off\\b", RegexOption.IGNORE_CASE), Regex("اللعنة قبالة|(?<![\\u0600-\\u06FF])اخرس(?![\\u0600-\\u06FF])"), "اغرب عن وجهي"),
+			// «Bye» as «الوداع» (2 lines): a parting for ever
+			Word(Regex("\\bbye\\b", RegexOption.IGNORE_CASE), Regex("(?<![\\u0600-\\u06FF])(?:الوداع|وداعًا|وداعا)(?![\\u0600-\\u06FF])"), "مع السلامة"),
 			Word(REGISTER, Regex("السجلات"), "الصناديق"), Word(REGISTER, Regex("السجل(?![\\u0600-\\u06FF])"), "الصندوق")),
 		voice = mapOf(
 			"دنك" to "دَنْك", "فيكي" to "فِيكِي", "لوسيا" to "لُوسِيَا", "جيسون" to "جَيْسُون", "فرانكي" to "فْرانْكِي",
