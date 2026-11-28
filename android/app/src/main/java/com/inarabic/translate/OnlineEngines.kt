@@ -27,12 +27,24 @@ object OnlineEngines
 			if(code !in 200..299)
 			{
 				lastError = when(code) { 429 -> "خلص الحد المجاني لهالمصدر"; 401, 403 -> "مفتاح المصدر غلط أو ناقص"; 400 -> "المصدر رفض الطلب (400): الرصيد خالص أو الطلب غلط"; 529 -> "المصدر مشغول (529)"; else -> "المصدر ما رد ($code)" }
+				// the service's own words for it, in the log only (which limit, which setting): no guessing
+				com.inarabic.Diag.add("source refused ($code) ${URL(url).host}: " + said(c))
 				return null
 			}
 			lastError = null
 			c.inputStream.bufferedReader().readText()
 		}
-		catch(e: Exception) { lastError = "ما فيه اتصال بالمصدر"; null }
+		catch(e: java.net.SocketTimeoutException) { lastError = "المصدر تأخر وما رد (أكثر من ٨ ثواني)"; null }
+		catch(e: Exception) { lastError = "ما فيه اتصال بالمصدر"; com.inarabic.Diag.add("source unreachable ${URL(url).host}: ${e.javaClass.simpleName} ${e.message.orEmpty().take(150)}"); null }
+	}
+
+	/** what a service said when it refused: its error message (Google's and Anthropic's: error.message), else the start of its answer */
+	private fun said(c: HttpURLConnection): String = try
+	{
+		val t = c.errorStream?.bufferedReader()?.readText().orEmpty()
+		(try { JSONObject(t).optJSONObject("error")?.optString("message") } catch(e: Exception) { null })?.ifBlank { null } ?: t.take(300)
+	}
+	catch(e: Exception) { "" }
 	}
 
 	private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
