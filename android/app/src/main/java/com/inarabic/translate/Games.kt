@@ -51,6 +51,9 @@ object Games
 		/** how the voice says a word (vowel marks) */
 		val voice: Map<String, String>)
 
+	private val FUCKING = Regex("^(?!.*\\b(?:silly|ridiculous|lame|absurd)\\b).*\\bfuck(?:ing|in'?)\\b", RegexOption.IGNORE_CASE)
+	private val REGISTER = Regex("\\b(?:the|that|this|those|these|a|cash)\\s+registers?\\b", RegexOption.IGNORE_CASE)
+
 	private fun w(word: String) = Regex("(?<![\\u0600-\\u06FF])" + Regex.escape(word) + "(?![\\u0600-\\u06FF])")
 
 	val GTA6 = Game(
@@ -62,10 +65,15 @@ object Games
 			"brian" to Person(false, "ar-JO-TaimNeural"), "cal" to Person(false, "ar-BH-AliNeural"),
 			"boobie" to Person(false, "ar-OM-AbdullahNeural"), "raul" to Person(false, "ar-LB-RamiNeural"),
 			"layla" to Person(true, "ar-AE-FatimaNeural"), "dancer" to Person(true, "ar-QA-AmalNeural"),
-			"bartender" to Person(false, "ar-IQ-BasselNeural"), "moses" to Person(false, "ar-SY-LaithNeural")),
+			"bartender" to Person(false, "ar-IQ-BasselNeural"), "moses" to Person(false, "ar-SY-LaithNeural"),
+			"billy" to Person(false, "ar-LY-OmarNeural"), "bud" to Person(false, "ar-EG-ShakirNeural"),
+			"dre'quan" to Person(false, "ar-TN-HediNeural"), "wyman" to Person(false, "ar-DZ-IsmaelNeural"),
+			"linda" to Person(true, "ar-JO-SanaNeural")),
 		crowd = mapOf("local" to null, "locals" to null, "stranger" to null, "staff member" to null, "vagrants" to null,
 			"cop" to null, "kolt & associates" to null, "driver" to null, "drivers" to null, "tourists" to null,
-			"resident" to null, "worker" to null, "workers" to null, "stylist" to null),
+			"resident" to null, "worker" to null, "workers" to null, "stylist" to null, "addict" to null, "clerk" to null,
+			"hostage" to null, "shop owner" to null, "food vendor" to null, "tractor driver" to null, "vagrant" to null, "cops" to null,
+			"tourist" to null),
 		names = linkedMapOf(
 			"vice city" to "فايس سيتي", "leonida keys" to "جزر ليونيدا", "leonida" to "ليونيدا", "port gellhorn" to "بورت جيلهورن",
 			"gellhorn" to "جيلهورن", "vice-dale county" to "مقاطعة فايس-ديل", "grassrivers" to "غراس ريفرز", "ambrosia" to "أمبروسيا", "mount kalaga" to "جبل كالاغا",
@@ -77,6 +85,14 @@ object Games
 			"stranger" to "غريب", "staff member" to "موظف", "vagrants" to "متشردون", "cop" to "شرطي", "kolt & associates" to "كولت وشركاه",
 			"driver" to "سائق", "drivers" to "سائقون", "tourists" to "سياح", "resident" to "أحد السكان", "worker" to "عامل", "workers" to "عمال",
 			"stylist" to "مصفف الشعر", "zach" to "زاك", "moses" to "موزس", "mo" to "مو", "danny" to "داني",
+			"billy" to "بيلي", "bud" to "بد", "linda" to "ليندا", "wyman" to "وايمان", "mitch" to "ميتش", "jenny" to "جيني",
+			"ian" to "إيان", "donnie" to "دوني", "duval" to "دوفال", "announcer" to "المذيع", "mechanic" to "الميكانيكي",
+			"race organizer" to "منظم السباق", "addict" to "مدمن", "clerk" to "موظف", "hostage" to "رهينة", "shop owner" to "صاحب المتجر",
+			"food vendor" to "بائع طعام", "tractor driver" to "سائق جرار", "vagrant" to "متشرد", "cops" to "شرطة", "tourist" to "سائح",
+			"goose key" to "غوس كي", "bobcat key" to "بوبكات كي", "gambit bay" to "خليج غامبيت", "gullet marsh" to "مستنقع غوليت",
+			"buckskin swamp" to "مستنقع باكسكين", "pelican river" to "نهر بيليكان", "wild hog point" to "وايلد هوغ بوينت",
+			"hank's waffles" to "هانكس وافلز", "rooster's rentals" to "روسترز رنتالز", "scooter bros" to "سكوتر بروز",
+			"wyatt motors" to "وايت موتورز", "dominator" to "دومينيتور",
 			"ammu-nation" to "أمونيشن", "ammu-nations" to "أمونيشن", "los santos" to "لوس سانتوس", "liberty city" to "ليبرتي سيتي"),
 		lines = linkedMapOf(
 			// «Hey» is a greeting, not «wait»
@@ -222,6 +238,139 @@ object Games
 			"stopactinlikeafuckinass" to Fix("توقف عن التصرف كالأحمق اللعين!", "توقفي عن التصرف كالحمقاء اللعينة!", 'f'),
 			"whatbackwardsasscountryyoulearntodriveinbetitwaseurope" to Fix("في أي بلد متخلف تعلّمت القيادة؟ أراهن أنها أوروبا!", "في أي بلد متخلف تعلّمتِ القيادة؟ أراهن أنها أوروبا!", 'f'),
 			"suckadick" to Fix("تبًا لك!", "تبًا لكِ!", 'f'),
+			// from the logs of 28 Nov (the motel, the mud park, Bud, robbing stores, the cops)
+			"breakfastluimnotfallingforthatagain" to Fix("فطور؟ لو، لن أنخدع بهذا مرة أخرى."),
+			"ambrosiaslikethatrealuhlawandordertown" to Fix("أمبروسيا هكذا. مدينة، آه، قانون ونظام بحق."),
+			"areyoustillworkingforthatguyattheclubrealheavypockets" to Fix("هل ما زلت تعمل لدى ذلك الرجل في النادي، صاحب الجيوب الممتلئة؟", "هل ما زلتِ تعملين لدى ذلك الرجل في النادي، صاحب الجيوب الممتلئة؟"),
+			"heyemptythefuckingregistersokayokay" to Fix("هيه! أفرغ الصناديق اللعينة! حسنًا، حسنًا!", "هيه! أفرغي الصناديق اللعينة! حسنًا، حسنًا!"),
+			"hellyeahitsgoodyourealwayshotasfuck" to Fix("طبعًا، إنه جميل. أنت دائمًا مثير جدًا.", "طبعًا، إنه جميل. أنتِ دائمًا مثيرة جدًا.", 'f'),
+			"ihopeyourenottoobigtimeforusnow" to Fix("أتمنى أنك لم تصبح أكبر من أن تعرفنا الآن؟", "أتمنى أنكِ لم تصبحي أكبر من أن تعرفينا الآن؟"),
+			"inchortwohigheriwouldvebeenwasted" to Fix("لو كانت أعلى بإنش أو اثنين، لكنت ميتًا."),
+			"screwitletstakethatatvwecanstillcatchem" to Fix("تبًا. لنأخذ تلك الدراجة الرباعية، ما زال بإمكاننا اللحاق بهم!"),
+			"stillgotallthatcashfromyesterday" to Fix("ما زال معنا كل ذلك المال من الأمس."),
+			"thatwasacleanjob" to Fix("كانت تلك عملية نظيفة."),
+			"whatthefuckiswrongwithyou" to Fix("ما خطبك بحق الجحيم؟", "ما خطبكِ بحق الجحيم؟"),
+			"yeahsilverlinings" to Fix("أجل. لكل شيء جانب مشرق."),
+			"youstaydontmove" to Fix("أنت. ابقَ مكانك. لا تتحرك.", "أنتِ. ابقي مكانكِ. لا تتحركي."),
+			"right" to Fix("صحيح."),
+			"fuckinpunks" to Fix("أوغاد لعينون.."),
+			"stupidmotherfucker" to Fix("وغد غبي!"),
+			"everybodythinkstheyrejackfuckinhowitzer" to Fix("الجميع يظن نفسه جاك هاوتزر اللعين."),
+			"wannaseewhogetstherefirst" to Fix("تريد أن نرى من يصل أولًا؟", "تريدين أن نرى من يصل أولًا؟", 'f'),
+			"youwannagetacouplebikestearupsomemud" to Fix("تريد أن نأخذ دراجتين ونخوض في الطين؟", "تريدين أن نأخذ دراجتين ونخوض في الطين؟", 'f'),
+			"yougotabikepreference" to Fix("هل تفضّل دراجة معينة؟", "هل تفضّلين دراجة معينة؟", 'f'),
+			"youknowyouwereaproouttherefastcleangotthejobdoneimimpressed" to Fix("أتعلم، كنت محترفًا هناك. سريع ونظيف وأنجزت المهمة. أنا معجب.", "أتعلمين، كنتِ محترفة هناك. سريعة ونظيفة وأنجزتِ المهمة. أنا معجب.", 'f'),
+			"nicefuckyeahyouthinkwecancomecrashwithyouacoupleofdays" to Fix("رائع. أجل! تظن أنه يمكننا المبيت عندك يومين؟", "رائع. أجل! تظنين أنه يمكننا المبيت عندكِ يومين؟"),
+			"heyyouthinkeveryonehereknowswedidthoserobberies" to Fix("اسمع، هل تظن أن الجميع هنا يعرف أننا قمنا بتلك السرقات؟", "اسمعي، هل تظنين أن الجميع هنا يعرف أننا قمنا بتلك السرقات؟", 'f'),
+			"ohshitlookatyou" to Fix("يا إلهي. انظر إلى نفسك.", "يا إلهي. انظري إلى نفسكِ.", 'f'),
+			"ohfeelingcockyhuh" to Fix("أوه، تشعر بالغرور، هاه؟", "أوه، تشعرين بالغرور، هاه؟", 'f'),
+			"wejustgottaseewhatsonthatdrive" to Fix("علينا فقط أن نرى ما على ذلك القرص."),
+			"wellwehitafewspots" to Fix("حسنًا، سرقنا بضعة أماكن!"),
+			"anddontgetfuckincute" to Fix("ولا تتذاكَ، اللعنة.", "ولا تتذاكي، اللعنة."),
+			"dick" to Fix("يا حقير!", "يا حقيرة!"),
+			"fuckoutineedthis" to Fix("ابتعد، أحتاج هذا!", "ابتعدي، أحتاج هذا!"),
+			"getyourassoverheredontmove" to Fix("تعال... إلى هنا! لا تتحرك!", "تعالي... إلى هنا! لا تتحركي!"),
+			"herenowgimmemynecklace" to Fix("تفضل. الآن أعطني قلادتي.", "تفضلي. الآن أعطيني قلادتي."),
+			"igotyoucoveredstaylow" to Fix("أنا أغطيك، ابقَ منخفضًا!", "أنا أغطيكِ، ابقي منخفضة!"),
+			"illwatchtheseguys" to Fix("سأراقب هؤلاء!"),
+			"junkiefucks" to Fix("مدمنون ملاعين."),
+			"luckyokaybulletsponge" to Fix("محظوظ؟ حسنًا يا إسفنجة الرصاص."),
+			"ohholyfuck" to Fix("يا إلهي!"),
+			"shitalmostempty" to Fix("تبًا، شبه فارغ."),
+			"sorrywelosteachother" to Fix("آسفة. أضعنا بعضنا."),
+			"thanksbabe" to Fix("شكرًا يا حبيبي.", "شكرًا يا حبيبتي."),
+			"timetogetcozy" to Fix("حان وقت الراحة."),
+			"welltheysoundlikedicks" to Fix("حسنًا، يبدو أنهم حقيرون."),
+			"wellatleasttheycouldntdriveforshit" to Fix("حسنًا، على الأقل كانت قيادتهم سيئة جدًا."),
+			"whatareyoudoingupyoubetter" to Fix("لماذا أنت مستيقظ؟ هل تحسنت؟", "لماذا أنتِ مستيقظة؟ هل تحسنتِ؟"),
+			"whatrankwereyouagainsergeant" to Fix("ما كانت رتبتك؟ رقيب؟"),
+			"whatsgotintothesecops" to Fix("ما بال هؤلاء الشرطة؟"),
+			"wherethefuckyougoing" to Fix("إلى أين أنت ذاهب بحق الجحيم؟", "إلى أين أنتِ ذاهبة بحق الجحيم؟"),
+			"youtoobeatit" to Fix("وأنت أيضًا، اغرب عن وجهي!", "وأنتِ أيضًا، اغربي عن وجهي!"),
+			"okayiwannaseesomemoneyrightfuckinnow" to Fix("حسنًا، أريد أن أرى المال الآن، اللعنة!"),
+			"okaydumpthoseregistersletsgo" to Fix("حسنًا، أفرغ تلك الصناديق، هيا!", "حسنًا، أفرغي تلك الصناديق، هيا!"),
+			"rightokaybetheresoon" to Fix("حسنًا.. سأكون هناك قريبًا."),
+			"imontheseguys" to Fix("أنا أتولى هؤلاء!"),
+			"justchilloutokayrentscomingipromise" to Fix("اهدأ فقط، حسنًا؟ الإيجار قادم. أعدك.", "اهدئي فقط، حسنًا؟ الإيجار قادم. أعدكِ.", 'f'),
+			"ohwhaddayaknowwerekindagoodatthistogether" to Fix("أوه، انظر إلى هذا... يبدو أننا جيدان في هذا معًا.", "أوه، انظري إلى هذا... يبدو أننا جيدان في هذا معًا."),
+			"andtrytogetafewgrandstackedaway" to Fix("وأحاول أن أجمع بضعة آلاف."),
+			"takingcareofthings" to Fix("أتدبر الأمور."),
+			"soeveryoneisupineverybodysbusiness" to Fix("فالجميع يتدخل في شؤون الجميع."),
+			"yougottomakeacallchoosewhosdriving" to Fix("عليك أن تقرر. اختر من يقود.", "عليكِ أن تقرري. اختاري من يقود."),
+			"heyibuckedyouyourcutonthosepills" to Fix("أهلًا... حوّلت لك نصيبك من تلك الحبوب.", "أهلًا... حوّلت لكِ نصيبكِ من تلك الحبوب.", 'f'),
+			"nowthatsstraightup" to Fix("هذا كلام صريح."),
+			"theystraightuplosttheirminds" to Fix("فقدوا عقولهم تمامًا."),
+			"dropitbythetrailerandillgetyoupaid" to Fix("اتركه عند المقطورة وسأدفع لك.", "اتركيه عند المقطورة وسأدفع لكِ.", 'f'),
+			"okaycoolillhityouupthen" to Fix("حسنًا، رائع. سأتواصل معكما إذن"),
+			"niceridingyoutwohookedonthisshitnoworwhat" to Fix("قيادة رائعة. هل أدمنتما هذا الشيء الآن أم ماذا؟"),
+			"yeahthatsthemgetemsetup" to Fix("أجل، هؤلاء هم. جهّزهم."),
+			"alrightgofastdontdietrynottocomeinlast" to Fix("حسنًا، أسرعوا، لا تموتوا، وحاولوا ألا تكونوا الأخيرين!"),
+			"goodforyouhoney" to Fix("هذا جيد يا عزيزي.", "هذا جيد يا عزيزتي.", 'f'),
+			"youforgetsomethinorareyoupayingup" to Fix("نسيت شيئًا؟ أم ستدفع ما عليك؟", "نسيتِ شيئًا؟ أم ستدفعين ما عليكِ؟", 'f'),
+			"heretopayyourrent" to Fix("جئت لتدفع الإيجار؟", "جئتِ لتدفعي الإيجار؟", 'f'),
+			"enjoythepeaceandquiet" to Fix("استمتع بالهدوء والسكينة.", "استمتعي بالهدوء والسكينة.", 'f'),
+			"justgetawayfromitall" to Fix("فقط... ابتعد عن كل شيء.", "فقط... ابتعدي عن كل شيء.", 'f'),
+			"ahsothiswhatchusettledon" to Fix("آه، إذن هذا ما استقررت عليه.", "آه، إذن هذا ما استقررتِ عليه.", 'f'),
+			"lookwhatthelawchasedin" to Fix("انظروا من طاردته الشرطة إلى هنا."),
+			"heyyoutwocomeoverhere" to Fix("أنتما الاثنان! تعاليا إلى هنا."),
+			"laterhombre" to Fix("أراك لاحقًا يا رجل."),
+			"wellillseeyalaterthencauseyouknowicantresistwatchinyalleatshitoutthere" to Fix("حسنًا، أراكم لاحقًا إذن، لأنكم تعرفون أنني لا أقاوم مشاهدتكم تتعثرون هناك."),
+			"yoifyouaintdoinshithowboutarace" to Fix("إن لم تكن تفعل شيئًا، ما رأيك بسباق؟", "إن لم تكوني تفعلين شيئًا، ما رأيكِ بسباق؟", 'f'),
+			"igotitcalmyourselfdown" to Fix("فهمت، اهدأ.", "فهمت، اهدئي.", 'f'),
+			"surething" to Fix("بالتأكيد."),
+			"allyours" to Fix("كله لك!", "كله لكِ!", 'f'),
+			"yeahnahseethistakeagoodhardlook" to Fix("لا، أبدًا! ترى هذا؟ انظر جيدًا.", "لا، أبدًا! ترين هذا؟ انظري جيدًا.", 'f'),
+			"okayiamiamjustohfuck" to Fix("حسنًا! أفعل! أفعل! فقط، أوه... اللعنة!"),
+			"fuckisyourproblem" to Fix("ما مشكلتك بحق الجحيم؟", "ما مشكلتكِ بحق الجحيم؟", 'f'),
+			"cashisintheregisterknockyourselfout" to Fix("المال في الصندوق، خذه كله..", "المال في الصندوق، خذيه كله..", 'f'),
+			"checkit" to Fix("انظر إلى هذا!", "انظري إلى هذا!", 'f'),
+			"whatsyourfuckingdeal" to Fix("ما مشكلتك بحق الجحيم؟", "ما مشكلتكِ بحق الجحيم؟", 'f'),
+			"youreahoafuckingbasicstandardissueho" to Fix("أنتِ عاهرة! عاهرة عادية ومبتذلة!"),
+			"youonsomerealqueentypeshitrightnowifuckwitit" to Fix("أنت تتصرف كملك حقيقي الآن! يعجبني هذا!", "أنتِ تتصرفين كملكة حقيقية الآن! يعجبني هذا!", 'f'),
+			"sheprettylitoutthereman" to Fix("إنها منتشية تمامًا هناك يا رجل."),
+			"outtathecar" to Fix("اخرج من السيارة!", "اخرجي من السيارة!", 'f'),
+			"girlwhatsupwitchu" to Fix("يا بنت، ما بكِ؟"),
+			"thefuckiswrongwithyou" to Fix("ما خطبك بحق الجحيم؟", "ما خطبكِ بحق الجحيم؟", 'f'),
+			"fuckinlibtard" to Fix("ليبرالي أحمق لعين!", "ليبرالية حمقاء لعينة!", 'f'),
+			"quitdrivinlikesomecommiesocialistfuck" to Fix("كف عن القيادة كأنك شيوعي لعين!", "كفي عن القيادة كأنكِ شيوعية لعينة!", 'f'),
+			"trytorunmedownillkillyourass" to Fix("حاول أن تدهسني وسأقتلك!", "حاولي أن تدهسيني وسأقتلكِ!", 'f'),
+			"hardpass" to Fix("لا، شكرًا."),
+			"youreliketheickpersonifieddudewhatareyouevendoing" to Fix("أنت القرف بعينه يا رجل. ماذا تفعل أصلًا؟"),
+			"suckmydick" to Fix("تبًا لك!", "تبًا لكِ!", 'f'),
+			"holyshit" to Fix("يا إلهي!"),
+			"holyshitholdonwaitwait" to Fix("يا إلهي! انتظر، انتظر!", "يا إلهي! انتظري، انتظري!", 'f'),
+			"fuckoff" to Fix("اغرب عن وجهي!", "اغربي عن وجهي!", 'f'),
+			"cuttheengine" to Fix("أطفئ المحرك!", "أطفئي المحرك!"),
+			"heycuttheengine" to Fix("هيه! أطفئ المحرك!", "هيه! أطفئي المحرك!"),
+			"igotavisual" to Fix("أراه!"),
+			"gungunwegotagun" to Fix("سلاح! سلاح! معه سلاح!"),
+			"shotsfiredshotsfired" to Fix("إطلاق نار! إطلاق نار!"),
+			"suspectditchedtheirvehicle" to Fix("المشتبه به ترك سيارته!"),
+			"awhellnahimnothighenoughforthisshit" to Fix("لا، مستحيل، لست منتشيًا بما يكفي لهذا!"),
+			"iaintdonearealshitinfourteenyears" to Fix("لم أقضِ حاجتي كما يجب منذ أربعة عشر عامًا."),
+			"isuckedthatdookiestraightbackupandran" to Fix("حبستُ ذلك البراز في الداخل وهربت."),
+			"justdroppinadookandsuddenlythereitisinfrontofme" to Fix("كنت أقضي حاجتي، وفجأة ها هو أمامي."),
+			"ivebeenconstipatedeversince" to Fix("ومنذ ذلك الحين وأنا مصاب بالإمساك."),
+			"incorporealasfuck" to Fix("بلا جسد تمامًا."),
+			"hotdamnoneofourridersjustgavephysicsthefinger" to Fix("يا للروعة! أحد متسابقينا تحدى الفيزياء للتو!"),
+			"movingupthepack" to Fix("يتقدم بين المتسابقين!"),
+			"cmonchurnthattrackup" to Fix("هيا، اسحقوا ذلك المضمار!"),
+			"impacttrauma" to Fix("صدمة قوية!"),
+			"ohtheypassinemup" to Fix("أوه، إنهم يتجاوزونهم!"),
+			"forcetheclerktothecashregister" to Fix("أجبر الموظف على الذهاب إلى الصندوق"),
+			"robthethriftstore" to Fix("اسرق متجر المستعمل"),
+			"losethecops" to Fix("تخلّص من الشرطة"),
+			"stealasuitablevehicle" to Fix("اسرق سيارة مناسبة"),
+			"destroytheambulance" to Fix("دمّر سيارة الإسعاف"),
+			"stoptheambulance" to Fix("أوقف سيارة الإسعاف"),
+			"buyagunorrecoveryourown" to Fix("اشترِ سلاحًا أو استرجع سلاحك"),
+			"holdtointeractwithyourpartner" to Fix("اضغط مطولًا للتفاعل مع شريكك"),
+			"resprayyournewpersonalvehicle" to Fix("أعد طلاء سيارتك الشخصية الجديدة"),
+			"leavemosesautoshop" to Fix("غادر ورشة موزس"),
+			"leavethestore" to Fix("غادر المتجر"),
+			"returntolucia" to Fix("ارجع إلى لوسيا"),
+			"parkupattheentrance" to Fix("اركن عند المدخل"),
+			"buyanewoutfitatthemerchstall" to Fix("اشترِ ملابس جديدة من كشك البضائع"),
 			// tasks
 			"gotodelights" to Fix("اذهب إلى ديلايتس"),
 			"gotodunkstrailer" to Fix("اذهب إلى مقطورة دنك"),
@@ -236,7 +385,9 @@ object Games
 			Regex("(?<=[A-Za-z])'s(?=(car|room|trailer|office|place|house)\\b)") to "'s ",
 			// «I» read as «l» or «|»
 			Regex("\\bl'(m|ll|d|ve)\\b") to "I'$1", Regex("(?<=^|\\s)\\|(?=\\s)") to "I",
-			Regex("(?<=\\s)l(?=\\s)") to "I",
+			Regex("(?<=\\s)l(?=\\s)") to "I", Regex("\\bI'l(?=\\s|$)") to "I'll", Regex("\\bAIl\\b") to "All",
+			// the first letter of a name lost: «lan:», «ucia:»
+			Regex("^lan(?=:)") to "Ian", Regex("^ucia(?=:)") to "Lucia",
 			// a letter lost at the end of a name
 			Regex("\\bDr\\. Bil\\b") to "Dr. Bill"),
 		english = listOf(
@@ -251,13 +402,17 @@ object Games
 				RegexOption.IGNORE_CASE) to "$1 car"),
 		arabic = listOf(
 			// one spelling for each name
-			w("دونك") to "دنك", w("دانك") to "دنك", w("جايسون") to "جيسون", w("المسرات") to "ديلايتس", w("موسى") to "موزس"),
+			w("دونك") to "دنك", w("دانك") to "دنك", w("جايسون") to "جيسون", w("المسرات") to "ديلايتس", w("موسى") to "موزس", w("برعم") to "بد"),
 		words = listOf(
 			// a lone «Hey» (a greeting or a call) is never «مهلا» (wait): «Hey!» is a call, «Hey.» «Hey,» a greeting;
 			// «Hey, hey, hey! Easy» and «Hey, wait» do mean «مهلا» and stay
 			Word(Regex("^(?:(?:oh|uh|ah),?\\s+)?hey\\s*!(?!\\s*hey)", RegexOption.IGNORE_CASE), Regex("مهل(?:ًا|اً|ا)|يا(?=!)"), "هيه"),
 			Word(Regex("^(?:(?:oh|uh|ah),?\\s+)?hey\\b(?!\\s*[,.!]?\\s*(?:hey|wait|easy|relax|hold|slow|calm|stop|whoa))", RegexOption.IGNORE_CASE),
-				Regex("مهل(?:ًا|اً|ا)"), "أهلًا")),
+				Regex("مهل(?:ًا|اً|ا)"), "أهلًا"),
+			// «fucking» said as «سخيف» (silly), in 6 lines: «لعين»
+			Word(FUCKING, Regex("سخيفة"), "لعينة"), Word(FUCKING, Regex("سخيف(?!ة)"), "لعين"),
+			// the cash «register» said as «السجل» (the record), in 5 lines (not «register your vehicle»)
+			Word(REGISTER, Regex("السجلات"), "الصناديق"), Word(REGISTER, Regex("السجل(?![\\u0600-\\u06FF])"), "الصندوق")),
 		voice = mapOf(
 			"دنك" to "دَنْك", "فيكي" to "فِيكِي", "لوسيا" to "لُوسِيَا", "جيسون" to "جَيْسُون", "فرانكي" to "فْرانْكِي",
 			"مارتن" to "مارْتِن", "براين" to "بْرايِن", "ديلايتس" to "دِيلايْتْس", "جيلهورن" to "جِيلْهُورْن", "ليلى" to "لَيْلى", "موزس" to "مُوزِس"))
@@ -333,12 +488,11 @@ object Games
 		return t
 	}
 
-	/** Google's Arabic for [english] (a whole line), the words it says wrong in many lines said right */
+	/** Google's Arabic for [english] (a whole line), the words it says wrong in many lines said right (each that fits) */
 	fun words(english: String, arabic: String): String
 	{
 		val said = split(english).second.trim()
-		val w = active?.words?.firstOrNull { it.en.containsMatchIn(said) } ?: return arabic
-		return w.ar.replaceFirst(arabic, w.to)
+		return active?.words.orEmpty().filter { it.en.containsMatchIn(said) }.fold(arabic) { a, w -> w.ar.replaceFirst(a, w.to) }
 	}
 
 	/** how the voice says it: names with their vowel marks */

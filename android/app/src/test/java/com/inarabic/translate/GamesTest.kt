@@ -37,6 +37,30 @@ class GamesTest
 			"Moses: Is that your ride?" to "Moses: Is that your car?",
 			"Vicki: So if you happen to, you know, find a ride that speaks to you, or whatever," to "Vicki: So if you happen to, you know, find a car that speaks to you, or whatever,",
 			"Lucia: Right, well | guess I'l come back later then." to "Lucia: Right, well I guess I'l come back later then.",
+			"Bud: Aw, hell nah, l'm not high enough for this shit!" to "Bud: Aw, hell nah, I'm not high enough for this shit!",
+			"Bud: l've been constipated ever since." to "Bud: I've been constipated ever since.",
+			"Goto" to "Go to",
+			"Jason: AIl things considered, think I got pretty lucky." to "Jason: All things considered, think I got pretty lucky.",
+			"Jason: Breakfast. Lu, l'm not falling for that again." to "Jason: Breakfast. Lu, I'm not falling for that again.",
+			"Jenny: Yo! This your ride?" to "Jenny: Yo! This your car?",
+			"Layla: I'l see you later, yeah? Bye!" to "Layla: I'll see you later, yeah? Bye!",
+			"Local: Nah uh! That's my ride, motherfucker!" to "Local: Nah uh! That's my car, motherfucker!",
+			"Locals: Try to run me down, l'll kill your ass!" to "Locals: Try to run me down, I'll kill your ass!",
+			"Lucia: I think l've seen the guy in the visor working on an old Dominator out here," to "Lucia: I think I've seen the guy in the visor working on an old Dominator out here,",
+			"Lucia: Right, well | guess I'l come back later then." to "Lucia: Right, well I guess I'll come back later then.",
+			"Lucia: When you're all better l'm gonna need your help out here," to "Lucia: When you're all better I'm gonna need your help out here,",
+			"Lucia: Yknow, if I were stuck out here, l'd jump off a bridge, too." to "Lucia: Yknow, if I were stuck out here, I'd jump off a bridge, too.",
+			"Lucia: l'm ain't gonna stop you." to "Lucia: I'm ain't gonna stop you.",
+			"Mechanic: Well, I'l see ya later then, 'cause you know I can't resist watchin y'all eat shit out there." to "Mechanic: Well, I'll see ya later then, 'cause you know I can't resist watchin y'all eat shit out there.",
+			"Staff Member: 'Sup?" to "Staff Member: What's up?",
+			"Staff Member: AIl yours!" to "Staff Member: All yours!",
+			"Staff Member: Okay! | am! I am! Just, oh... fuck!" to "Staff Member: Okay! I am! I am! Just, oh... fuck!",
+			"Stranger: I'l look for you." to "Stranger: I'll look for you.",
+			"Wyman: l'm glad you guys made it! So, there's a merch stand" to "Wyman: I'm glad you guys made it! So, there's a merch stand",
+			"lan: Ah, fuck!" to "Ian: Ah, fuck!",
+			"lan: Dude, watch it!" to "Ian: Dude, watch it!",
+			"ucia: Bye" to "Lucia: Bye",
+			"wee-oh\" and l'm just there like, \"what the fuck!\"" to "wee-oh\" and I'm just there like, \"what the fuck!\"",
 			"Vagrants: Could l get some change, Miss Lady?" to "Vagrants: Could I get some change, Miss Lady?",
 			"Vagrants: Man, l'm crashing and got the IAA all over me." to "Vagrants: Man, I'm crashing and got the IAA all over me.",
 			"Vicki: After l'm done tipping out Martin's useless ass," to "Vicki: After I'm done tipping Martin's useless ass,",
@@ -75,6 +99,13 @@ class GamesTest
 
 	@Test fun wordSaidWrongInManyLines()
 	{
+		// «fucking» is not «سخيف», the cash «register» is not «السجل»
+		assertEquals("ما هي الصفقة لعين الخاص بك؟", Games.words("Local: What's your fucking deal?", "ما هي الصفقة سخيف الخاص بك؟"))
+		assertEquals("هل لديك مشكلة لعينة؟", Games.words("Local: You got a fuckin' problem?", "هل لديك مشكلة سخيفة؟"))
+		assertEquals("هذا سخيف", Games.words("Lucia: That's silly as fuck, fucking hell", "هذا سخيف"))
+		assertEquals("المال في الصندوق", Games.words("Staff Member: The money is in the register", "المال في السجل"))
+		assertEquals("أفرغ الصناديق", Games.words("Lucia: Okay, dump those registers", "أفرغ السجلات"))
+		assertEquals("سجل سيارتك", Games.words("Register your new personal vehicle", "سجل سيارتك"))
 		assertEquals("أهلًا يا أولاد.", Games.words("Lucia: Hey, boys.", "مهلا يا أولاد."))
 		assertEquals("هيه! انتبه.", Games.words("Zach: Hey! Watch it.", "مهلا! انتبه."))
 		// «Hey, hey! Easy», «Hey, wait»: «مهلا» is right there
