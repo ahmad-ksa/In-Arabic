@@ -485,15 +485,17 @@ object Games
 		return speakerName(m.groupValues[1].trim()).lowercase() to m.groupValues[2]
 	}
 
-	/** a speaker's name as read: words read with it from the picture behind it («SIMPSON GELLHOS Shanese») are
-	 * not part of it when its last word is one of the game's people */
+	/** a speaker's name as read: words in capitals read with it from the picture behind it («SIMPSON GELLHOS
+	 * Shanese», «LRI Dunk») are not part of it when its last word is one of the game's people */
 	fun speakerName(name: String): String
 	{
 		val g = active ?: return name
 		val n = name.lowercase()
 		if(n in g.people || n in g.crowd || n in g.names) return name
+		// the words before it in capitals (a sign, a plate read with it), not a title («Uncle Raul»)
 		val last = name.substringAfterLast(' ')
-		return if(last != name && last.lowercase() in g.people) last else name
+		val before = name.substringBeforeLast(' ', "")
+		return if(before.isNotEmpty() && before == before.uppercase() && last.lowercase() in g.people) last else name
 	}
 
 	/** the person [name] (lowercase), if the game knows them */

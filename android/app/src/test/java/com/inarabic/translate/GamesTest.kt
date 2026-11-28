@@ -147,8 +147,9 @@ class GamesTest
 	{
 		assertEquals("أحد السكان" to "Hey, find me later.", Games.label("Local: Hey, find me later."))
 		assertEquals("دنك" to "No, why?", Games.label("Dunk: No, why?"))
-		// a name the game does not know: the whole line goes to Google
-		assertNull(Games.label("LRI Dunk: We just gotta call Dr. Bill!"))
+		// letters read with the name from the picture behind it: the name is still Dunk's
+		assertEquals("دنك" to "We just gotta call Dr. Bill!", Games.label("LRI Dunk: We just gotta call Dr. Bill!"))
+		assertEquals("uncle raul", Games.split("Uncle Raul: Not now.").first)
 		assertNull(Games.label("Go to Delights"))
 		// a gang's name with «&»
 		assertEquals("كولت وشركاه" to "Quit fuckin' stallin'! Let's go!", Games.label("Kolt & Associates: Quit fuckin' stallin'! Let's go!"))
