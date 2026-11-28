@@ -394,6 +394,8 @@ object Games
 			// «tip out» (pay the staff their share) is «tip»: Google read it as «guide», «inform», «take out»
 			Regex("\\b(tip|tipping|tipped|tips)\\s+(him|her|them|me|you|us)\\s+out\\b", RegexOption.IGNORE_CASE) to "$1 $2",
 			Regex("\\b(tip|tipping|tipped|tips)\\s+out\\b", RegexOption.IGNORE_CASE) to "$1",
+			// «'Kay» is always «okay» (Google: «'كاي»)
+			Regex("(?<![A-Za-z])'[Kk]ay\\b") to "Okay",
 			// «Sup» is always «what's up» (Google: «سوب», «أتناول العشاء»)
 			Regex("(?<![A-Za-z'])\\s*'?[Ss]up\\b(?!')") to " What's up",
 			// «your ride», «a ride that…» is a car (Google: «رحلة», 4 lines); «take a little ride», «need a ride»,
@@ -412,6 +414,15 @@ object Games
 			// «fucking» said as «سخيف» (silly), in 6 lines: «لعين»
 			Word(FUCKING, Regex("سخيفة"), "لعينة"), Word(FUCKING, Regex("سخيف(?!ة)"), "لعين"),
 			// the cash «register» said as «السجل» (the record), in 5 lines (not «register your vehicle»)
+			// «Hey.» «Hey?» said as «يا» (3 lines)
+			Word(Regex("\\bhey\\s*[.?]", RegexOption.IGNORE_CASE), Regex("(?<![\\u0600-\\u06FF])يا(?=\\s*[.?؟])"), "أهلًا"),
+			// «Yo» (a call) said as «يو» (4 lines); not «yo'» (your)
+			Word(Regex("(?<![A-Za-z'])a?yo\\b(?!')", RegexOption.IGNORE_CASE), Regex("(?<![\\u0600-\\u06FF])أ?يو(?![\\u0600-\\u06FF])"), "هيه"),
+			// «Shit!» «Oh, shit.» said as «القرف» (4 lines)
+			Word(Regex("^(?:(?:oh|ah|aw|yeah),?\\s+)?shit\\b", RegexOption.IGNORE_CASE), Regex("يا للقرف|(?<![\\u0600-\\u06FF])القرف(?![\\u0600-\\u06FF])"), "تبًا"),
+			// «dude» said as «المتأنق» (2 lines), «watch it!» as «شاهده» (3 lines)
+			Word(Regex("\\bdude\\b", RegexOption.IGNORE_CASE), Regex("متأنق"), "رجل"),
+			Word(Regex("\\bwatch it\\b", RegexOption.IGNORE_CASE), Regex("مشاهدته|شاهده|شاهدها"), "انتبه"),
 			Word(REGISTER, Regex("السجلات"), "الصناديق"), Word(REGISTER, Regex("السجل(?![\\u0600-\\u06FF])"), "الصندوق")),
 		voice = mapOf(
 			"دنك" to "دَنْك", "فيكي" to "فِيكِي", "لوسيا" to "لُوسِيَا", "جيسون" to "جَيْسُون", "فرانكي" to "فْرانْكِي",

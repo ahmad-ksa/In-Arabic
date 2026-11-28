@@ -61,6 +61,8 @@ class GamesTest
 			"lan: Dude, watch it!" to "Ian: Dude, watch it!",
 			"ucia: Bye" to "Lucia: Bye",
 			"wee-oh\" and l'm just there like, \"what the fuck!\"" to "wee-oh\" and I'm just there like, \"what the fuck!\"",
+			"Jason: 'Kay, all good." to "Jason: Okay, all good.",
+			"Stylist: 'Kay, well go around back." to "Stylist: Okay, well go around back.",
 			"Vagrants: Could l get some change, Miss Lady?" to "Vagrants: Could I get some change, Miss Lady?",
 			"Vagrants: Man, l'm crashing and got the IAA all over me." to "Vagrants: Man, I'm crashing and got the IAA all over me.",
 			"Vicki: After l'm done tipping out Martin's useless ass," to "Vicki: After I'm done tipping Martin's useless ass,",
@@ -99,6 +101,14 @@ class GamesTest
 
 	@Test fun wordSaidWrongInManyLines()
 	{
+		// «Yo» «Hey.» «Oh, shit.» «dude» «watch it» as they are meant
+		assertEquals("هيه. كيف عرفت؟", Games.words("Dunk: Yo. How you know?", "يو. كيف عرفت؟"))
+		assertEquals("أهلًا. أنت بخير؟", Games.words("Lucia: Hey. You okay?", "يا. أنت بخير؟"))
+		assertEquals("تبًا. أنظر إليك.", Games.words("Jason: Oh, shit. Look at you.", "يا للقرف. أنظر إليك."))
+		assertEquals("هذا القرف", Games.words("Bud: I'm not high enough for this shit!", "هذا القرف"))
+		assertEquals("الرجل، انتبه!", Games.words("Ian: Dude, watch it!", "المتأنق، مشاهدته!"))
+		// «yo'» is «your»: not a call
+		assertEquals("يو", Games.words("Workers: I'll catch yo' ass", "يو"))
 		// «fucking» is not «سخيف», the cash «register» is not «السجل»
 		assertEquals("ما هي الصفقة لعين الخاص بك؟", Games.words("Local: What's your fucking deal?", "ما هي الصفقة سخيف الخاص بك؟"))
 		assertEquals("هل لديك مشكلة لعينة؟", Games.words("Local: You got a fuckin' problem?", "هل لديك مشكلة سخيفة؟"))
