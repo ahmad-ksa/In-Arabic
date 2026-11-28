@@ -544,6 +544,13 @@ object Games
 		return active?.words.orEmpty().filter { it.en.containsMatchIn(said) }.fold(arabic) { a, w -> w.ar.replaceFirst(a, w.to) }
 	}
 
+	/** [words] for lines under each other ([english] and its [arabic] line by line, when they match one to one) */
+	fun wordsLines(english: String, arabic: String): String
+	{
+		val en = english.split('\n'); val ar = arabic.split('\n')
+		return if(en.size == ar.size) en.indices.joinToString("\n") { words(en[it], ar[it]) } else words(english, arabic)
+	}
+
 	/** how the voice says it: names with their vowel marks */
 	fun forVoice(text: String): String
 	{

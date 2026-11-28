@@ -442,7 +442,14 @@ class CaptionEngine(
 			// a line seen before: from memory at once. Your corrections always; anything else only if it is complete
 			// (an old translation with English left in it is asked again)
 			val known = known0?.takeIf { it.source == TranslationMemory.Source.USER || com.inarabic.translate.Translator.complete(it.arabic) }
-			if(known != null) { Diag.count("translated: from memory"); show(id, english, known.arabic, true, box, seenAt); return@launch }
+			// a remembered Google translation: its words said wrong in many lines are fixed now too (it may have been
+			// remembered before they were known); your own correction is shown as you wrote it
+			if(known != null)
+			{
+				Diag.count("translated: from memory")
+				val ar = if(known.source == TranslationMemory.Source.USER) known.arabic else com.inarabic.translate.Games.wordsLines(english, known.arabic)
+				show(id, english, ar, true, box, seenAt); return@launch
+			}
 			val t0 = System.currentTimeMillis()
 			val ar = translator.quick(english, to)
 			val took = System.currentTimeMillis() - t0
@@ -617,8 +624,9 @@ class CaptionEngine(
 		{
 			known?.source == TranslationMemory.Source.USER -> known.arabic
 			g != null -> g
-			// remembered only if complete; else Google Translate (remembered only if complete)
-			else -> known?.arabic?.takeIf { com.inarabic.translate.Translator.complete(it) }
+			// remembered only if complete (its words said wrong in many lines fixed now too); else Google Translate
+			// (remembered only if complete)
+			else -> known?.arabic?.takeIf { com.inarabic.translate.Translator.complete(it) }?.let { com.inarabic.translate.Games.wordsLines(text, it) }
 				?: translator.quick(text)?.also { if(com.inarabic.translate.Translator.complete(it)) TranslationMemory.put(text, it, TranslationMemory.Source.QUICK) }
 		} ?: return null
 		return com.inarabic.translate.Glossary.arabicNames(ar)

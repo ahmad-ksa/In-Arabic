@@ -115,6 +115,8 @@ class GamesTest
 		assertEquals("هيا إذن! تعال واحصل عليه!", Games.words("Addict: Come on then, bitch! Come and get it!", "هيا إذن! تعال واحصل عليه!"))
 		assertEquals("المدمن: اغرب عن وجهي!", Games.words("Addict: Fuck off!", "المدمن: اخرس!"))
 		assertEquals("أراك لاحقًا! مع السلامة!", Games.words("Layla: I'll see you later, yeah? Bye!", "أراك لاحقًا! الوداع!"))
+		// a remembered translation of lines under each other: each line by its own English
+		assertEquals("لوسيا: أهلًا!\nاذهب إلى فيكي", Games.wordsLines("Lucia: Hey.\nGo to Vicki", "لوسيا: مهلا!\nاذهب إلى فيكي"))
 		// «yo'» is «your»: not a call
 		assertEquals("يو", Games.words("Workers: I'll catch yo' ass", "يو"))
 		// «fucking» is not «سخيف», the cash «register» is not «السجل»
