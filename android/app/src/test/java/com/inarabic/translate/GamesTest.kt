@@ -154,6 +154,16 @@ class GamesTest
 		assertEquals("كولت وشركاه" to "Quit fuckin' stallin'! Let's go!", Games.label("Kolt & Associates: Quit fuckin' stallin'! Let's go!"))
 	}
 
+	@Test fun wordsReadWithANameAreNotPartOfIt()
+	{
+		assertEquals("Shanese", Games.speakerName("SIMPSON GELLHOS Shanese"))
+		assertEquals("shanese" to "She's only uptight", Games.split("SIMPSON GELLHOS Shanese: She's only uptight"))
+		assertEquals("Shanese", com.inarabic.voice.DubLines.speaker("SIMPSON GELLHOS Shanese: She's only uptight"))
+		// a name the game knows whole stays whole
+		assertEquals("Kolt & Associates", Games.speakerName("Kolt & Associates"))
+		assertEquals("Staff Member", Games.speakerName("Staff Member"))
+	}
+
 	@Test fun passersByHaveNoVoiceOfTheirOwn()
 	{
 		org.junit.Assert.assertTrue(Games.crowd("Local") && !Games.crowd("Lucia") && !Games.crowd(null))

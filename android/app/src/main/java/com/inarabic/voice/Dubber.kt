@@ -141,10 +141,14 @@ object Dubber
 			for(pt in DubLines.parts(en.drop(done), ar.drop(done), namedOnly))
 			{
 				// its English (a task line among it does not count)
-				val enChars = en.subList(from, done + pt.end).filter { !namedOnly || DubLines.speaker(it) != null }.sumOf { it.substringAfter(':').trim().length }
+				val spoken = en.subList(from, done + pt.end).filter { !namedOnly || DubLines.speaker(it) != null }.map { it.substringAfter(':').trim() }
+				val enChars = spoken.sumOf { it.length }
 				from = done + pt.end
-				val key = (pt.speaker ?: "") + ":" + pt.arabic
-				// the same words from another line (it left the screen and came back): said once
+				// the same words from another line (it left the screen and came back, or was read again with something
+				// from the picture around it, as a new line): said once. Known by the English words said (its Arabic
+				// may differ by a dot or two between readings, and the name read with it may carry a word more)
+				val key = com.inarabic.caption.SubtitleTracker.key(spoken.joinToString(" "))
+					.let { if(it.length < 8) (pt.speaker ?: "") + ":" + it else it }
 				val before = recent[key]
 				if(before != null && before.first != id)
 				{

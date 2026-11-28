@@ -16,7 +16,7 @@ object DubLines
 	fun speaker(english: String): String?
 	{
 		val m = NAME.find(english) ?: return null
-		val n = m.groupValues[1].trim()
+		val n = com.inarabic.translate.Games.speakerName(m.groupValues[1].trim())
 		return n.takeUnless { it.lowercase() in NOT_PEOPLE || m.groupValues[2].isBlank() }
 	}
 
