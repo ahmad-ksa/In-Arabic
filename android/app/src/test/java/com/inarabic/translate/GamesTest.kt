@@ -63,6 +63,7 @@ class GamesTest
 			"wee-oh\" and l'm just there like, \"what the fuck!\"" to "wee-oh\" and I'm just there like, \"what the fuck!\"",
 			"Jason: 'Kay, all good." to "Jason: Okay, all good.",
 			"Stylist: 'Kay, well go around back." to "Stylist: Okay, well go around back.",
+			"Vicki: but l'm telling you, this is our way out of Starlet." to "Vicki: but I'm telling you, this is our way out of Starlet.",
 			"Vagrants: Could l get some change, Miss Lady?" to "Vagrants: Could I get some change, Miss Lady?",
 			"Vagrants: Man, l'm crashing and got the IAA all over me." to "Vagrants: Man, I'm crashing and got the IAA all over me.",
 			"Vicki: After l'm done tipping out Martin's useless ass," to "Vicki: After I'm done tipping Martin's useless ass,",

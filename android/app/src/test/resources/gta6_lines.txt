@@ -81,6 +81,7 @@ Billy: Yeah, that's them. Get 'em set up.
 Billy: Yo, nothing weird, but it's not delivering pizzas, either.
 Billy: Yo, wait up.
 Bobcat Key
+Borrachero Sound
 Buckskin Swamp
 Bud: Alright, human sibling. Lemme tell you 'bout the first time I ever saw an alien.
 Bud: Aw, hell nah, l'm not high enough for this shit!
@@ -112,6 +113,9 @@ Buy a newoutfit at the merch stal
 CE-DALE COUNTY
 COFFEE
 Change your hairstyle or hair color
+Chester: Awesome!
+Chester: Whew, yeah, now you're talking!
+Chester: Yeah you do!
 Clerk: American flag bikini. 'l stand and salute those every time I see 'em.
 Clerk: Ay, come on, we got high quality stuff. American made, chafe free and gentle on the nips. Tried it myself.
 Clerk: Ay, come on, we got high quality stuff. Amnerican made, chafe free and gentle on the nips. Tried it myself.
@@ -217,6 +221,7 @@ Dunk: you don't gotta worry about any of that with me!
 Dunk: you get hands on any product you wanna sell,
 ELCOME
 Emerald Springs
+Exit
 F*** you?
 Follow Frankie
 Follow Vicki
@@ -273,6 +278,7 @@ Get in the car
 Get in the vehicle
 Get in your car
 Getin Vicki'scar
+Go inside and speak to Vicki
 Go to Delights
 Go to Dunk's trailer
 Go to Frankie's office
@@ -341,6 +347,7 @@ Jason: Hurry up.
 Jason: I guess so.
 Jason: I hope you're not too big time for us now?
 Jason: I think we should do it.
+Jason: I thought that was hypothetical.
 Jason: I'm still here. Yeah, I feel lucky.
 Jason: Inch or two higher, I would've been wasted.
 Jason: It's Leonida, baby.
@@ -378,6 +385,7 @@ Jason: Uh, what was I saying?
 Jason: Wanna see who gets there first?
 Jason: We did so good on that run, we probably shouldn't risk it.
 Jason: We just gotta see what's on that drive.
+Jason: We'll think about it.
 Jason: Well, I was gonna say the liquor store...
 Jason: Well, we hit a few spots!
 Jason: What now?
@@ -438,24 +446,34 @@ Leonida Straits
 Like a crazy cut.
 Linda I'll be waiting.
 Linda: Ah.
+Linda: And I know you can't afford it!
+Linda: Chester! Shanese!
 Linda: Enjoy the peace and quiet.
 Linda: Good for you, honey.
 Linda: Here to pay your rent?
+Linda: I know what you're doing in there! I've seen your sheets!
+Linda: If you don't turn the music down, I will fine you for antisocial behavior!
 Linda: Just... get away from it all.
 Linda: Mm-hmm..
+Linda: No, I do not!
 Linda: Now, I do hope you have a good stay with us...
+Linda: Open this door, right now!
+Linda: This is your final warning!
 Linda: Yes, we will.
 Linda: You forget somethin'? Or are you paying up?
 Local: A cute thing like you? What are you gonna do?
 Local: Anyway... back to it..
 Local: Ay, watch it!
+Local: Ay, you need me to drive for you?
 Local: Can you grow up? Like..
 Local: Cash is in the register, knock yourself out..
 Local: Cash is in the register, knock yourself out.. Lucia: No messing around, just the good stuff!
 Local: Check it!
 Local: Eh fuck it. Yeah. Fuck it. I never even gave a shit.
+Local: First day drivin'? Jesus...
 Local: Freak..
 Local: Fuck no! No! Get off me!
+Local: Fuck you, dumbass!
 Local: Hey whoa, not fair!
 Local: Hey! Watch it!
 Local: Hey, Billy, this the fresh meat you're waiting for?
@@ -559,6 +577,7 @@ Lucia: Come on.
 Lucia: Come on. Let's get some breakfast.
 Lucia: Cool. Thanks.
 Lucia: Cool. Well, thanks again.
+Lucia: Damn.
 Lucia: Deep.
 Lucia: Dick!
 Lucia: Did you not hear me say l'm taking this?
@@ -572,6 +591,7 @@ Lucia: Get the fuck away from there, now!
 Lucia: Get the fuck out! Hurry up!
 Lucia: Get your ass... over here! Don't move!
 Lucia: Get your ass... over here! Don't move! Jason: Move!
+Lucia: Girl, I say go for it, then.
 Lucia: Go, go, go! Come on!
 Lucia: Good!
 Lucia: He got hurt.
@@ -588,11 +608,13 @@ Lucia: Hey, it's Lucia, Vicki's friend.
 Lucia: Hey, it's me. You must be sleeping.
 Lucia: Hey, over here dude.
 Lucia: Hey, this was fun!
+Lucia: Hey, you know if Vicki's working tonight?
 Lucia: Hey.
 Lucia: Hey. How you feeling?
 Lucia: Hey. You okay?
 Lucia: Hey... you know where I can get some new clothes?
 Lucia: Hmm, what's the most popular option?
+Lucia: Hmm...
 Lucia: Honestly, it was getting a little lonely out here.
 Lucia: Hope you're okay, and I got some good news.
 Lucia: How 'bout this one? Looks pretty good.
@@ -841,8 +863,14 @@ Return to Vicki's room
 Return to the start line to make another attempt
 Return toVicki'sroom
 Rob the thrift store
+SIMPSON GELLHOS Shanese: She's only uptight because she wants to party..
 SIY RY
 STITCH DETAIL COWBOY BOOTS
+Security Guard: Have fun.
+Security Guard: What do you want?
+Security Guard: Yeah, I think she's on the back bar right now.
+Shanese: Damn, Linda, chill out!
+Shanese: Hear that, Chester? Linda wants to party!
 She really big or something?
 Shop owner: Dirty, dope fiendin' bums!
 Should be fun.
@@ -988,7 +1016,10 @@ Vicki: C'mon, please? Just help me up.
 Vicki: C'mon. Use those legs.
 Vicki: Can I have my paycheck?
 Vicki: Come on, hard part's over.
+Vicki: Delight's could be big for all of us if we work together.
 Vicki: Don't get all jumpy, okay? It's fine.
+Vicki: Enough for me to quit Delight's and get Jordy out of that
+Vicki: Enough for me to quit Delight's and get Jordy out of that fuckin' shithole.
 Vicki: First, a promise is a promise.
 Vicki: Fuck Martin.
 Vicki: Gotta be patient in there, though.
@@ -999,18 +1030,22 @@ Vicki: Here, fifty bucks.
 Vicki: His trailer's just right around the corner on Tanglewood.
 Vicki: Hmm. His car's not here.
 Vicki: How 'boutI give you the money for the pills, hmm? As a peace offering?
+Vicki: I know who you guys are. I'm telling you,
 Vicki: I know, right? It's pretty good.
 Vicki: I think we should go with it.
 Vicki: I'm gonna hire a lawyer, and have this place shut down.
 Vicki: I'm gonna tip out the DJ, tip out the doorman.
 Vicki: I'm gonna tip out the bar, and then I'm gonna tip out the waitress,
 Vicki: I'm supposed to just know that? Help me up.
+Vicki: It was, it was, but, does it have to be?
 Vicki: It's like meeting a dinosaur, but really shitty.
 Vicki: It's of me and you being a team or somethin',
 Vicki: Jeez. God forbid a girl squeeze in a quick hustle.
 Vicki: Just bring it there. Tell him I sent you.
 Vicki: Knock knock!
 Vicki: Let's go girl. Vamanos.
+Vicki: Look, I know. Okay?
+Vicki: Lucia, you do know I would punt a orphan into traffic
 Vicki: Mm-hmm.
 Vicki: Never mind. Did you get your pills?
 Vicki: No, I would in a heartbeat, but I have Jordy. I need the money.
@@ -1022,6 +1057,7 @@ Vicki: Okay, look. Maybe it's the weed...
 Vicki: Okay, maybe just a little bit of weed,
 Vicki: Okay, maybe just a little bit of weed, but that doesn't count...
 Vicki: Okay, maybe justt a little bit of weed,
+Vicki: Or you can upgrade your room if you like it there, whatever!
 Vicki: Relax, it's right off the main strip! Whole thing'll take me five minutes tops, okay? No big deal.
 Vicki: Right, so, just make a left to get out of here,
 Vicki: See how it goes.
@@ -1038,10 +1074,12 @@ Vicki: There she is!
 Vicki: There's a pretty good thrift store on the other end of the strip.
 Vicki: This is Lucia, Frankie. My neighbor.
 Vicki: Those are 80s, so start with half and then, uh...
+Vicki: Uh, five figures each... at least!
 Vicki: Urgh, did you get a cat?
 Vicki: We done here?
 Vicki: We got my check, let's go see Dunk.
 Vicki: We just need to go scoot by Delights and grab my paycheck.
+Vicki: We just need to wait for the right night,
 Vicki: We're gonna go see my friend Dunk.
 Vicki: Well, they usually hang out at this warehouse at the old boatyard.
 Vicki: What's up? We goin'?
@@ -1050,13 +1088,17 @@ Vicki: Woof. Been there, sister.
 Vicki: Yeah, that's the least you could do for a vet like me.
 Vicki: Yeah, you're really fannin' the flames aren't you, Frankie?
 Vicki: You good? Got the mirrors right and everything. yeah?
+Vicki: You guys, too!
 Vicki: You think you're running a five-star facility,
 Vicki: Yup
+Vicki: and I know the code to his safe.
 Vicki: and I'm just feeling really strong about that.
 Vicki: and you know what l'm gonna do with the rest?
 Vicki: but I'm seeing. like, this image..
 Vicki: but he picks up from a real doctor, and trust me...
 Vicki: but he went home early. What's up with that, hmm?
+Vicki: but l'm telling you, this is our way out of Starlet.
+Vicki: if it meantl could fuck over Frankie even once..
 Vicki: that's the best option around here.
 Vicki: to keep the damn lights on in here.
 Vicki: when actually. you're lucky we dance long enough
@@ -1073,6 +1115,7 @@ Worker: Argh! That's fucking insane!
 Worker: Come on! What the fuck is wrong with y'all?
 Worker: Suck a dick!
 Workers: 'Ey! Yo! Stop, or Ill call the cops.
+Workers: Cerote!
 Workers: Stop messin' 'round with people shit like that!
 Workers: Stop messin' 'round with people shit like that! Workers: Whoa, you fucked up their shit! You better hope they're a little bitch!
 Workers: Yo, bro. Bro!
@@ -1105,7 +1148,9 @@ l o gl ai
 lan: Ah, fuck!
 lan: Dude, watch it!
 ogill / aungnal / Clauoill / aanl
+south Kelly County
 t a vehicle at Rooster's Rentals
+th Ke?
 the start line to attempt the Drag Strip time trial
 ucia: Bye
 weapon locker.

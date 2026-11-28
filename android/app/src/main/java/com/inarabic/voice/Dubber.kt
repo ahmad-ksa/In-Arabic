@@ -38,6 +38,8 @@ object Dubber
 		val started = CountDownLatch(1)
 		/** who says it with which voice, and where the time went (for the log) */
 		@Volatile var info = ""
+		/** how long it will last, at its speed (before its sound has all come) */
+		@Volatile var estMs = 0L
 	}
 
 	private val lock = Object()
@@ -62,6 +64,8 @@ object Dubber
 	private var onScreen: Triple<Int, Long, Int>? = null
 	/** when what the screens play now ends */
 	private var busyUntil = 0L
+	/** when the line being said now ends (the next lines wait for it) */
+	@Volatile private var playingUntil = 0L
 	/** Microsoft's voices failed: the phone's voice is used for a while before they are tried again */
 	@Volatile private var edgeDownUntil = 0L
 
@@ -166,7 +170,8 @@ object Dubber
 		val known = games.person(job.part.speaker)?.takeIf { job.part.speaker?.let { Voices.fixed(c, it) } != true }
 		// a passer-by («Local»): someone else each line, a man or a woman as heard; no voice kept for them
 		val crowd = games.crowd(job.part.speaker)
-		val named = if(crowd) games.crowdGender(job.part.speaker) else null
+		// a man or a woman: a passer-by's as the name says it; one of the game's people's, always
+		val named = if(crowd) games.crowdGender(job.part.speaker) else known?.let { if(it.female) 'f' else 'm' }
 		// who speaks is not known yet: enough of the line heard to tell a man from a woman
 		val listen = p.voiceWho == "auto" && known == null &&
 			(if(crowd) named == null else job.part.speaker == null || !Voices.settled(c, job.part.speaker))
@@ -192,9 +197,17 @@ object Dubber
 		val text = if(p.newSystem) job.part.arabic else com.inarabic.translate.Games.forVoice(Dialect.say(job.part.arabic, p.voiceDialect))
 		// how long it is: its letters (the vowel marks are not said on their own)
 		val letters = com.inarabic.translate.NewTranslator.plain(text).length
-		// «ضبط السرعة تلقائي»: as fast as makes it last as long as the English
+		// «ضبط السرعة تلقائي»: as fast as makes it end when the English does. A line whose turn comes late (the lines
+		// before it are still being said) is said faster by as much, so the dub catches up with the game instead of
+		// falling further behind until lines are left out; never faster than 180 %
 		val rate = if(p.voiceAutoRate && job.enChars >= 4)
-			(100f * (letters / voiceCps) / (job.enChars / gameCps)).toInt().coerceIn(80, 180) else p.voiceRate
+		{
+			val enMs = job.enChars / gameCps * 1000
+			val late = (startsAt(job) - job.seenAt).coerceAtLeast(0)
+			(100f * (letters / voiceCps * 1000) / maxOf(enMs - late, enMs * 0.55f)).toInt().coerceIn(80, 180)
+		}
+		else p.voiceRate
+		job.estMs = (letters / voiceCps * 1000 * 100 / rate).toLong()
 		job.info = "${job.part.speaker ?: "?"} heard=${heard ?: '-'} → ${voice.label} ${rate}%: ${text.take(50)}"
 		var sound: Sound? = null
 		val made = speak(c, text, voice, rate) { sound = it; job.sound = it; job.started.countDown() }
@@ -206,6 +219,14 @@ object Dubber
 			val ms = s.ms()
 			if(ms > 300) voiceCps = (voiceCps * 0.8f + letters * 1000f / ms * (100f / rate) * 0.2f).coerceIn(6f, 30f)
 		}
+	}
+
+	/** when [job]'s turn comes: after the line being said and the ones waiting before it */
+	private fun startsAt(job: Job): Long = synchronized(lock) {
+		val now = System.currentTimeMillis()
+		var at = maxOf(playingUntil, now)
+		for(j in waiting) { if(j === job) break; at += if(j.estMs > 0) j.estMs else (com.inarabic.translate.NewTranslator.plain(j.part.arabic).length / voiceCps * 1000).toLong() }
+		at
 	}
 
 	/** says the lines in order, each when the one before it is over */
@@ -236,6 +257,7 @@ object Dubber
 			if(now - job.readyAt > STALE_MS) { Diag.count("dub: left out (too late)"); Diag.add("dub: LEFT OUT, ${now - job.readyAt} ms after its text was ready: ${job.info}"); job.work?.cancel(true); continue }
 			if(gen != generation) return
 			val late = now - job.seenAt
+			playingUntil = now + (if(sound.finished) sound.ms() else job.estMs)
 			Diag.count("dub: starts, ms after the line began", late)
 			Diag.add("dub: starts $late ms after the line: ${job.info}")
 			// «الشاشة»: on the screens, or on the phone when no screen is linked (so it is heard anyway)
@@ -265,7 +287,8 @@ object Dubber
 	 */
 	private fun speak(c: Context, text: String, voice: Voices.V, rate: Int, begin: (Sound) -> Unit): String
 	{
-		if(System.currentTimeMillis() > edgeDownUntil)
+		// «صوت الدبلجة»: Microsoft's voices, or the phone's own (at once, but less natural)
+		if(InArabicPrefs(c).voiceEngine != "phone" && System.currentTimeMillis() > edgeDownUntil)
 		{
 			val s = Sound("audio/mpeg")
 			var begun = false

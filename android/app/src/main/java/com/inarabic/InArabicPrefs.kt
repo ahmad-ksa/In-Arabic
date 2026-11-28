@@ -110,6 +110,9 @@ class InArabicPrefs(context: Context)
 	/** the new system's swearing: as it is said ("raw") or softened ("soft": «تبًا لك») */
 	val rawSwears get() = p.getString("ia_swears", "raw") != "soft"
 
+	/** «صوت الدبلجة»: Microsoft's voices ("edge", free, natural) or the phone's own ("phone", at once, less natural) */
+	val voiceEngine get() = p.getString("ia_voice_engine", "edge") ?: "edge"
+
 	/** the old system's translation source: Google Translate's free service */
 	val engine: String get() = "google"
 	val aiOnly get() = false

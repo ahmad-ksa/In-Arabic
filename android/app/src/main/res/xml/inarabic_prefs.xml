@@ -65,6 +65,8 @@
     <PreferenceCategory app:title="٥. صوت الترجمة (دبلجة)" app:iconSpaceReserved="false">
         <SwitchPreference app:key="ia_voice" app:defaultValue="false" app:iconSpaceReserved="false"
             app:title="صوت الترجمة" app:summary="يقول الحوار بالعربي أول ما يترجمه. نزّل صوت الحوار في إعدادات اللعبة شوي (لا تقفله)" />
+        <ListPreference app:key="ia_voice_engine" app:title="صوت الدبلجة" app:defaultValue="edge" app:iconSpaceReserved="false"
+            app:entries="@array/ia_voice_engine_names" app:entryValues="@array/ia_voice_engine_values" app:useSimpleSummaryProvider="true" />
         <ListPreference app:key="ia_voice_out" app:title="وين تسمع الصوت" app:defaultValue="tv" app:iconSpaceReserved="false"
             app:entries="@array/ia_voice_out_names" app:entryValues="@array/ia_voice_out_values" app:useSimpleSummaryProvider="true" />
         <SwitchPreference app:key="ia_voice_auto_rate" app:defaultValue="false" app:iconSpaceReserved="false"

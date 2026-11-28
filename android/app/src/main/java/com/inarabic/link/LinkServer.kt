@@ -53,6 +53,11 @@ object LinkServer
 	val screens = mutableMapOf<WebSocket, String>()
 	/** LG screens and their addresses (kept awake from the phone, see LgKeepAwake) */
 	private val lgScreens = mutableMapOf<WebSocket, String>()
+	/** the screen you play on: the one whose app was opened last (it said hello last). Only it shows the
+	 * translation and plays the dub; another screen still linked shows nothing (an LG one is let sleep) */
+	@Volatile private var active: WebSocket? = null
+	/** the screens that said hello, oldest first (when the one you play on closes, the one before it takes over) */
+	private val opened = ArrayList<WebSocket>()
 	/** an LG TV app is connected now */
 	fun hasLgScreen() = synchronized(lgScreens) { lgScreens.isNotEmpty() }
 	var onScreensChanged: (() -> Unit)? = null
@@ -83,6 +88,8 @@ object LinkServer
 		try { nsdListener?.let { nsd?.unregisterService(it) } } catch(e: Exception) { }
 		nsdListener = null
 		synchronized(screens) { screens.clear() }
+		synchronized(opened) { opened.clear() }
+		active = null
 		onScreensChanged?.invoke()
 	}
 
@@ -218,10 +225,9 @@ object LinkServer
 	/** a dubbed line for the screens to play now ([mime] audio/mpeg or audio/wav) */
 	fun sendVoice(mime: String, bytes: ByteArray)
 	{
-		// to the screens only: the phone plays its own copy (Dubber), its caption view has nothing to draw
-		val msg = JSONObject().put("t", "voice").put("mime", mime)
-			.put("data", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)).toString()
-		try { server?.broadcast(msg) } catch(e: Exception) { Log.w(TAG, "voice", e) }
+		// to the screen only: the phone plays its own copy (Dubber), its caption view has nothing to draw
+		toScreen(JSONObject().put("t", "voice").put("mime", mime)
+			.put("data", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)).toString())
 	}
 
 	fun sendNotice(text: String) = broadcast(JSONObject().put("t", "notice").put("text", text).toString())
@@ -277,7 +283,39 @@ object LinkServer
 	private fun broadcast(msg: String)
 	{
 		local?.invoke(msg)
-		try { server?.broadcast(msg) } catch(e: Exception) { Log.w(TAG, "broadcast", e) }
+		toScreen(msg)
+	}
+
+	/** to the screen you play on (to all of them before any said which it is) */
+	private fun toScreen(msg: String)
+	{
+		try
+		{
+			val a = active
+			if(a != null && a.isOpen) a.send(msg) else server?.broadcast(msg)
+		}
+		catch(e: Exception) { Log.w(TAG, "send", e) }
+	}
+
+	/** [conn] becomes the screen you play on: it gets what is on screen now; the one before it is emptied (and an LG
+	 * one let sleep) */
+	private fun makeActive(conn: WebSocket)
+	{
+		val old = active
+		active = conn
+		if(old != null && old !== conn && old.isOpen) try
+		{
+			for(t in listOf("clear", "sideclear", "box2clear", "lensclear")) old.send("{\"t\":\"$t\"}")
+		}
+		catch(e: Exception) { }
+		if(old != null && old !== conn) synchronized(lgScreens) { lgScreens[old] }?.let { com.inarabic.lg.LgKeepAwake.stop(it) }
+		synchronized(lgScreens) { lgScreens[conn] }?.let { ip -> appContext?.let { com.inarabic.lg.LgKeepAwake.start(it, ip) } }
+		lastStyle?.let { conn.send(it) }
+		lastSub?.let { conn.send(it) }
+		lastBox2?.let { conn.send(it) }
+		lastSide?.let { conn.send(it) }
+		lastLens?.let { conn.send(it) }
+		conn.send(clockMsg())
 	}
 
 	/** This phone's addresses on the home network, for the LG app. */
@@ -308,12 +346,8 @@ object LinkServer
 			}
 			synchronized(screens) { screens[conn] = conn.remoteSocketAddress?.address?.hostAddress ?: "?" }
 			onScreensChanged?.invoke()
+			// what is on screen comes when it says which screen it is (hello): it becomes the one you play on
 			lastStyle?.let { conn.send(it) }
-			lastSub?.let { conn.send(it) }
-			lastBox2?.let { conn.send(it) }
-			lastSide?.let { conn.send(it) }
-			lastLens?.let { conn.send(it) }
-			conn.send(clockMsg())
 		}
 
 		override fun onClose(conn: WebSocket, code: Int, reason: String?, remote: Boolean)
@@ -322,6 +356,9 @@ object LinkServer
 			onScreensChanged?.invoke()
 			val ip = synchronized(lgScreens) { lgScreens.remove(conn)?.takeIf { it !in lgScreens.values } }
 			if(ip != null) com.inarabic.lg.LgKeepAwake.stop(ip)
+			// the screen you played on closed: the one opened before it takes over
+			val next = synchronized(opened) { opened.remove(conn); opened.lastOrNull { it.isOpen } }
+			if(active === conn) { active = null; next?.let { makeActive(it) } }
 		}
 
 		override fun onMessage(conn: WebSocket, message: String)
@@ -335,12 +372,11 @@ object LinkServer
 					val name = o.optString("name").ifBlank { kind }
 					synchronized(screens) { screens[conn] = name }
 					onScreensChanged?.invoke()
-					// an LG screen: the phone keeps it awake (you play with the controller, not its remote)
+					// an LG screen: the phone keeps it awake while you play on it (with the controller, not its remote)
 					val ip = conn.remoteSocketAddress?.address?.hostAddress
-					if(kind == "lg" && ip != null) appContext?.let {
-						synchronized(lgScreens) { lgScreens[conn] = ip }
-						com.inarabic.lg.LgKeepAwake.start(it, ip)
-					}
+					if(kind == "lg" && ip != null) synchronized(lgScreens) { lgScreens[conn] = ip }
+					synchronized(opened) { opened.remove(conn); opened.add(conn) }
+					makeActive(conn)
 				}
 				// a screen could not play a dubbed line (the reason, for the log)
 				else if(o.optString("t") == "voiceerr") com.inarabic.Diag.add("dub: screen ${screens[conn] ?: "?"} could not play: " + o.optString("e"))

@@ -100,4 +100,12 @@
         <item>raw</item>
         <item>soft</item>
     </string-array>
+    <string-array name="ia_voice_engine_names">
+        <item>مايكروسوفت: طبيعي ومجاني</item>
+        <item>صوت الجوال: فوري بس آلي أكثر</item>
+    </string-array>
+    <string-array name="ia_voice_engine_values">
+        <item>edge</item>
+        <item>phone</item>
+    </string-array>
 </resources>
